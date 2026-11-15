@@ -1,0 +1,211 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum WorkspaceType {
+  PERSONAL
+  ORGANIZATION
+}
+
+enum WorkspaceRole {
+  OWNER
+  ADMIN
+  MANAGER
+  MEMBER
+  GUEST
+}
+
+enum MembershipStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+model User {
+  id        String   @id @db.Uuid
+  email     String   @unique
+  fullName  String   @map("full_name")
+  avatarUrl String?  @map("avatar_url")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  ownedWorkspaces Workspace[]           @relation("WorkspaceOwner")
+  memberships     WorkspaceMember[]
+  sentInvitations WorkspaceInvitation[] @relation("InvitedByUser")
+  createdChannels WorkspaceChatChannel[] @relation("ChannelCreator")
+  channelMemberships ChatChannelMember[]
+  directConversationsAsUser1 ChatDirectConversation[] @relation("ConversationUser1")
+  directConversationsAsUser2 ChatDirectConversation[] @relation("ConversationUser2")
+  pinnedArtifacts ChatPinnedArtifact[] @relation("PinnedByUser")
+
+  @@map("users")
+}
+
+model Workspace {
+  id          String        @id @default(uuid()) @db.Uuid
+  name        String
+  slug        String        @unique
+  description String?
+  type        WorkspaceType @default(ORGANIZATION)
+  avatarUrl   String?       @map("avatar_url")
+  ownerId     String        @map("owner_id") @db.Uuid
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  // Relations
+  owner       User                  @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  members     WorkspaceMember[]
+  invitations WorkspaceInvitation[]
+  settings    WorkspaceSettings?
+  channels    WorkspaceChatChannel[]
+  directConversations ChatDirectConversation[]
+
+  @@index([ownerId])
+  @@index([type])
+  @@map("workspaces")
+}
+
+model WorkspaceMember {
+  id          String           @id @default(uuid()) @db.Uuid
+  workspaceId String           @map("workspace_id") @db.Uuid
+  userId      String           @map("user_id") @db.Uuid
+  role        WorkspaceRole    @default(MEMBER)
+  status      MembershipStatus @default(ACTIVE)
+  joinedAt    DateTime         @default(now()) @map("joined_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  // Relations
+  workspace   Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([workspaceId])
+  @@index([userId])
+  @@index([role])
+  @@index([status])
+  @@map("workspace_members")
+}
+
+model WorkspaceInvitation {
+  id          String        @id @default(uuid()) @db.Uuid
+  workspaceId String        @map("workspace_id") @db.Uuid
+  email       String
+  role        WorkspaceRole @default(MEMBER)
+  tokenHash   String        @unique @map("token_hash")
+  invitedBy   String        @map("invited_by") @db.Uuid
+  expiresAt   DateTime      @map("expires_at")
+  acceptedAt  DateTime?     @map("accepted_at")
+  revokedAt   DateTime?     @map("revoked_at")
+  createdAt   DateTime      @default(now()) @map("created_at")
+
+  // Relations
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  inviter     User          @relation("InvitedByUser", fields: [invitedBy], references: [id], onDelete: Restrict)
+
+  @@index([workspaceId, email])
+  @@index([tokenHash])
+  @@index([expiresAt])
+  @@map("workspace_invitations")
+}
+
+model WorkspaceSettings {
+  id                     String        @id @default(uuid()) @db.Uuid
+  workspaceId            String        @unique @map("workspace_id") @db.Uuid
+  defaultMemberRole      WorkspaceRole @default(MEMBER) @map("default_member_role")
+  allowMemberInvitations Boolean       @default(true) @map("allow_member_invitations")
+  allowGuestAccess       Boolean       @default(false) @map("allow_guest_access")
+  createdAt              DateTime      @default(now()) @map("created_at")
+  updatedAt              DateTime      @updatedAt @map("updated_at")
+
+  // Relations
+  workspace              Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("workspace_settings")
+}
+
+enum ChatChannelType {
+  PUBLIC
+  PRIVATE
+}
+
+model WorkspaceChatChannel {
+  id               String               @id @default(uuid()) @db.Uuid
+  workspaceId      String               @map("workspace_id") @db.Uuid
+  nexconnChannelId String               @unique @map("nexconn_channel_id")
+  name             String
+  description      String?
+  type             ChatChannelType      @default(PUBLIC)
+  isDefault        Boolean              @default(false) @map("is_default")
+  createdById      String               @map("created_by_id") @db.Uuid
+  createdAt        DateTime             @default(now()) @map("created_at")
+  updatedAt        DateTime             @updatedAt @map("updated_at")
+
+  // Relations
+  workspace        Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  creator          User                 @relation("ChannelCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  members          ChatChannelMember[]
+  pinnedArtifacts  ChatPinnedArtifact[]
+
+  @@unique([workspaceId, name])
+  @@index([workspaceId])
+  @@index([nexconnChannelId])
+  @@map("workspace_chat_channels")
+}
+
+model ChatChannelMember {
+  id        String               @id @default(uuid()) @db.Uuid
+  channelId String               @map("channel_id") @db.Uuid
+  userId    String               @map("user_id") @db.Uuid
+  joinedAt  DateTime             @default(now()) @map("joined_at")
+
+  // Relations
+  channel   WorkspaceChatChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([channelId, userId])
+  @@index([channelId])
+  @@index([userId])
+  @@map("chat_channel_members")
+}
+
+model ChatDirectConversation {
+  id            String    @id @default(uuid()) @db.Uuid
+  workspaceId   String    @map("workspace_id") @db.Uuid
+  user1Id       String    @map("user1_id") @db.Uuid
+  user2Id       String    @map("user2_id") @db.Uuid
+  lastMessageAt DateTime? @map("last_message_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user1         User      @relation("ConversationUser1", fields: [user1Id], references: [id], onDelete: Cascade)
+  user2         User      @relation("ConversationUser2", fields: [user2Id], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, user1Id, user2Id])
+  @@index([workspaceId])
+  @@index([user1Id])
+  @@index([user2Id])
+  @@map("chat_direct_conversations")
+}
+
+model ChatPinnedArtifact {
+  id         String               @id @default(uuid()) @db.Uuid
+  channelId  String               @map("channel_id") @db.Uuid
+  title      String
+  url        String
+  pinnedById String               @map("pinned_by_id") @db.Uuid
+  createdAt  DateTime             @default(now()) @map("created_at")
+
+  // Relations
+  channel    WorkspaceChatChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  pinnedBy   User                 @relation("PinnedByUser", fields: [pinnedById], references: [id], onDelete: Restrict)
+
+  @@index([channelId])
+  @@map("chat_pinned_artifacts")
+}

@@ -1,0 +1,91 @@
+export type WorkspaceType = "personal" | "organization" | "PERSONAL" | "ORGANIZATION";
+
+export type WorkspaceRole = "OWNER" | "ADMIN" | "MANAGER" | "MEMBER" | "GUEST";
+
+export type MembershipStatus = "ACTIVE" | "SUSPENDED";
+
+export interface Workspace {
+  id: string;
+  name: string;
+  slug: string;
+  type: WorkspaceType;
+  role: WorkspaceRole | "owner" | "admin" | "member" | "viewer";
+  avatar?: string;
+  avatarUrl?: string | null;
+  description?: string | null;
+  memberCount?: number;
+  ownerId?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface WorkspaceMemberItem {
+  id: string;
+  workspaceId: string;
+  userId: string;
+  role: WorkspaceRole;
+  status: MembershipStatus;
+  joinedAt: string;
+  updatedAt: string;
+  user: {
+    id: string;
+    email: string;
+    fullName: string;
+    avatarUrl?: string | null;
+  };
+}
+
+export interface WorkspaceInvitationItem {
+  id: string;
+  workspaceId: string;
+  email: string;
+  role: WorkspaceRole;
+  invitedBy: string;
+  expiresAt: string;
+  acceptedAt?: string | null;
+  revokedAt?: string | null;
+  createdAt: string;
+  inviter?: {
+    id: string;
+    email: string;
+    fullName: string;
+  };
+}
+
+export interface WorkspaceSettingsItem {
+  id: string;
+  workspaceId: string;
+  defaultMemberRole: WorkspaceRole;
+  allowMemberInvitations: boolean;
+  allowGuestAccess: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  avatarUrl?: string;
+  title?: string;
+  role: string;
+}
+
+export interface NavItem {
+  id: string;
+  title: string;
+  href: string;
+  iconName: string;
+  badge?: string | number;
+  badgeVariant?: "default" | "subtle" | "warning";
+}
+
+export interface NotificationItem {
+  id: string;
+  title: string;
+  message: string;
+  timestamp: string;
+  read: boolean;
+  type: "mention" | "task" | "meeting" | "system";
+  link?: string;
+}
