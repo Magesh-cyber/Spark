@@ -37,23 +37,64 @@ function formatDuration(seconds: number): string {
 
 function getSupportedAudioMime(): { mimeType: string; ext: string } {
   if (typeof window === "undefined" || typeof MediaRecorder === "undefined") {
-    return { mimeType: "audio/webm", ext: "webm" };
+    return { mimeType: "", ext: "m4a" };
   }
   const candidates = [
     { mimeType: "audio/webm;codecs=opus", ext: "webm" },
     { mimeType: "audio/webm", ext: "webm" },
     { mimeType: "audio/mp4", ext: "m4a" },
+    { mimeType: "audio/aac", ext: "aac" },
     { mimeType: "audio/ogg;codecs=opus", ext: "ogg" },
     { mimeType: "audio/wav", ext: "wav" },
   ];
   for (const c of candidates) {
     try {
-      if (MediaRecorder.isTypeSupported(c.mimeType)) {
+      if (typeof MediaRecorder.isTypeSupported === "function" && MediaRecorder.isTypeSupported(c.mimeType)) {
         return c;
       }
     } catch {}
   }
-  return { mimeType: "audio/webm", ext: "webm" };
+  return { mimeType: "", ext: "m4a" };
+}
+
+async function requestAudioStream(): Promise<MediaStream> {
+  if (typeof navigator === "undefined") {
+    throw new Error("MEDIA_NOT_SUPPORTED");
+  }
+
+  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    return await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
+    });
+  }
+
+  const legacyGetUserMedia =
+    (navigator as any).getUserMedia ||
+    (navigator as any).webkitGetUserMedia ||
+    (navigator as any).mozGetUserMedia ||
+    (navigator as any).msGetUserMedia;
+
+  if (legacyGetUserMedia) {
+    return new Promise((resolve, reject) => {
+      legacyGetUserMedia.call(
+        navigator,
+        {
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+          },
+        },
+        resolve,
+        reject
+      );
+    });
+  }
+
+  throw new Error("MEDIA_NOT_SUPPORTED");
 }
 
 export function MessageComposer() {
@@ -78,6 +119,7 @@ export function MessageComposer() {
 
   const mediaInputRef = useRef<HTMLInputElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const audioCaptureInputRef = useRef<HTMLInputElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   // Recorder references
@@ -152,6 +194,7 @@ export function MessageComposer() {
     setUploadError(null);
     if (mediaInputRef.current) mediaInputRef.current.value = "";
     if (fileInputRef.current) fileInputRef.current.value = "";
+    if (audioCaptureInputRef.current) audioCaptureInputRef.current.value = "";
   };
 
   const stageSelectedFile = (file: File) => {
@@ -198,32 +241,47 @@ export function MessageComposer() {
     }
   };
 
-  // Start live microphone recording
+  // Start live microphone recording with seamless mobile fallback
   const startRecording = async () => {
     setUploadError(null);
     if (isSending || !isReady) return;
 
-    if (
-      typeof window === "undefined" ||
-      !navigator?.mediaDevices?.getUserMedia ||
-      typeof MediaRecorder === "undefined"
-    ) {
-      setUploadError("Audio voice recording is not supported on this browser.");
-      return;
+    // Browser Security Check: navigator.mediaDevices is only exposed in Secure Contexts (HTTPS or localhost)
+    const isSecure =
+      typeof window !== "undefined" &&
+      (window.isSecureContext ||
+        window.location.hostname === "localhost" ||
+        window.location.hostname === "127.0.0.1");
+
+    const hasMediaStreamAPI =
+      typeof navigator !== "undefined" &&
+      (Boolean(navigator.mediaDevices?.getUserMedia) ||
+        Boolean((navigator as any).getUserMedia || (navigator as any).webkitGetUserMedia));
+
+    const hasMediaRecorder = typeof MediaRecorder !== "undefined";
+
+    // If accessed over plain HTTP on LAN or in a browser/webview without MediaRecorder:
+    // Seamlessly trigger native device voice recorder via HTML5 capture="microphone"
+    if (!isSecure || !hasMediaStreamAPI || !hasMediaRecorder) {
+      if (audioCaptureInputRef.current) {
+        audioCaptureInputRef.current.click();
+        return;
+      }
     }
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        },
-      });
+      const stream = await requestAudioStream();
       mediaStreamRef.current = stream;
 
       const { mimeType } = getSupportedAudioMime();
-      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      let recorder: MediaRecorder;
+      try {
+        recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      } catch {
+        // Fallback for Safari/iOS WebKit if explicit MIME is rejected
+        recorder = new MediaRecorder(stream);
+      }
+
       mediaRecorderRef.current = recorder;
       audioChunksRef.current = [];
 
@@ -245,14 +303,21 @@ export function MessageComposer() {
       stopMediaStream();
       stopTimer();
       setIsRecording(false);
+
+      // If in-app getUserMedia fails or is rejected, gracefully invoke native device voice recorder
+      if (audioCaptureInputRef.current) {
+        audioCaptureInputRef.current.click();
+        return;
+      }
+
       if (err?.name === "NotAllowedError" || err?.name === "PermissionDeniedError") {
         setUploadError(
           "Microphone permission was denied. Please allow microphone access in your browser to record voice messages."
         );
-      } else if (err?.name === "NotFoundError" || err?.name === "DevicesNotFoundError") {
-        setUploadError("No microphone found. Please connect a microphone to record voice messages.");
       } else {
-        setUploadError(err?.message || "Failed to start microphone recording.");
+        setUploadError(
+          "Microphone recording could not start. You can attach an audio recording using the paperclip button."
+        );
       }
     }
   };
@@ -264,7 +329,7 @@ export function MessageComposer() {
     stopTimer();
 
     const recorder = mediaRecorderRef.current;
-    const { mimeType, ext } = getSupportedAudioMime();
+    const { mimeType: preferredMime, ext } = getSupportedAudioMime();
 
     return new Promise<void>((resolve) => {
       recorder.onstop = async () => {
@@ -276,12 +341,13 @@ export function MessageComposer() {
         audioChunksRef.current = [];
 
         if (!chunks || chunks.length === 0 || duration < 1) {
-          setUploadError("Voice message too short.");
+          setUploadError("Voice message was too short.");
           resolve();
           return;
         }
 
-        const audioBlob = new Blob(chunks, { type: mimeType || "audio/webm" });
+        const effectiveMime = recorder.mimeType || preferredMime || "audio/webm";
+        const audioBlob = new Blob(chunks, { type: effectiveMime });
         const now = new Date();
         const timeStr = `${now.getHours().toString().padStart(2, "0")}${now
           .getMinutes()
@@ -289,7 +355,7 @@ export function MessageComposer() {
           .padStart(2, "0")}`;
         const fileName = `voice-message-${timeStr}.${ext}`;
         const audioFile = new File([audioBlob], fileName, {
-          type: mimeType || "audio/webm",
+          type: effectiveMime,
           lastModified: Date.now(),
         });
 
@@ -329,7 +395,6 @@ export function MessageComposer() {
     if (e) e.preventDefault();
     if (isSending) return;
 
-    // If currently recording, clicking submit stops and sends the voice note
     if (isRecording) {
       await finishRecording(true);
       return;
@@ -573,13 +638,23 @@ export function MessageComposer() {
               accept="image/*,video/*"
             />
 
-            {/* Hidden Document / File / Audio Picker */}
+            {/* Hidden Document / File Attachment Picker */}
             <input
               type="file"
               ref={fileInputRef}
               onChange={handleFileChange}
               className="hidden"
               accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.txt,.csv"
+            />
+
+            {/* Native Mobile Audio Voice Recorder Fallback Input (captures OS voice memo even on insecure HTTP) */}
+            <input
+              type="file"
+              ref={audioCaptureInputRef}
+              onChange={handleFileChange}
+              className="hidden"
+              accept="audio/*"
+              capture="user"
             />
 
             {/* Photo / Video Button */}
