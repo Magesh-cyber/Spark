@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, CheckCircle2, AlertCircle, KeyRound } from "lucide-react";
 import { SparkLogo } from "@/components/brand/SparkLogo";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
@@ -39,11 +40,9 @@ export default function ForgotPasswordPage() {
       );
 
       if (resetError) {
-        // Log internally, but show generic message to avoid account harvesting
         console.error("Password reset error:", resetError.message);
       }
 
-      // Always show generic confirmation
       setIsSubmitted(true);
     } catch {
       setError("An unexpected error occurred. Please try again.");
@@ -53,30 +52,36 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#F8FAFC] px-4 py-12">
+    <div className="relative flex min-h-screen items-center justify-center bg-[var(--spark-canvas)] px-4 py-12 transition-colors duration-150">
+      <div className="fixed top-4 right-4">
+        <ThemeToggle variant="icon" />
+      </div>
+
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center space-y-2">
           <div className="inline-flex justify-center">
             <SparkLogo size="lg" />
           </div>
-          <h1 className="text-xl font-semibold tracking-tight text-slate-900">
+          <h1 className="text-xl font-semibold tracking-tight text-[var(--spark-text-primary)]">
             Reset your password
           </h1>
-          <p className="text-xs text-slate-500 font-normal">
+          <p className="text-xs text-[var(--spark-text-secondary)] font-normal">
             Enter your verified work email to receive recovery instructions.
           </p>
         </div>
 
-        <div className="rounded-[10px] border border-slate-200 bg-white p-6 shadow-subtle space-y-4">
+        <div className="rounded-[12px] border border-[var(--spark-border)] bg-[var(--spark-surface)] p-6 shadow-subtle space-y-4">
           {isSubmitted ? (
             <div className="space-y-4">
-              <div className="rounded-lg border border-emerald-200 bg-emerald-50/80 p-3.5 text-xs text-emerald-800 space-y-1">
+              <div className="rounded-[8px] border border-[#10B981]/30 bg-[#10B981]/10 p-3.5 text-xs text-emerald-700 dark:text-emerald-300 space-y-1">
                 <div className="flex items-center gap-2 font-semibold">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                  <CheckCircle2 className="h-4 w-4 text-[#10B981] shrink-0" />
                   <span>Check your inbox</span>
                 </div>
-                <p className="text-slate-600 pt-1 leading-relaxed">
-                  If an account exists for <span className="font-semibold text-slate-900">{email}</span>, we have sent instructions to reset your password.
+                <p className="text-[var(--spark-text-secondary)] pt-1 leading-relaxed">
+                  If an account exists for{" "}
+                  <span className="font-semibold text-[var(--spark-text-primary)]">{email}</span>,
+                  we have sent instructions to reset your password.
                 </p>
               </div>
 
@@ -91,8 +96,8 @@ export default function ForgotPasswordPage() {
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               {error && (
-                <div className="rounded-lg border border-red-200 bg-red-50/70 p-3 text-xs text-red-700 flex items-start gap-2">
-                  <AlertCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
+                <div className="rounded-[8px] border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-700 dark:text-rose-300 flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 text-rose-500 shrink-0 mt-0.5" />
                   <span>{error}</span>
                 </div>
               )}
@@ -118,10 +123,10 @@ export default function ForgotPasswordPage() {
                 </Button>
               </div>
 
-              <div className="border-t border-slate-100 pt-3 text-center">
+              <div className="border-t border-[var(--spark-border)] pt-3 text-center">
                 <Link
                   href="/auth/login"
-                  className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 hover:text-slate-900"
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--spark-text-secondary)] hover:text-[var(--spark-accent)]"
                 >
                   <ArrowLeft className="h-3.5 w-3.5" />
                   <span>Back to Sign In</span>
@@ -134,4 +139,3 @@ export default function ForgotPasswordPage() {
     </div>
   );
 }
-

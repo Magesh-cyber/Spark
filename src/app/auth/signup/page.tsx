@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertCircle } from "lucide-react";
 import { SparkLogo } from "@/components/brand/SparkLogo";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -27,7 +28,6 @@ export default function SignupPage() {
     setErrors({});
     setGeneralError("");
 
-    // Validate inputs using Zod
     const validationResult = signupSchema.safeParse({
       fullName,
       email,
@@ -76,14 +76,11 @@ export default function SignupPage() {
         return;
       }
 
-      // Check if user is already registered or requires email verification
       if (data.user) {
-        // If session exists immediately (email confirmation disabled in Supabase project)
         if (data.session) {
           router.push("/");
           router.refresh();
         } else {
-          // Normal case: Email confirmation required
           router.push(`/auth/verify?email=${encodeURIComponent(email.trim())}`);
         }
       }
@@ -95,24 +92,28 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#F8FAFC] px-4 py-12">
+    <div className="relative flex min-h-screen items-center justify-center bg-[var(--spark-canvas)] px-4 py-12 transition-colors duration-150">
+      <div className="fixed top-4 right-4">
+        <ThemeToggle variant="icon" />
+      </div>
+
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center space-y-2">
           <div className="inline-flex justify-center">
             <SparkLogo size="lg" />
           </div>
-          <h1 className="text-xl font-semibold tracking-tight text-slate-900">
+          <h1 className="text-xl font-semibold tracking-tight text-[var(--spark-text-primary)]">
             Create your SPARK workspace
           </h1>
-          <p className="text-xs text-slate-500 font-normal">
+          <p className="text-xs text-[var(--spark-text-secondary)] font-normal">
             Start collaborating with your team in minutes.
           </p>
         </div>
 
-        <div className="rounded-[10px] border border-slate-200 bg-white p-6 shadow-subtle">
+        <div className="rounded-[12px] border border-[var(--spark-border)] bg-[var(--spark-surface)] p-6 shadow-subtle">
           {generalError && (
-            <div className="mb-4 rounded-lg border border-red-200 bg-red-50/70 p-3 text-xs text-red-700 flex items-start gap-2">
-              <AlertCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
+            <div className="mb-4 rounded-[8px] border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-700 dark:text-rose-300 flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 text-rose-500 shrink-0 mt-0.5" />
               <span>{generalError}</span>
             </div>
           )}
@@ -164,13 +165,13 @@ export default function SignupPage() {
                 checked={agreeTerms}
                 onCheckedChange={setAgreeTerms}
                 label={
-                  <span className="text-xs text-slate-600">
+                  <span className="text-xs text-[var(--spark-text-secondary)]">
                     I agree to the{" "}
-                    <a href="#" className="text-blue-600 hover:underline">
+                    <a href="#" className="text-[var(--spark-accent)] hover:underline">
                       Terms of Service
                     </a>{" "}
                     and{" "}
-                    <a href="#" className="text-blue-600 hover:underline">
+                    <a href="#" className="text-[var(--spark-accent)] hover:underline">
                       Privacy Policy
                     </a>
                   </span>
@@ -191,12 +192,12 @@ export default function SignupPage() {
             </div>
           </form>
 
-          <div className="mt-5 border-t border-slate-100 pt-4 text-center">
-            <p className="text-xs text-slate-500">
+          <div className="mt-5 border-t border-[var(--spark-border)] pt-4 text-center">
+            <p className="text-xs text-[var(--spark-text-secondary)]">
               Already have an account?{" "}
               <Link
                 href="/auth/login"
-                className="font-medium text-blue-600 hover:text-blue-700 hover:underline"
+                className="font-medium text-[var(--spark-accent)] hover:text-[var(--spark-accent-hover)] hover:underline"
               >
                 Sign in
               </Link>

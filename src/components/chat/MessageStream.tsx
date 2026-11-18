@@ -14,6 +14,8 @@ import {
   Lock,
   X,
   ZoomIn,
+  Copy,
+  Mic,
 } from "lucide-react";
 import { useNexconnChat } from "./NexconnChatProvider";
 import { ChatMessageItem } from "./types";
@@ -70,11 +72,20 @@ export function MessageStream() {
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [lightboxImage, setLightboxImage] = useState<{ url: string; name: string } | null>(
     null
   );
 
-  // Identify the latest outgoing message ID so we display the clean text receipt ("Seen" / "Delivered" / "Sent" / "Pending") underneath it
+  const handleCopyText = (id: string, text: string) => {
+    if (!text) return;
+    navigator.clipboard?.writeText(text).then(() => {
+      setCopiedId(id);
+      setTimeout(() => setCopiedId((prev) => (prev === id ? null : prev)), 1500);
+    }).catch(() => {});
+  };
+
+  // Identify the latest outgoing message ID so we display the clean text receipt underneath it
   const latestMyMessageId = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i--) {
       if (messages[i].isMe) return messages[i].id;
@@ -133,12 +144,14 @@ export function MessageStream() {
 
   if (!activeConversation) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-6 text-center text-slate-400 bg-slate-50/20">
-        <div className="h-12 w-12 rounded-full bg-slate-100 flex items-center justify-center mb-3">
-          <MessageSquare className="h-6 w-6 text-slate-400 stroke-1" />
+      <div className="flex-1 flex flex-col items-center justify-center p-6 text-center bg-[var(--spark-canvas)]/55">
+        <div className="h-14 w-14 rounded-[18px] spark-clay-icon text-[var(--spark-accent)] flex items-center justify-center mb-3.5">
+          <MessageSquare className="h-6 w-6" />
         </div>
-        <p className="text-sm font-semibold text-slate-700">No conversation selected</p>
-        <p className="text-xs text-slate-400 mt-0.5">
+        <p className="text-sm font-semibold text-[var(--spark-text-primary)]">
+          No conversation selected
+        </p>
+        <p className="text-xs text-[var(--spark-text-secondary)] mt-1 max-w-xs">
           Select a channel or direct message from the sidebar to start chatting.
         </p>
       </div>
@@ -147,14 +160,16 @@ export function MessageStream() {
 
   if (isLoadingMessages) {
     return (
-      <div className="flex-1 flex items-center justify-center p-6 text-center bg-slate-50/20">
-        <div className="flex flex-col items-center gap-2">
+      <div className="flex-1 flex items-center justify-center p-6 text-center bg-[var(--spark-canvas)]/55">
+        <div className="flex flex-col items-center gap-2.5">
           <div className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-blue-600 animate-bounce [animation-delay:-0.3s]" />
-            <span className="h-2 w-2 rounded-full bg-blue-600 animate-bounce [animation-delay:-0.15s]" />
-            <span className="h-2 w-2 rounded-full bg-blue-600 animate-bounce" />
+            <span className="h-2 w-2 rounded-full bg-[var(--spark-accent)] animate-bounce [animation-delay:-0.3s]" />
+            <span className="h-2 w-2 rounded-full bg-[var(--spark-accent)] animate-bounce [animation-delay:-0.15s]" />
+            <span className="h-2 w-2 rounded-full bg-[var(--spark-accent)] animate-bounce" />
           </div>
-          <span className="text-xs text-slate-400 font-medium">Loading messages...</span>
+          <span className="text-xs text-[var(--spark-text-secondary)] font-medium">
+            Loading messages...
+          </span>
         </div>
       </div>
     );
@@ -166,11 +181,11 @@ export function MessageStream() {
     <div
       ref={scrollContainerRef}
       onScroll={handleScroll}
-      className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 bg-slate-50/20 relative"
+      className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 bg-[var(--spark-canvas)]/55 relative"
     >
       {/* Subtle Secure Transmission Notice */}
       <div className="flex justify-center">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50/80 border border-emerald-200/70 text-[10px] font-medium text-emerald-700 select-none">
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#10B981]/10 border border-[#10B981]/25 text-[10px] font-medium text-emerald-700 dark:text-emerald-300 select-none">
           <Lock className="h-2.5 w-2.5 shrink-0" />
           <span>Secured with TLS &amp; AES-256 encrypted workspace media</span>
         </div>
@@ -179,15 +194,15 @@ export function MessageStream() {
       {/* Empty State */}
       {messages.length === 0 && (
         <div className="flex flex-col items-center justify-center text-center py-12">
-          <div className="h-12 w-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mb-3 shadow-2xs">
+          <div className="h-14 w-14 rounded-[18px] spark-clay-icon text-[var(--spark-accent)] flex items-center justify-center mb-3.5">
             <MessageSquare className="h-6 w-6" />
           </div>
-          <h3 className="text-sm font-semibold text-slate-900">
+          <h3 className="text-sm font-semibold text-[var(--spark-text-primary)]">
             {isChannel
               ? `Welcome to #${activeConversation.name}!`
               : `Direct conversation with ${activeConversation.name}`}
           </h3>
-          <p className="text-xs text-slate-500 max-w-sm mt-1">
+          <p className="text-xs text-[var(--spark-text-secondary)] max-w-sm mt-1 leading-relaxed">
             {isChannel
               ? activeConversation.description ||
                 "This is the start of the channel. Share messages, photos, videos, or documents securely."
@@ -198,16 +213,22 @@ export function MessageStream() {
 
       {/* Message Groups by Date */}
       {groupedMessages.map((group) => (
-        <div key={group.dateLabel} className="space-y-3">
+        <div key={group.dateLabel} className="space-y-2.5">
           {/* Centered Date Badge */}
           <div className="flex justify-center my-3 sticky top-1 z-10">
-            <span className="px-2.5 py-0.5 rounded-full bg-white/90 backdrop-blur-xs border border-slate-200/80 text-[10px] font-semibold text-slate-500 shadow-2xs">
+            <span className="px-3 py-0.5 rounded-full bg-[var(--spark-surface)]/95 backdrop-blur-sm border border-[var(--spark-border)] text-[10px] font-semibold text-[var(--spark-text-secondary)] shadow-2xs">
               {group.dateLabel}
             </span>
           </div>
 
           {/* Messages in Group */}
-          {group.items.map((msg) => {
+          {group.items.map((msg, idx) => {
+            const prevMsg = idx > 0 ? group.items[idx - 1] : null;
+            const isGroupedWithPrev =
+              Boolean(prevMsg) &&
+              prevMsg!.senderId === msg.senderId &&
+              msg.timestamp - prevMsg!.timestamp < 180_000;
+
             const isMe = msg.isMe;
             const isLatestOutgoing = isMe && msg.id === latestMyMessageId;
 
@@ -225,36 +246,60 @@ export function MessageStream() {
                 : "Sent";
 
             return (
-              <div key={msg.id} className="space-y-1">
+              <div
+                key={msg.id}
+                className={cn("space-y-1", isGroupedWithPrev ? "!mt-1" : "")}
+              >
                 <div
                   className={cn(
-                    "flex items-end gap-2 group transition-all",
+                    "flex items-end gap-2 group/msg transition-all",
                     isMe ? "justify-end" : "justify-start"
                   )}
                 >
-                  {/* Incoming Message Avatar */}
+                  {/* Incoming Message Avatar (hidden when tightly grouped with previous) */}
                   {!isMe && (
-                    <div className="shrink-0 mb-0.5">
-                      <Avatar
-                        name={msg.senderName}
-                        size="sm"
-                        src={msg.senderAvatar || undefined}
-                      />
+                    <div className="w-7 shrink-0 mb-0.5">
+                      {!isGroupedWithPrev && (
+                        <Avatar
+                          name={msg.senderName}
+                          size="sm"
+                          src={msg.senderAvatar || undefined}
+                        />
+                      )}
+                    </div>
+                  )}
+
+                  {/* Subtle Hover Action Toolbar (left side for outgoing) */}
+                  {isMe && msg.text && (
+                    <div className="opacity-0 group-hover/msg:opacity-100 transition-opacity duration-150 flex items-center mb-1">
+                      <button
+                        type="button"
+                        onClick={() => handleCopyText(msg.id, msg.text)}
+                        className="p-1 rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-surface)] text-[var(--spark-text-muted)] hover:text-[var(--spark-accent)] hover:border-[var(--spark-border-strong)] transition-colors duration-150"
+                        title="Copy message"
+                        aria-label="Copy message"
+                      >
+                        {copiedId === msg.id ? (
+                          <Check className="h-3 w-3 text-[#10B981]" />
+                        ) : (
+                          <Copy className="h-3 w-3" />
+                        )}
+                      </button>
                     </div>
                   )}
 
                   {/* Message Bubble */}
                   <div
                     className={cn(
-                      "relative max-w-[85%] sm:max-w-md lg:max-w-lg px-3.5 py-2 shadow-2xs transition-all",
+                      "relative max-w-[85%] sm:max-w-md lg:max-w-lg px-3.5 py-2 shadow-2xs transition-colors duration-150",
                       isMe
-                        ? "bg-blue-600 text-white rounded-2xl rounded-tr-xs"
-                        : "bg-white border border-slate-200 text-slate-800 rounded-2xl rounded-tl-xs"
+                        ? "bg-[var(--spark-accent)] text-white rounded-[14px] rounded-tr-[4px]"
+                        : "bg-[var(--spark-surface)] border border-[var(--spark-border)] text-[var(--spark-text-primary)] rounded-[14px] rounded-tl-[4px]"
                     )}
                   >
                     {/* Sender Name in Group Channels */}
-                    {!isMe && isChannel && (
-                      <div className="text-[11px] font-semibold text-blue-600 mb-0.5 select-none">
+                    {!isMe && isChannel && !isGroupedWithPrev && (
+                      <div className="text-[11px] font-semibold text-[var(--spark-accent)] mb-0.5 select-none">
                         {msg.senderName}
                       </div>
                     )}
@@ -263,7 +308,7 @@ export function MessageStream() {
                     {msg.fileInfo && (
                       <div className={cn(msg.text ? "mb-2" : "mb-0.5")}>
                         {msg.fileInfo.type === "image" ? (
-                          <div className="relative group/img rounded-xl overflow-hidden border border-black/10 bg-black/5">
+                          <div className="relative group/img rounded-[10px] overflow-hidden border border-black/10 dark:border-white/10 bg-black/5">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                               src={msg.fileInfo.url}
@@ -274,7 +319,7 @@ export function MessageStream() {
                                   name: msg.fileInfo!.name,
                                 })
                               }
-                              className="max-h-64 w-auto max-w-full object-cover rounded-xl cursor-pointer transition-transform group-hover/img:scale-[1.01]"
+                              className="max-h-64 w-auto max-w-full object-cover rounded-[10px] cursor-pointer transition-transform duration-150 group-hover/img:scale-[1.01]"
                             />
                             <button
                               type="button"
@@ -284,38 +329,69 @@ export function MessageStream() {
                                   name: msg.fileInfo!.name,
                                 })
                               }
-                              className="absolute top-2 right-2 p-1.5 rounded-full bg-slate-900/55 text-white opacity-0 group-hover/img:opacity-100 transition-opacity"
+                              className="absolute top-2 right-2 p-1.5 rounded-full bg-[#0D0B14]/70 text-white opacity-0 group-hover/img:opacity-100 transition-opacity duration-150"
                               aria-label="Preview full image"
                             >
                               <ZoomIn className="h-3.5 w-3.5" />
                             </button>
                           </div>
                         ) : msg.fileInfo.type === "video" ? (
-                          <div className="rounded-xl overflow-hidden border border-black/10 bg-black">
+                          <div className="rounded-[10px] overflow-hidden border border-black/15 bg-black">
                             <video
                               src={msg.fileInfo.url}
                               controls
                               playsInline
                               preload="metadata"
-                              className="max-h-64 w-full max-w-xs sm:max-w-sm rounded-xl"
+                              className="max-h-64 w-full max-w-xs sm:max-w-sm rounded-[10px]"
                             />
                           </div>
                         ) : msg.fileInfo.type === "audio" ? (
-                          <div className="py-1">
+                          <div
+                            className={cn(
+                              "rounded-[10px] p-2.5 border space-y-2 max-w-full",
+                              isMe
+                                ? "bg-white/12 border-white/20 text-white"
+                                : "bg-[var(--spark-canvas)] border-[var(--spark-border)] text-[var(--spark-text-primary)]"
+                            )}
+                          >
+                            <div className="flex items-center justify-between gap-2 text-[11px]">
+                              <div className="flex items-center gap-1.5 truncate font-medium">
+                                <Mic className="h-3.5 w-3.5 shrink-0 opacity-85" />
+                                <span className="truncate">
+                                  {msg.fileInfo.name.startsWith("voice-message-")
+                                    ? "Voice message"
+                                    : msg.fileInfo.name}
+                                </span>
+                              </div>
+                              <div
+                                className={cn(
+                                  "flex items-center gap-1.5 text-[10px] shrink-0",
+                                  isMe ? "text-violet-100/90" : "text-[var(--spark-text-muted)]"
+                                )}
+                              >
+                                {msg.fileInfo.size ? (
+                                  <span>{formatFileSize(msg.fileInfo.size)}</span>
+                                ) : null}
+                                {msg.fileInfo.encrypted && (
+                                  <Lock className="h-2.5 w-2.5" aria-label="Encrypted" />
+                                )}
+                                <a
+                                  href={appendDownloadParam(msg.fileInfo.url)}
+                                  download={msg.fileInfo.name}
+                                  className="hover:opacity-100 opacity-80 transition-opacity"
+                                  title="Download audio"
+                                  aria-label="Download audio"
+                                >
+                                  <Download className="h-3 w-3" />
+                                </a>
+                              </div>
+                            </div>
                             <audio
                               src={msg.fileInfo.url}
                               controls
                               preload="metadata"
-                              className="h-9 max-w-[240px] sm:max-w-xs"
+                              className="h-9 w-full min-w-[210px] sm:min-w-[250px] max-w-xs"
                             />
-                            <div
-                              className={cn(
-                                "text-[10px] mt-1 truncate",
-                                isMe ? "text-blue-100" : "text-slate-400"
-                              )}
-                            >
-                              {msg.fileInfo.name}
-                            </div>
                           </div>
                         ) : (
                           <a
@@ -324,18 +400,18 @@ export function MessageStream() {
                             rel="noreferrer"
                             download={msg.fileInfo.name}
                             className={cn(
-                              "inline-flex items-center gap-2.5 rounded-xl p-2.5 text-xs transition-colors border max-w-full",
+                              "inline-flex items-center gap-2.5 rounded-[10px] p-2.5 text-xs transition-colors duration-150 border max-w-full",
                               isMe
-                                ? "bg-blue-700/80 border-blue-500 text-white hover:bg-blue-700"
-                                : "bg-slate-50 border-slate-200 text-slate-800 hover:bg-slate-100"
+                                ? "bg-white/12 border-white/20 text-white hover:bg-white/20"
+                                : "bg-[var(--spark-canvas)] border-[var(--spark-border)] text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface-subtle)]"
                             )}
                           >
                             <div
                               className={cn(
-                                "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+                                "flex h-8 w-8 shrink-0 items-center justify-center rounded-[7px]",
                                 isMe
                                   ? "bg-white/20 text-white"
-                                  : "bg-blue-50 text-blue-600"
+                                  : "bg-[var(--spark-highlight)] text-[var(--spark-accent)]"
                               )}
                             >
                               <FileText className="h-4 w-4" />
@@ -347,7 +423,7 @@ export function MessageStream() {
                               <div
                                 className={cn(
                                   "text-[10px] flex items-center gap-1.5",
-                                  isMe ? "text-blue-100" : "text-slate-400"
+                                  isMe ? "text-violet-100" : "text-[var(--spark-text-muted)]"
                                 )}
                               >
                                 {msg.fileInfo.size ? (
@@ -371,8 +447,8 @@ export function MessageStream() {
                     {msg.text && (
                       <p
                         className={cn(
-                          "text-xs leading-relaxed whitespace-pre-wrap break-words",
-                          isMe ? "text-white" : "text-slate-800"
+                          "text-xs sm:text-[13px] leading-relaxed whitespace-pre-wrap break-words",
+                          isMe ? "text-white" : "text-[var(--spark-text-primary)]"
                         )}
                       >
                         {msg.text}
@@ -383,7 +459,7 @@ export function MessageStream() {
                     <div
                       className={cn(
                         "flex items-center justify-end gap-1 mt-1 text-[10px] select-none",
-                        isMe ? "text-blue-100" : "text-slate-400"
+                        isMe ? "text-violet-100/90" : "text-[var(--spark-text-muted)]"
                       )}
                     >
                       <span>{msg.time}</span>
@@ -395,7 +471,7 @@ export function MessageStream() {
                         >
                           {msg.status === "sending" ? (
                             <Clock
-                              className="h-3 w-3 text-blue-100/90 animate-pulse"
+                              className="h-3 w-3 text-violet-100/90 animate-pulse"
                               aria-label="Pending"
                             />
                           ) : msg.status === "error" ? (
@@ -405,17 +481,17 @@ export function MessageStream() {
                             />
                           ) : msg.status === "read" ? (
                             <CheckCheck
-                              className="h-3.5 w-3.5 text-cyan-200 drop-shadow-[0_0_2px_rgba(165,243,252,0.5)]"
+                              className="h-3.5 w-3.5 text-emerald-300 drop-shadow-[0_0_3px_rgba(16,185,129,0.5)]"
                               aria-label="Seen"
                             />
                           ) : msg.status === "delivered" ? (
                             <CheckCheck
-                              className="h-3.5 w-3.5 text-blue-100/80"
+                              className="h-3.5 w-3.5 text-violet-100/80"
                               aria-label="Delivered"
                             />
                           ) : (
                             <Check
-                              className="h-3.5 w-3.5 text-blue-100/80"
+                              className="h-3.5 w-3.5 text-violet-100/80"
                               aria-label="Sent"
                             />
                           )}
@@ -423,17 +499,36 @@ export function MessageStream() {
                       )}
                     </div>
                   </div>
+
+                  {/* Subtle Hover Action Toolbar (right side for incoming) */}
+                  {!isMe && msg.text && (
+                    <div className="opacity-0 group-hover/msg:opacity-100 transition-opacity duration-150 flex items-center mb-1">
+                      <button
+                        type="button"
+                        onClick={() => handleCopyText(msg.id, msg.text)}
+                        className="p-1 rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-surface)] text-[var(--spark-text-muted)] hover:text-[var(--spark-accent)] hover:border-[var(--spark-border-strong)] transition-colors duration-150"
+                        title="Copy message"
+                        aria-label="Copy message"
+                      >
+                        {copiedId === msg.id ? (
+                          <Check className="h-3 w-3 text-[#10B981]" />
+                        ) : (
+                          <Copy className="h-3 w-3" />
+                        )}
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Clear Instagram / WhatsApp style status label under the latest outgoing message */}
                 {isLatestOutgoing && (
                   <div className="flex justify-end pr-1 text-[10px] font-medium select-none">
                     {msg.status === "sending" ? (
-                      <span className="text-slate-400">Pending...</span>
+                      <span className="text-[var(--spark-text-muted)]">Pending...</span>
                     ) : msg.status === "error" ? (
                       <span className="text-rose-500">Not delivered</span>
                     ) : msg.status === "read" ? (
-                      <span className="text-blue-600">
+                      <span className="text-[var(--spark-accent)] font-semibold">
                         {isChannel && msg.seenBy && msg.seenBy.length > 0
                           ? msg.seenBy.length === 1
                             ? `Seen by ${msg.seenBy[0].name}`
@@ -441,9 +536,9 @@ export function MessageStream() {
                           : "Seen"}
                       </span>
                     ) : msg.status === "delivered" ? (
-                      <span className="text-slate-400">Delivered</span>
+                      <span className="text-[var(--spark-text-muted)]">Delivered</span>
                     ) : (
-                      <span className="text-slate-400">Sent</span>
+                      <span className="text-[var(--spark-text-muted)]">Sent</span>
                     )}
                   </div>
                 )}
@@ -463,24 +558,24 @@ export function MessageStream() {
               src={activeConversation.peer.avatarUrl || undefined}
             />
           )}
-          <div className="bg-white border border-slate-200 text-slate-500 rounded-2xl rounded-tl-xs px-3.5 py-2 shadow-2xs flex items-center gap-1.5">
+          <div className="bg-[var(--spark-surface)] border border-[var(--spark-border)] text-[var(--spark-text-secondary)] rounded-[14px] rounded-tl-[4px] px-3.5 py-2 shadow-2xs flex items-center gap-1.5">
             <span className="text-[11px] font-medium mr-1">
               {isChannel ? "Someone is typing" : `${activeConversation.name} is typing`}
             </span>
-            <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:-0.3s]" />
-            <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:-0.15s]" />
-            <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-bounce" />
+            <span className="h-1.5 w-1.5 rounded-full bg-[var(--spark-accent)] animate-bounce [animation-delay:-0.3s]" />
+            <span className="h-1.5 w-1.5 rounded-full bg-[var(--spark-accent)] animate-bounce [animation-delay:-0.15s]" />
+            <span className="h-1.5 w-1.5 rounded-full bg-[var(--spark-accent)] animate-bounce" />
           </div>
         </div>
       )}
 
       <div ref={bottomRef} />
 
-      {/* Floating Scroll to Bottom Button */}
+      {/* Floating Glassmorphic Scroll to Bottom Pill */}
       {showScrollBottom && (
         <button
           onClick={() => scrollToBottom("smooth")}
-          className="fixed bottom-20 right-6 z-20 flex items-center gap-1 bg-white border border-slate-200 text-slate-700 shadow-md hover:bg-slate-50 px-3 py-1.5 rounded-full text-xs font-medium transition-all animate-in fade-in"
+          className="fixed bottom-24 right-8 z-20 flex items-center gap-1 spark-glass border text-[var(--spark-text-primary)] shadow-elevated hover:bg-[var(--spark-highlight)] hover:text-[var(--spark-highlight-text)] px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-150 animate-in fade-in"
         >
           <span>Latest messages</span>
           <ChevronDown className="h-3.5 w-3.5" />
@@ -490,22 +585,22 @@ export function MessageStream() {
       {/* Full-Screen Secure Image Lightbox */}
       {lightboxImage && (
         <div
-          className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-xs flex flex-col items-center justify-center p-4 animate-in fade-in"
+          className="fixed inset-0 z-50 bg-[#0D0B14]/90 backdrop-blur-sm flex flex-col items-center justify-center p-4 animate-in fade-in"
           onClick={() => setLightboxImage(null)}
         >
           <div
-            className="w-full max-w-4xl flex items-center justify-between mb-3 text-white"
+            className="w-full max-w-4xl flex items-center justify-between mb-3 text-[#F4F2FA]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-2 text-xs font-medium truncate">
-              <Lock className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+              <Lock className="h-3.5 w-3.5 text-[#10B981] shrink-0" />
               <span className="truncate">{lightboxImage.name}</span>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <a
                 href={appendDownloadParam(lightboxImage.url)}
                 download={lightboxImage.name}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-medium transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] bg-white/10 hover:bg-white/20 text-xs font-medium transition-colors duration-150"
               >
                 <Download className="h-3.5 w-3.5" />
                 Download
@@ -513,7 +608,7 @@ export function MessageStream() {
               <button
                 type="button"
                 onClick={() => setLightboxImage(null)}
-                className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+                className="p-1.5 rounded-[6px] bg-white/10 hover:bg-white/20 transition-colors duration-150"
                 aria-label="Close preview"
               >
                 <X className="h-4 w-4" />
@@ -525,7 +620,7 @@ export function MessageStream() {
             src={lightboxImage.url}
             alt={lightboxImage.name}
             onClick={(e) => e.stopPropagation()}
-            className="max-h-[82vh] max-w-full object-contain rounded-xl shadow-2xl"
+            className="max-h-[82vh] max-w-full object-contain rounded-[12px] shadow-modal border border-white/10"
           />
         </div>
       )}

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import {
   Building2,
   User,
@@ -11,11 +11,7 @@ import {
   Mail,
   CheckCircle2,
   AlertCircle,
-  ExternalLink,
   KanbanSquare,
-  MessageSquare,
-  FileText,
-  Calendar,
 } from "lucide-react";
 import { ShellLayout } from "@/components/layout/ShellLayout";
 import { Button } from "@/components/ui/button";
@@ -26,7 +22,6 @@ import { getWorkspaceBySlug } from "@/lib/actions/workspaces";
 export default function WorkspaceOverviewPage() {
   const params = useParams();
   const slug = params?.slug as string;
-  const router = useRouter();
   const { activeWorkspace, setActiveWorkspace } = useWorkspace();
 
   const [workspaceData, setWorkspaceData] = useState<any>(null);
@@ -54,7 +49,7 @@ export default function WorkspaceOverviewPage() {
   if (isLoading) {
     return (
       <ShellLayout>
-        <div className="max-w-4xl mx-auto py-12 px-6 text-center text-slate-500 text-xs">
+        <div className="max-w-4xl mx-auto py-12 px-6 text-center text-[var(--spark-text-secondary)] text-xs">
           Loading workspace details...
         </div>
       </ShellLayout>
@@ -65,11 +60,11 @@ export default function WorkspaceOverviewPage() {
     return (
       <ShellLayout>
         <div className="max-w-md mx-auto py-16 px-6 text-center space-y-4">
-          <AlertCircle className="h-10 w-10 text-red-500 mx-auto" />
-          <h2 className="text-base font-semibold text-slate-900">
+          <AlertCircle className="h-10 w-10 text-rose-500 mx-auto" />
+          <h2 className="text-base font-semibold text-[var(--spark-text-primary)]">
             Workspace Access Denied
           </h2>
-          <p className="text-xs text-slate-500 leading-relaxed">
+          <p className="text-xs text-[var(--spark-text-secondary)] leading-relaxed">
             {error || "You do not have access to this workspace or it does not exist."}
           </p>
           <div className="pt-2">
@@ -90,34 +85,34 @@ export default function WorkspaceOverviewPage() {
 
   return (
     <ShellLayout>
-      <div className="max-w-4xl mx-auto py-8 px-6 space-y-8">
+      <div className="max-w-4xl mx-auto py-4 space-y-8">
         {/* Workspace Hero */}
-        <div className="rounded-xl border border-slate-200/90 bg-white p-6 shadow-subtle flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+        <div className="rounded-[12px] border border-[var(--spark-border)] bg-[var(--spark-surface)] p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
           <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-blue-50 border border-blue-100 text-blue-600 font-bold text-xl shadow-2xs">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[12px] bg-[var(--spark-highlight)] border border-[var(--spark-accent)]/25 text-[var(--spark-accent)] font-bold text-xl">
               {isPersonal ? (
-                <User className="h-7 w-7 text-slate-600" />
+                <User className="h-7 w-7" />
               ) : (
-                <Building2 className="h-7 w-7 text-blue-600" />
+                <Building2 className="h-7 w-7" />
               )}
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold tracking-tight text-slate-900">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-xl font-bold tracking-tight text-[var(--spark-text-primary)]">
                   {workspaceData.name}
                 </h1>
-                <Badge variant={isPersonal ? "default" : "info"} size="sm">
+                <Badge variant={isPersonal ? "default" : "violet"} size="sm">
                   {isPersonal ? "Personal" : "Organization"}
                 </Badge>
                 <Badge variant="outline" size="sm">
                   {callerRole}
                 </Badge>
               </div>
-              <p className="text-xs text-slate-500 font-mono mt-0.5">
+              <p className="text-xs text-[var(--spark-text-muted)] font-mono mt-0.5">
                 slug: {workspaceData.slug}
               </p>
               {workspaceData.description && (
-                <p className="text-xs text-slate-600 mt-2 max-w-xl leading-relaxed">
+                <p className="text-xs text-[var(--spark-text-secondary)] mt-2 max-w-xl leading-relaxed">
                   {workspaceData.description}
                 </p>
               )}
@@ -160,20 +155,20 @@ export default function WorkspaceOverviewPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           <Link
             href={`/workspaces/${workspaceData.slug}/members`}
-            className="group rounded-xl border border-slate-200/90 bg-white p-5 shadow-subtle hover:border-blue-400 hover:shadow-card transition-all"
+            className="group rounded-[10px] border border-[var(--spark-border)] bg-[var(--spark-surface)] p-5 hover:border-[var(--spark-accent)] transition-all duration-150"
           >
             <div className="flex items-center justify-between">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+              <div className="flex h-9 w-9 items-center justify-center rounded-[8px] bg-[var(--spark-highlight)] text-[var(--spark-accent)]">
                 <Users className="h-4 w-4" />
               </div>
               <Badge variant="default" size="sm">
                 {workspaceData.memberCount} Members
               </Badge>
             </div>
-            <h3 className="text-sm font-semibold text-slate-900 mt-3 group-hover:text-blue-600 transition-colors">
+            <h3 className="text-sm font-semibold text-[var(--spark-text-primary)] mt-3 group-hover:text-[var(--spark-accent)] transition-colors duration-150">
               Team Directory
             </h3>
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-xs text-[var(--spark-text-secondary)] mt-1">
               View, manage, and assign roles for all team members.
             </p>
           </Link>
@@ -181,15 +176,15 @@ export default function WorkspaceOverviewPage() {
           {!isPersonal && canAdmin && (
             <Link
               href={`/workspaces/${workspaceData.slug}/invitations`}
-              className="group rounded-xl border border-slate-200/90 bg-white p-5 shadow-subtle hover:border-blue-400 hover:shadow-card transition-all"
+              className="group rounded-[10px] border border-[var(--spark-border)] bg-[var(--spark-surface)] p-5 hover:border-[var(--spark-accent)] transition-all duration-150"
             >
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+              <div className="flex h-9 w-9 items-center justify-center rounded-[8px] bg-[#10B981]/12 text-[#10B981]">
                 <Mail className="h-4 w-4" />
               </div>
-              <h3 className="text-sm font-semibold text-slate-900 mt-3 group-hover:text-blue-600 transition-colors">
+              <h3 className="text-sm font-semibold text-[var(--spark-text-primary)] mt-3 group-hover:text-[var(--spark-accent)] transition-colors duration-150">
                 Pending Invitations
               </h3>
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-[var(--spark-text-secondary)] mt-1">
                 Dispatch and manage invitations to join your workspace.
               </p>
             </Link>
@@ -197,15 +192,15 @@ export default function WorkspaceOverviewPage() {
 
           <Link
             href="/tasks"
-            className="group rounded-xl border border-slate-200/90 bg-white p-5 shadow-subtle hover:border-blue-400 hover:shadow-card transition-all"
+            className="group rounded-[10px] border border-[var(--spark-border)] bg-[var(--spark-surface)] p-5 hover:border-[var(--spark-accent)] transition-all duration-150"
           >
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-50 text-violet-600">
+            <div className="flex h-9 w-9 items-center justify-center rounded-[8px] bg-[var(--spark-highlight)] text-[var(--spark-accent)]">
               <KanbanSquare className="h-4 w-4" />
             </div>
-            <h3 className="text-sm font-semibold text-slate-900 mt-3 group-hover:text-blue-600 transition-colors">
+            <h3 className="text-sm font-semibold text-[var(--spark-text-primary)] mt-3 group-hover:text-[var(--spark-accent)] transition-colors duration-150">
               Workspace Tasks
             </h3>
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-xs text-[var(--spark-text-secondary)] mt-1">
               Track issues, sprints, and task workflows for this tenant.
             </p>
           </Link>

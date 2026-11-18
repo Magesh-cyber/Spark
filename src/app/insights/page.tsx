@@ -3,11 +3,15 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { ShellLayout } from "@/components/layout/ShellLayout";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+} from "@/components/ui/card";
 import { Users, MessageSquare, Mail, FolderKanban, BarChart3, LineChart } from "lucide-react";
 import { EmptyState } from "@/components/feedback/EmptyState";
-import { LoadingState } from "@/components/feedback/LoadingState";
 import { useWorkspace } from "@/lib/workspace-context";
 import {
   getWorkspaceDashboardData,
@@ -34,7 +38,6 @@ export default function InsightsPage() {
       return;
     }
 
-    // Hydrate immediately from cache if available (0ms render)
     const cached = clientDashboardCache.get(activeWorkspace.id);
     if (cached) {
       setData(cached);
@@ -76,112 +79,117 @@ export default function InsightsPage() {
     <ShellLayout>
       <div className="space-y-6">
         <PageHeader
-          title="Insights & Operational Health"
-          description={`Aggregated workspace telemetry and collaboration activity for ${activeWorkspace?.name || "your workspace"}.`}
-          badge={
-            <Badge variant="default" size="sm">
-              Live Telemetry
-            </Badge>
-          }
+          title="Insights"
+          description={`Activity and collaboration overview for ${activeWorkspace?.name || "your workspace"}.`}
         />
 
-        {/* Real Database Telemetry Metrics Grid */}
+        {/* Flat 2.0 Telemetry Bento Row */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-4 space-y-1">
-              <div className="flex items-center justify-between text-slate-500">
-                <span className="text-xs font-medium uppercase tracking-wider">
-                  Active Members
+          <Card className="hover:border-[var(--spark-border-strong)] hover:shadow-card">
+            <CardContent className="p-5 space-y-2">
+              <div className="flex items-center justify-between text-[var(--spark-text-secondary)]">
+                <span className="text-[11px] font-semibold uppercase tracking-wider">
+                  Members
                 </span>
-                <Users className="h-4 w-4 text-blue-600" />
+                <div className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-[var(--spark-highlight)] text-[var(--spark-accent)]">
+                  <Users className="h-4 w-4" />
+                </div>
               </div>
-              <div className="text-2xl font-bold tracking-tight text-slate-900">
+              <div className="text-3xl font-bold tracking-tight text-[var(--spark-text-primary)] tabular-nums">
                 {isLoading ? "—" : data?.counts.members ?? 0}
               </div>
-              <p className="text-[11px] text-slate-500 font-normal">
-                Verified workspace accounts
+              <p className="text-[11px] text-[var(--spark-text-muted)]">
+                Active accounts
               </p>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="p-4 space-y-1">
-              <div className="flex items-center justify-between text-slate-500">
-                <span className="text-xs font-medium uppercase tracking-wider">
-                  Real-Time Channels
+          <Card className="hover:border-[var(--spark-border-strong)] hover:shadow-card">
+            <CardContent className="p-5 space-y-2">
+              <div className="flex items-center justify-between text-[var(--spark-text-secondary)]">
+                <span className="text-[11px] font-semibold uppercase tracking-wider">
+                  Channels
                 </span>
-                <MessageSquare className="h-4 w-4 text-emerald-600" />
+                <div className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-[#10B981]/12 text-[#10B981]">
+                  <MessageSquare className="h-4 w-4" />
+                </div>
               </div>
-              <div className="text-2xl font-bold tracking-tight text-slate-900">
+              <div className="text-3xl font-bold tracking-tight text-[var(--spark-text-primary)] tabular-nums">
                 {isLoading ? "—" : data?.counts.channels ?? 0}
               </div>
-              <p className="text-[11px] text-emerald-600 font-medium">
-                Nexconn group channels
+              <p className="text-[11px] text-[#10B981] font-medium">
+                Active team channels
               </p>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="p-4 space-y-1">
-              <div className="flex items-center justify-between text-slate-500">
-                <span className="text-xs font-medium uppercase tracking-wider">
-                  Direct Conversations
+          <Card className="hover:border-[var(--spark-border-strong)] hover:shadow-card">
+            <CardContent className="p-5 space-y-2">
+              <div className="flex items-center justify-between text-[var(--spark-text-secondary)]">
+                <span className="text-[11px] font-semibold uppercase tracking-wider">
+                  Direct Messages
                 </span>
-                <Mail className="h-4 w-4 text-violet-600" />
+                <div className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-[var(--spark-highlight)] text-[var(--spark-accent)]">
+                  <Mail className="h-4 w-4" />
+                </div>
               </div>
-              <div className="text-2xl font-bold tracking-tight text-slate-900">
+              <div className="text-3xl font-bold tracking-tight text-[var(--spark-text-primary)] tabular-nums">
                 {isLoading ? "—" : data?.counts.directConversations ?? 0}
               </div>
-              <p className="text-[11px] text-slate-500 font-normal">
-                Peer-to-peer discussions
+              <p className="text-[11px] text-[var(--spark-text-muted)]">
+                1-on-1 conversations
               </p>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="p-4 space-y-1">
-              <div className="flex items-center justify-between text-slate-500">
-                <span className="text-xs font-medium uppercase tracking-wider">
-                  Pending Invitations
+          <Card className="hover:border-[var(--spark-border-strong)] hover:shadow-card">
+            <CardContent className="p-5 space-y-2">
+              <div className="flex items-center justify-between text-[var(--spark-text-secondary)]">
+                <span className="text-[11px] font-semibold uppercase tracking-wider">
+                  Pending Invites
                 </span>
-                <FolderKanban className="h-4 w-4 text-slate-600" />
+                <div className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-[#F59E0B]/12 text-[#F59E0B]">
+                  <FolderKanban className="h-4 w-4" />
+                </div>
               </div>
-              <div className="text-2xl font-bold tracking-tight text-slate-900">
+              <div className="text-3xl font-bold tracking-tight text-[var(--spark-text-primary)] tabular-nums">
                 {isLoading ? "—" : data?.counts.pendingInvitations ?? 0}
               </div>
-              <p className="text-[11px] text-slate-500 font-normal">
-                Active invites in database
+              <p className="text-[11px] text-[var(--spark-text-muted)]">
+                Awaiting response
               </p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Analytical Sections — Truthful Unpopulated States */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader className="p-4 border-b border-slate-100">
-              <CardTitle className="text-sm">Deliverables by Status</CardTitle>
-              <CardDescription>Task backlog distribution across active teams</CardDescription>
+        {/* Asymmetrical Bento Analytical Row (7 + 5 cols) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+          <Card className="lg:col-span-7">
+            <CardHeader className="p-4">
+              <CardTitle className="text-sm">Tasks by Status</CardTitle>
+              <CardDescription>Distribution across workspace workflows</CardDescription>
             </CardHeader>
-            <CardContent className="p-6">
+            <CardContent className="p-5">
               <EmptyState
                 icon={<BarChart3 className="h-5 w-5" />}
-                title="No task metrics available"
-                description="Task status analytics and completion percentages will populate automatically once tasks are provisioned and worked on."
+                title="No task data yet"
+                description="Metrics will appear here once tasks are created and updated."
+                className="min-h-[220px]"
               />
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="p-4 border-b border-slate-100">
-              <CardTitle className="text-sm">Sprint Velocity & Milestone Health</CardTitle>
-              <CardDescription>Tracked against target milestone deliverables</CardDescription>
+          <Card className="lg:col-span-5">
+            <CardHeader className="p-4">
+              <CardTitle className="text-sm">Sprint Velocity</CardTitle>
+              <CardDescription>Completion trends across milestones</CardDescription>
             </CardHeader>
-            <CardContent className="p-6">
+            <CardContent className="p-5">
               <EmptyState
                 icon={<LineChart className="h-5 w-5" />}
-                title="No velocity data recorded"
-                description="Sprint cycle time, completion ratios, and milestone tracking will activate as projects and sprints are conducted in this workspace."
+                title="No velocity data yet"
+                description="Trends will populate here as projects and milestones progress."
+                className="min-h-[220px]"
               />
             </CardContent>
           </Card>

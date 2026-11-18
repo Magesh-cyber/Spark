@@ -21,7 +21,8 @@ export const Checkbox: React.FC<CheckboxProps> = ({
   hint,
   className,
 }) => {
-  const generatedId = id || (typeof label === "string" ? label.toLowerCase().replace(/\s+/g, "-") : undefined);
+  const generatedId =
+    id || (typeof label === "string" ? label.toLowerCase().replace(/\s+/g, "-") : undefined);
 
   return (
     <div className={cn("flex items-start gap-2.5", className)}>
@@ -33,10 +34,10 @@ export const Checkbox: React.FC<CheckboxProps> = ({
         disabled={disabled}
         onClick={() => onCheckedChange(!checked)}
         className={cn(
-          "flex h-4 w-4 shrink-0 items-center justify-center rounded-[5px] border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50 mt-0.5",
+          "flex h-4 w-4 shrink-0 items-center justify-center rounded-[5px] border transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spark-accent)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--spark-canvas)] disabled:cursor-not-allowed disabled:opacity-50 mt-0.5",
           checked
-            ? "border-blue-600 bg-blue-600 text-white"
-            : "border-slate-300 bg-white hover:border-slate-400"
+            ? "border-[var(--spark-accent)] bg-[var(--spark-accent)] text-white"
+            : "border-[var(--spark-border-strong)] bg-[var(--spark-surface)] hover:border-[var(--spark-accent)]"
         )}
       >
         {checked && <Check className="h-3 w-3 stroke-[3]" />}
@@ -46,15 +47,18 @@ export const Checkbox: React.FC<CheckboxProps> = ({
           {label && (
             <label
               htmlFor={generatedId}
-              className="text-xs font-medium text-slate-800 cursor-pointer"
+              className="text-xs font-medium text-[var(--spark-text-primary)] cursor-pointer"
             >
               {label}
             </label>
           )}
-          {hint && <span className="text-[11px] text-slate-500 font-normal">{hint}</span>}
+          {hint && (
+            <span className="text-[11px] text-[var(--spark-text-secondary)] font-normal">
+              {hint}
+            </span>
+          )}
         </div>
       )}
     </div>
   );
 };
-

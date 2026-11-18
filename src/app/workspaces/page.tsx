@@ -2,15 +2,14 @@
 
 import React from "react";
 import Link from "next/link";
-import { Plus, Building2, User, Settings, ArrowRight, Users, ShieldCheck } from "lucide-react";
+import { Plus, Building2, User, Settings, ArrowRight, Users } from "lucide-react";
 import { ShellLayout } from "@/components/layout/ShellLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useWorkspace } from "@/lib/workspace-context";
 
 export default function WorkspacesDirectoryPage() {
-  const { workspaces, activeWorkspace, setActiveWorkspace, isLoadingWorkspaces } =
-    useWorkspace();
+  const { workspaces, activeWorkspace, setActiveWorkspace } = useWorkspace();
 
   const personalWorkspaces = workspaces.filter(
     (w) => w.type === "personal" || w.type === "PERSONAL"
@@ -21,14 +20,14 @@ export default function WorkspacesDirectoryPage() {
 
   return (
     <ShellLayout>
-      <div className="max-w-5xl mx-auto py-8 px-6 space-y-8">
+      <div className="max-w-5xl mx-auto py-4 space-y-8">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200/80 pb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-[var(--spark-border)] pb-6">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+            <h1 className="text-2xl font-bold tracking-tight text-[var(--spark-text-primary)]">
               Workspaces
             </h1>
-            <p className="text-sm text-slate-500 mt-1">
+            <p className="text-sm text-[var(--spark-text-secondary)] mt-1">
               Manage your personal workspace and organizations you collaborate in.
             </p>
           </div>
@@ -42,8 +41,8 @@ export default function WorkspacesDirectoryPage() {
         {/* Personal Workspace Section */}
         <div className="space-y-4">
           <div className="flex items-center gap-2">
-            <User className="h-4 w-4 text-slate-500" />
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">
+            <User className="h-4 w-4 text-[var(--spark-text-muted)]" />
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--spark-text-muted)]">
               Personal Workspace
             </h2>
           </div>
@@ -54,28 +53,28 @@ export default function WorkspacesDirectoryPage() {
               return (
                 <div
                   key={ws.id}
-                  className={`rounded-xl border p-5 transition-all bg-white shadow-subtle ${
+                  className={`rounded-[10px] border p-5 transition-all duration-150 bg-[var(--spark-surface)] ${
                     isActive
-                      ? "border-blue-500 ring-2 ring-blue-500/20"
-                      : "border-slate-200 hover:border-slate-300"
+                      ? "border-[var(--spark-accent)] ring-2 ring-[var(--spark-accent)]/20"
+                      : "border-[var(--spark-border)] hover:border-[var(--spark-border-strong)]"
                   }`}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-700 font-semibold text-sm">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[8px] bg-[var(--spark-surface-subtle)] text-[var(--spark-text-primary)] border border-[var(--spark-border)]">
                         <User className="h-5 w-5" />
                       </div>
                       <div>
-                        <h3 className="text-sm font-semibold text-slate-900">
+                        <h3 className="text-sm font-semibold text-[var(--spark-text-primary)]">
                           {ws.name}
                         </h3>
-                        <p className="text-xs text-slate-500 font-mono mt-0.5">
+                        <p className="text-xs text-[var(--spark-text-muted)] font-mono mt-0.5">
                           /workspaces/{ws.slug}
                         </p>
                       </div>
                     </div>
                     {isActive ? (
-                      <Badge variant="info" size="sm">
+                      <Badge variant="violet" size="sm">
                         Active
                       </Badge>
                     ) : (
@@ -85,12 +84,12 @@ export default function WorkspacesDirectoryPage() {
                     )}
                   </div>
 
-                  <p className="text-xs text-slate-600 mt-3 line-clamp-2 leading-relaxed">
+                  <p className="text-xs text-[var(--spark-text-secondary)] mt-3 line-clamp-2 leading-relaxed">
                     {ws.description || "Your private workspace for personal tasks and notes."}
                   </p>
 
-                  <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
-                    <span className="text-[11px] font-medium text-slate-500 capitalize">
+                  <div className="mt-4 pt-4 border-t border-[var(--spark-border)] flex items-center justify-between">
+                    <span className="text-[11px] font-medium text-[var(--spark-text-secondary)] capitalize">
                       Role: {ws.role}
                     </span>
                     <div className="flex items-center gap-2">
@@ -104,7 +103,11 @@ export default function WorkspacesDirectoryPage() {
                         </Button>
                       )}
                       <Link href={`/workspaces/${ws.slug}`}>
-                        <Button variant="outline" size="sm" rightIcon={<ArrowRight className="h-3 w-3" />}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          rightIcon={<ArrowRight className="h-3 w-3" />}
+                        >
                           Open
                         </Button>
                       </Link>
@@ -120,20 +123,20 @@ export default function WorkspacesDirectoryPage() {
         <div className="space-y-4 pt-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-blue-600" />
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">
+              <Building2 className="h-4 w-4 text-[var(--spark-accent)]" />
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--spark-text-muted)]">
                 Organizations ({orgWorkspaces.length})
               </h2>
             </div>
           </div>
 
           {orgWorkspaces.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center bg-slate-50/50 space-y-3">
-              <Building2 className="h-8 w-8 text-slate-400 mx-auto" />
-              <h3 className="text-sm font-semibold text-slate-800">
+            <div className="rounded-[10px] border border-dashed border-[var(--spark-border-strong)] p-8 text-center bg-[var(--spark-surface-subtle)]/40 space-y-3">
+              <Building2 className="h-8 w-8 text-[var(--spark-accent)] mx-auto opacity-80" />
+              <h3 className="text-sm font-semibold text-[var(--spark-text-primary)]">
                 No organizations yet
               </h3>
-              <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
+              <p className="text-xs text-[var(--spark-text-secondary)] max-w-sm mx-auto leading-relaxed">
                 Create an organization workspace to collaborate with your team, assign tasks, and share projects.
               </p>
               <Link href="/workspaces/create" className="inline-block pt-1">
@@ -149,29 +152,29 @@ export default function WorkspacesDirectoryPage() {
                 return (
                   <div
                     key={ws.id}
-                    className={`rounded-xl border p-5 transition-all bg-white shadow-subtle ${
+                    className={`rounded-[10px] border p-5 transition-all duration-150 bg-[var(--spark-surface)] ${
                       isActive
-                        ? "border-blue-500 ring-2 ring-blue-500/20"
-                        : "border-slate-200 hover:border-slate-300"
+                        ? "border-[var(--spark-accent)] ring-2 ring-[var(--spark-accent)]/20"
+                        : "border-[var(--spark-border)] hover:border-[var(--spark-border-strong)]"
                     }`}
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600 font-semibold text-sm border border-blue-100">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[8px] bg-[var(--spark-highlight)] text-[var(--spark-accent)] border border-[var(--spark-accent)]/20">
                           <Building2 className="h-5 w-5" />
                         </div>
                         <div>
-                          <h3 className="text-sm font-semibold text-slate-900">
+                          <h3 className="text-sm font-semibold text-[var(--spark-text-primary)]">
                             {ws.name}
                           </h3>
-                          <p className="text-xs text-slate-500 font-mono mt-0.5">
+                          <p className="text-xs text-[var(--spark-text-muted)] font-mono mt-0.5">
                             /workspaces/{ws.slug}
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-1.5">
                         {isActive && (
-                          <Badge variant="info" size="sm">
+                          <Badge variant="violet" size="sm">
                             Active
                           </Badge>
                         )}
@@ -181,12 +184,12 @@ export default function WorkspacesDirectoryPage() {
                       </div>
                     </div>
 
-                    <p className="text-xs text-slate-600 mt-3 line-clamp-2 leading-relaxed">
+                    <p className="text-xs text-[var(--spark-text-secondary)] mt-3 line-clamp-2 leading-relaxed">
                       {ws.description || "Shared team workspace on SPARK."}
                     </p>
 
-                    <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                    <div className="mt-4 pt-4 border-t border-[var(--spark-border)] flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-xs text-[var(--spark-text-secondary)]">
                         <Users className="h-3.5 w-3.5" />
                         <span>{ws.memberCount ?? 1} members</span>
                       </div>
@@ -202,7 +205,7 @@ export default function WorkspacesDirectoryPage() {
                         )}
                         <Link href={`/workspaces/${ws.slug}/settings`}>
                           <Button variant="ghost" size="sm">
-                            <Settings className="h-3.5 w-3.5 text-slate-500" />
+                            <Settings className="h-3.5 w-3.5 text-[var(--spark-text-secondary)]" />
                           </Button>
                         </Link>
                         <Link href={`/workspaces/${ws.slug}`}>

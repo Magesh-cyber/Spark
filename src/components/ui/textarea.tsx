@@ -17,7 +17,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
         {label && (
           <label
             htmlFor={inputId}
-            className="block text-xs font-medium text-slate-700 select-none"
+            className="block text-xs font-medium text-[var(--spark-text-secondary)] select-none"
           >
             {label}
           </label>
@@ -26,17 +26,19 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           id={inputId}
           disabled={disabled}
           className={cn(
-            "flex min-h-[80px] w-full rounded-[8px] border bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400 disabled:border-slate-200",
+            "flex min-h-[80px] w-full rounded-[6px] border bg-[var(--spark-surface)] px-3 py-2 text-sm text-[var(--spark-text-primary)] placeholder:text-[var(--spark-text-muted)] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spark-accent)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--spark-canvas)] disabled:cursor-not-allowed disabled:bg-[var(--spark-surface-subtle)] disabled:text-[var(--spark-text-muted)] disabled:border-[var(--spark-border)]",
             error
-              ? "border-red-500 focus-visible:ring-red-500"
-              : "border-slate-200 hover:border-slate-300",
+              ? "border-rose-500 focus-visible:ring-rose-500"
+              : "border-[var(--spark-border)] hover:border-[var(--spark-border-strong)]",
             className
           )}
           ref={ref}
           {...props}
         />
-        {error && <p className="text-xs text-red-600 font-normal">{error}</p>}
-        {!error && hint && <p className="text-xs text-slate-500 font-normal">{hint}</p>}
+        {error && <p className="text-xs text-rose-600 dark:text-rose-400 font-normal">{error}</p>}
+        {!error && hint && (
+          <p className="text-xs text-[var(--spark-text-muted)] font-normal">{hint}</p>
+        )}
       </div>
     );
   }
@@ -44,4 +46,3 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
 Textarea.displayName = "Textarea";
 
 export { Textarea };
-

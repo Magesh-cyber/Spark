@@ -19,15 +19,17 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
   return (
     <div
       className={cn(
-        "flex min-h-[260px] flex-col items-center justify-center rounded-xl border border-red-200 bg-red-50/40 p-8 text-center",
+        "flex min-h-[260px] flex-col items-center justify-center rounded-[10px] border border-rose-500/30 bg-rose-500/8 p-8 text-center",
         className
       )}
     >
-      <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-red-100 text-red-600">
+      <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400">
         <AlertCircle className="h-5 w-5" />
       </div>
-      <h3 className="text-sm font-semibold text-slate-900 tracking-tight">{title}</h3>
-      <p className="mt-1 max-w-md text-xs text-slate-600 font-normal leading-relaxed">
+      <h3 className="text-sm font-semibold text-[var(--spark-text-primary)] tracking-tight">
+        {title}
+      </h3>
+      <p className="mt-1 max-w-md text-xs text-[var(--spark-text-secondary)] font-normal leading-relaxed">
         {message}
       </p>
       {onRetry && (
@@ -45,4 +47,3 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
     </div>
   );
 };
-

@@ -53,7 +53,7 @@ export function TabsList({
   return (
     <div
       className={cn(
-        "inline-flex h-9 items-center justify-start rounded-lg bg-slate-100 p-1 text-slate-500",
+        "inline-flex h-9 items-center justify-start rounded-[8px] border border-[var(--spark-border)] bg-[var(--spark-surface-subtle)] p-1 text-[var(--spark-text-secondary)]",
         className
       )}
       {...props}
@@ -86,10 +86,10 @@ export function TabsTrigger({
       aria-selected={isSelected}
       onClick={() => context.onValueChange(value)}
       className={cn(
-        "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-xs font-medium ring-offset-white transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-1 disabled:pointer-events-none disabled:opacity-50",
+        "inline-flex items-center justify-center whitespace-nowrap rounded-[6px] px-3 py-1 text-xs font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spark-accent)] disabled:pointer-events-none disabled:opacity-50",
         isSelected
-          ? "bg-white text-slate-900 shadow-xs font-semibold"
-          : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50",
+          ? "bg-[var(--spark-surface)] text-[var(--spark-text-primary)] shadow-2xs font-semibold border border-[var(--spark-border)]"
+          : "text-[var(--spark-text-secondary)] hover:text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface)]/50 border border-transparent",
         className
       )}
       {...props}
@@ -118,11 +118,13 @@ export function TabsContent({
   return (
     <div
       role="tabpanel"
-      className={cn("mt-4 ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600", className)}
+      className={cn(
+        "mt-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spark-accent)]",
+        className
+      )}
       {...props}
     >
       {children}
     </div>
   );
 }
-

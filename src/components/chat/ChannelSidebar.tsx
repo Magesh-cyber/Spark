@@ -44,19 +44,19 @@ export function ChannelSidebar({
   return (
     <div
       className={cn(
-        "w-full md:w-64 lg:w-72 shrink-0 border-r border-slate-200 bg-slate-50/60 flex flex-col justify-between select-none",
+        "w-full md:w-[272px] lg:w-[288px] shrink-0 border-r border-[var(--spark-border)] bg-[var(--spark-canvas)]/70 dark:bg-[var(--spark-surface)] flex flex-col justify-between select-none transition-colors duration-150",
         className
       )}
     >
       {/* Top Header */}
       <div>
-        <div className="p-3 border-b border-slate-200 flex items-center justify-between">
-          <span className="text-xs font-semibold text-slate-900 tracking-tight">
+        <div className="h-[52px] px-3.5 border-b border-[var(--spark-border)] flex items-center justify-between">
+          <span className="text-xs font-semibold text-[var(--spark-text-primary)] tracking-tight">
             Conversations
           </span>
           <button
             onClick={() => setIsModalOpen(true)}
-            className="p-1 rounded-md text-slate-500 hover:text-slate-800 hover:bg-slate-200/60 transition-colors"
+            className="p-1.5 rounded-[6px] text-[var(--spark-text-secondary)] hover:text-[var(--spark-accent)] hover:bg-[var(--spark-highlight)] transition-colors duration-150"
             title="Create a new channel"
             aria-label="Create channel"
           >
@@ -65,27 +65,29 @@ export function ChannelSidebar({
         </div>
 
         {/* Quick Search */}
-        <div className="px-2.5 pt-2.5 pb-1">
+        <div className="px-3 pt-3 pb-1.5">
           <div className="relative flex items-center">
-            <Search className="absolute left-2.5 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+            <Search className="absolute left-2.5 h-3.5 w-3.5 text-[var(--spark-text-muted)] pointer-events-none" />
             <input
               type="text"
               value={filterQuery}
               onChange={(e) => setFilterQuery(e.target.value)}
               placeholder="Search conversations..."
-              className="w-full pl-8 pr-2.5 py-1 text-xs rounded-md bg-white border border-slate-200 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+              className="w-full pl-8 pr-2.5 py-1.5 text-xs rounded-[6px] bg-[var(--spark-surface)] dark:bg-[var(--spark-canvas)] border border-[var(--spark-border)] text-[var(--spark-text-primary)] placeholder:text-[var(--spark-text-muted)] focus:outline-none focus:border-[var(--spark-accent)] focus:ring-1 focus:ring-[var(--spark-accent)] transition-all duration-150"
             />
           </div>
         </div>
       </div>
 
       {/* Lists */}
-      <div className="p-2 overflow-y-auto flex-1 space-y-4">
+      <div className="p-2.5 overflow-y-auto flex-1 space-y-5">
         {/* Channels */}
         <div>
-          <div className="px-2 py-1 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+          <div className="px-2 py-1 flex items-center justify-between text-[10px] font-semibold uppercase tracking-wider text-[var(--spark-text-muted)]">
             <span>Channels</span>
-            <span className="text-[10px] text-slate-400 font-normal">{filteredChannels.length}</span>
+            <span className="text-[10px] font-medium tabular-nums">
+              {filteredChannels.length}
+            </span>
           </div>
 
           <div className="mt-1 space-y-0.5">
@@ -112,39 +114,67 @@ export function ChannelSidebar({
                     onSelectConversation?.();
                   }}
                   className={cn(
-                    "flex w-full items-start justify-between rounded-lg p-2 text-xs transition-colors text-left group",
+                    "flex w-full items-start justify-between rounded-[8px] px-2.5 py-2 text-xs transition-colors duration-150 text-left group",
                     isActive
-                      ? "bg-blue-50 text-blue-900 font-medium shadow-2xs"
-                      : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900"
+                      ? "bg-[var(--spark-highlight)] text-[var(--spark-highlight-text)] font-medium"
+                      : "text-[var(--spark-text-secondary)] hover:bg-[var(--spark-surface-subtle)] hover:text-[var(--spark-text-primary)]"
                   )}
                 >
                   <div className="flex items-start gap-2 truncate min-w-0 flex-1">
                     <div className="mt-0.5 shrink-0">
                       {c.type === "PRIVATE" ? (
-                        <Lock className="h-3.5 w-3.5 text-slate-400" />
+                        <Lock
+                          className={cn(
+                            "h-3.5 w-3.5",
+                            isActive
+                              ? "text-[var(--spark-accent)]"
+                              : "text-[var(--spark-text-muted)]"
+                          )}
+                        />
                       ) : (
-                        <Hash className="h-3.5 w-3.5 text-slate-400" />
+                        <Hash
+                          className={cn(
+                            "h-3.5 w-3.5",
+                            isActive
+                              ? "text-[var(--spark-accent)]"
+                              : "text-[var(--spark-text-muted)]"
+                          )}
+                        />
                       )}
                     </div>
                     <div className="truncate min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-1">
-                        <span className={cn("truncate", unread > 0 && "font-bold text-slate-900")}>
+                        <span
+                          className={cn(
+                            "truncate",
+                            unread > 0 && "font-bold text-[var(--spark-text-primary)]"
+                          )}
+                        >
                           {c.name}
                         </span>
                         {summary?.lastMessageTime && (
-                          <span className="text-[10px] text-slate-400 shrink-0 font-normal">
+                          <span className="text-[10px] text-[var(--spark-text-muted)] shrink-0 font-normal">
                             {summary.lastMessageTime}
                           </span>
                         )}
                       </div>
 
                       {summary?.lastMessageText ? (
-                        <p className={cn("text-[11px] truncate mt-0.5", unread > 0 ? "font-semibold text-slate-800" : "text-slate-400 font-normal")}>
-                          {summary.lastSenderName && summary.lastSenderName !== "You" ? `${summary.lastSenderName}: ` : ""}
+                        <p
+                          className={cn(
+                            "text-[11px] truncate mt-0.5",
+                            unread > 0
+                              ? "font-semibold text-[var(--spark-text-primary)]"
+                              : "text-[var(--spark-text-muted)] font-normal"
+                          )}
+                        >
+                          {summary.lastSenderName && summary.lastSenderName !== "You"
+                            ? `${summary.lastSenderName}: `
+                            : ""}
                           {summary.lastMessageText}
                         </p>
                       ) : c.description ? (
-                        <p className="text-[11px] text-slate-400 font-normal truncate mt-0.5">
+                        <p className="text-[11px] text-[var(--spark-text-muted)] font-normal truncate mt-0.5">
                           {c.description}
                         </p>
                       ) : null}
@@ -152,7 +182,7 @@ export function ChannelSidebar({
                   </div>
 
                   {unread > 0 && (
-                    <span className="ml-1.5 shrink-0 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full text-[10px] font-bold bg-blue-600 text-white shadow-xs">
+                    <span className="ml-1.5 shrink-0 inline-flex items-center justify-center h-[18px] min-w-[18px] px-1.5 rounded-full text-[10px] font-bold bg-[var(--spark-accent)] text-white shadow-2xs">
                       {unread > 99 ? "99+" : unread}
                     </span>
                   )}
@@ -164,14 +194,16 @@ export function ChannelSidebar({
 
         {/* Direct Messages */}
         <div>
-          <div className="px-2 py-1 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+          <div className="px-2 py-1 flex items-center justify-between text-[10px] font-semibold uppercase tracking-wider text-[var(--spark-text-muted)]">
             <span>Direct Messages</span>
-            <span className="text-[10px] text-slate-400 font-normal">{filteredPeers.length}</span>
+            <span className="text-[10px] font-medium tabular-nums">
+              {filteredPeers.length}
+            </span>
           </div>
 
           <div className="mt-1 space-y-0.5">
             {filteredPeers.length === 0 ? (
-              <div className="px-2 py-1 text-[11px] text-slate-400 font-normal italic">
+              <div className="px-2 py-1.5 text-[11px] text-[var(--spark-text-muted)] font-normal italic">
                 No direct messages
               </div>
             ) : (
@@ -192,24 +224,28 @@ export function ChannelSidebar({
                         type: "direct",
                         id: peer.id,
                         name: peer.fullName,
-                        nexconnTargetId: peer.id, // Peer's User ID
+                        nexconnTargetId: peer.id,
                         peer,
                       });
                       onSelectConversation?.();
                     }}
                     className={cn(
-                      "flex w-full items-start justify-between rounded-lg p-2 text-xs transition-colors text-left group",
+                      "flex w-full items-start justify-between rounded-[8px] px-2.5 py-2 text-xs transition-colors duration-150 text-left group",
                       isActive
-                        ? "bg-blue-50 text-blue-900 font-medium shadow-2xs"
-                        : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900"
+                        ? "bg-[var(--spark-highlight)] text-[var(--spark-highlight-text)] font-medium"
+                        : "text-[var(--spark-text-secondary)] hover:bg-[var(--spark-surface-subtle)] hover:text-[var(--spark-text-primary)]"
                     )}
                   >
                     <div className="flex items-start gap-2.5 truncate min-w-0 flex-1">
                       <div className="relative shrink-0 mt-0.5">
-                        <Avatar name={peer.fullName} size="sm" src={peer.avatarUrl || undefined} />
+                        <Avatar
+                          name={peer.fullName}
+                          size="sm"
+                          src={peer.avatarUrl || undefined}
+                        />
                         {onlineUserIds[peer.id] && (
                           <span
-                            className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-white"
+                            className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-[#10B981] ring-2 ring-[var(--spark-surface)]"
                             title="Online"
                           />
                         )}
@@ -217,27 +253,39 @@ export function ChannelSidebar({
 
                       <div className="truncate min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-1">
-                          <span className={cn("truncate", unread > 0 && "font-bold text-slate-900")}>
+                          <span
+                            className={cn(
+                              "truncate",
+                              unread > 0 && "font-bold text-[var(--spark-text-primary)]"
+                            )}
+                          >
                             {peer.fullName}
                           </span>
                           {summary?.lastMessageTime && (
-                            <span className="text-[10px] text-slate-400 shrink-0 font-normal">
+                            <span className="text-[10px] text-[var(--spark-text-muted)] shrink-0 font-normal">
                               {summary.lastMessageTime}
                             </span>
                           )}
                         </div>
 
                         {isTyping ? (
-                          <p className="text-[11px] text-blue-600 font-medium italic animate-pulse mt-0.5">
+                          <p className="text-[11px] text-[var(--spark-accent)] font-medium italic animate-pulse mt-0.5">
                             typing...
                           </p>
                         ) : summary?.lastMessageText ? (
-                          <p className={cn("text-[11px] truncate mt-0.5", unread > 0 ? "font-semibold text-slate-800" : "text-slate-400 font-normal")}>
+                          <p
+                            className={cn(
+                              "text-[11px] truncate mt-0.5",
+                              unread > 0
+                                ? "font-semibold text-[var(--spark-text-primary)]"
+                                : "text-[var(--spark-text-muted)] font-normal"
+                            )}
+                          >
                             {summary.lastSenderName === "You" ? "You: " : ""}
                             {summary.lastMessageText}
                           </p>
                         ) : (
-                          <p className="text-[11px] text-slate-400 font-normal truncate mt-0.5">
+                          <p className="text-[11px] text-[var(--spark-text-muted)] font-normal truncate mt-0.5">
                             {peer.email}
                           </p>
                         )}
@@ -245,7 +293,7 @@ export function ChannelSidebar({
                     </div>
 
                     {unread > 0 && (
-                      <span className="ml-1.5 shrink-0 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full text-[10px] font-bold bg-blue-600 text-white shadow-xs">
+                      <span className="ml-1.5 shrink-0 inline-flex items-center justify-center h-[18px] min-w-[18px] px-1.5 rounded-full text-[10px] font-bold bg-[var(--spark-accent)] text-white shadow-2xs">
                         {unread > 99 ? "99+" : unread}
                       </span>
                     )}
@@ -258,22 +306,28 @@ export function ChannelSidebar({
       </div>
 
       {/* Footer Connection Status */}
-      <div className="p-3 border-t border-slate-200 bg-white flex items-center justify-between text-[11px]">
-        <div className="flex items-center gap-1.5">
+      <div className="px-3.5 py-2.5 border-t border-[var(--spark-border)] bg-[var(--spark-surface)] flex items-center justify-between text-[11px]">
+        <div className="flex items-center gap-2">
           {connectionStatus === "CONNECTED" ? (
             <>
-              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="font-medium text-slate-700">Nexconn Connected</span>
+              <span className="h-2 w-2 rounded-full bg-[#10B981] shadow-[0_0_6px_rgba(16,185,129,0.65)]" />
+              <span className="font-medium text-[var(--spark-text-secondary)]">
+                Nexconn Connected
+              </span>
             </>
           ) : isConnecting ? (
             <>
-              <span className="h-2 w-2 rounded-full bg-amber-500 animate-ping" />
-              <span className="font-medium text-amber-700">Connecting...</span>
+              <span className="h-2 w-2 rounded-full bg-[#F59E0B] animate-ping" />
+              <span className="font-medium text-amber-600 dark:text-amber-400">
+                Connecting...
+              </span>
             </>
           ) : (
             <>
               <span className="h-2 w-2 rounded-full bg-rose-500" />
-              <span className="font-medium text-rose-700">Disconnected</span>
+              <span className="font-medium text-rose-600 dark:text-rose-400">
+                Disconnected
+              </span>
             </>
           )}
         </div>
@@ -281,7 +335,7 @@ export function ChannelSidebar({
         {connectionStatus !== "CONNECTED" && !isConnecting && (
           <button
             onClick={() => reconnect()}
-            className="p-1 rounded text-slate-500 hover:text-slate-800 hover:bg-slate-100"
+            className="p-1 rounded-[6px] text-[var(--spark-text-secondary)] hover:text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface-subtle)] transition-colors duration-150"
             title="Reconnect"
           >
             <RefreshCw className="h-3 w-3" />

@@ -17,21 +17,20 @@ export default function ProjectsPage() {
       <div className="space-y-6">
         <PageHeader
           title="Projects"
-          description={`High-level initiative tracking and roadmap milestones for ${activeWorkspace?.name || "your workspace"}.`}
+          description={`Initiatives and milestones for ${activeWorkspace?.name || "your workspace"}.`}
         />
 
         <FilterBar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          searchPlaceholder="Search projects by name..."
+          searchPlaceholder="Search projects..."
         />
 
-        {/* Truthful Empty State — No fabricated projects */}
-        <div className="rounded-[10px] border border-slate-200 bg-white p-8">
+        <div className="rounded-[10px] border border-[var(--spark-border)] bg-[var(--spark-surface)] p-8">
           <EmptyState
             icon={<FolderKanban className="h-5 w-5" />}
             title="No active projects"
-            description="Project tracking and milestone deliverables will appear here once initiatives are initialized in this workspace."
+            description="Projects created in this workspace will appear here."
           />
         </div>
       </div>

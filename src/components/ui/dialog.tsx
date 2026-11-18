@@ -8,6 +8,7 @@ interface DialogProps {
   children: React.ReactNode;
 }
 
+/* Glassmorphism Overlay strictly for floating modal dialogs */
 export function Dialog({ open, onOpenChange, children }: DialogProps) {
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -31,14 +32,14 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
+      {/* Frosted Backdrop */}
       <div
-        className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] transition-opacity animate-in fade-in"
+        className="fixed inset-0 bg-[#0D0B14]/55 backdrop-blur-sm transition-opacity animate-in fade-in"
         onClick={() => onOpenChange(false)}
       />
 
-      {/* Modal Dialog Content Container */}
-      <div className="relative z-50 w-full max-w-lg rounded-xl border border-slate-200 bg-white p-6 shadow-modal">
+      {/* Glassmorphic Modal Surface */}
+      <div className="relative z-50 w-full max-w-lg rounded-[14px] border spark-glass p-6 text-[var(--spark-text-primary)] shadow-modal">
         {children}
       </div>
     </div>
@@ -53,14 +54,17 @@ export function DialogHeader({
 }: React.HTMLAttributes<HTMLDivElement> & { onClose?: () => void }) {
   return (
     <div
-      className={cn("flex items-start justify-between pb-4 border-b border-slate-100", className)}
+      className={cn(
+        "flex items-start justify-between pb-4 border-b border-[var(--spark-border)]",
+        className
+      )}
       {...props}
     >
       <div className="space-y-1">{children}</div>
       {onClose && (
         <button
           onClick={onClose}
-          className="rounded-md p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+          className="rounded-[6px] p-1 text-[var(--spark-text-muted)] hover:text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface-subtle)] transition-colors duration-150"
           aria-label="Close dialog"
         >
           <X className="h-4 w-4" />
@@ -76,7 +80,10 @@ export function DialogTitle({
 }: React.HTMLAttributes<HTMLHeadingElement>) {
   return (
     <h2
-      className={cn("text-lg font-semibold tracking-tight text-slate-900", className)}
+      className={cn(
+        "text-lg font-semibold tracking-tight text-[var(--spark-text-primary)]",
+        className
+      )}
       {...props}
     />
   );
@@ -88,7 +95,10 @@ export function DialogDescription({
 }: React.HTMLAttributes<HTMLParagraphElement>) {
   return (
     <p
-      className={cn("text-xs text-slate-500 font-normal leading-relaxed", className)}
+      className={cn(
+        "text-xs text-[var(--spark-text-secondary)] font-normal leading-relaxed",
+        className
+      )}
       {...props}
     />
   );
@@ -108,11 +118,10 @@ export function DialogFooter({
   return (
     <div
       className={cn(
-        "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 pt-4 border-t border-slate-100",
+        "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 pt-4 border-t border-[var(--spark-border)]",
         className
       )}
       {...props}
     />
   );
 }
-

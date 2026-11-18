@@ -20,13 +20,11 @@ import { getOrCreateDirectConversation } from "@/lib/actions/chat-direct";
 import { clientMembersCache } from "@/lib/client-caches";
 import { subscribeBootstrap } from "@/lib/bootstrap-client";
 import { WorkspaceMemberItem, WorkspaceRole } from "@/lib/types";
-import { canInviteMembers } from "@/lib/permissions";
 import {
   UserPlus,
   Mail,
   MessageSquare,
   Users,
-  Shield,
   AlertCircle,
   CheckCircle2,
   X,
@@ -67,7 +65,6 @@ export default function TeamsPage() {
         return;
       }
 
-      // Hydrate immediately from shared cache if available (0ms render)
       const cached = clientMembersCache.get(activeWorkspace.id);
       if (cached) {
         setMembers(cached);
@@ -134,7 +131,6 @@ export default function TeamsPage() {
         },
       });
     }
-    // Persist direct conversation row asynchronously so navigation to /chat is instantaneous
     getOrCreateDirectConversation(activeWorkspace.id, peerUserId).catch(() => {});
     router.push("/chat");
   };
@@ -159,7 +155,6 @@ export default function TeamsPage() {
           devLink: res.devLink,
         });
         setInviteEmail("");
-        // Reload member directory
         await fetchMembers(true);
       } else {
         setInviteFeedback({
@@ -177,9 +172,9 @@ export default function TeamsPage() {
     }
   };
 
-  const roleBadgeVariant: Record<WorkspaceRole, "default" | "info" | "success" | "warning"> = {
+  const roleBadgeVariant: Record<WorkspaceRole, "default" | "violet" | "success" | "warning"> = {
     OWNER: "warning",
-    ADMIN: "info",
+    ADMIN: "violet",
     MANAGER: "default",
     MEMBER: "default",
     GUEST: "default",
@@ -223,13 +218,13 @@ export default function TeamsPage() {
         />
 
         {isLoading ? (
-          <div className="py-12">
+          <div className="py-6">
             <LoadingState type="cards" count={4} />
           </div>
         ) : error ? (
-          <div className="rounded-xl border border-red-200 bg-red-50/70 p-6 text-center">
-            <AlertCircle className="mx-auto h-8 w-8 text-red-600 mb-2" />
-            <p className="text-xs font-semibold text-red-900">{error}</p>
+          <div className="rounded-[10px] border border-rose-500/30 bg-rose-500/8 p-6 text-center">
+            <AlertCircle className="mx-auto h-8 w-8 text-rose-500 mb-2" />
+            <p className="text-xs font-semibold text-rose-700 dark:text-rose-300">{error}</p>
             <Button
               size="sm"
               variant="outline"
@@ -251,13 +246,16 @@ export default function TeamsPage() {
             }}
           />
         ) : filteredMembers.length === 0 ? (
-          <div className="py-12 text-center text-xs text-slate-500">
+          <div className="py-12 text-center text-xs text-[var(--spark-text-secondary)]">
             No team members matched your search query &ldquo;{searchQuery}&rdquo;.
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {filteredMembers.map((member) => (
-              <Card key={member.id} className="hover:border-slate-300 transition-colors">
+              <Card
+                key={member.id}
+                className="hover:border-[var(--spark-border-strong)] transition-colors duration-150"
+              >
                 <CardContent className="p-4 flex items-center justify-between">
                   <div className="flex items-center gap-3 min-w-0">
                     <Avatar
@@ -267,21 +265,23 @@ export default function TeamsPage() {
                     />
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <h4 className="text-xs font-semibold text-slate-900 leading-tight truncate">
+                        <h4 className="text-xs font-semibold text-[var(--spark-text-primary)] leading-tight truncate">
                           {member.user.fullName}
                         </h4>
                         {member.userId === currentUser.id && (
-                          <span className="text-[10px] text-blue-600 font-semibold bg-blue-50 px-1 rounded">
+                          <span className="text-[10px] text-[var(--spark-highlight-text)] font-semibold bg-[var(--spark-highlight)] px-1.5 py-0.5 rounded-[4px]">
                             You
                           </span>
                         )}
                       </div>
-                      <p className="text-[11px] text-slate-500 truncate">{member.user.email}</p>
-                      <div className="mt-1 flex items-center gap-1.5">
+                      <p className="text-[11px] text-[var(--spark-text-secondary)] truncate mt-0.5">
+                        {member.user.email}
+                      </p>
+                      <div className="mt-1.5 flex items-center gap-2">
                         <Badge variant={roleBadgeVariant[member.role] || "default"} size="sm">
                           {member.role}
                         </Badge>
-                        <span className="text-[10px] text-slate-400">
+                        <span className="text-[10px] text-[var(--spark-text-muted)]">
                           Joined {new Date(member.joinedAt).toLocaleDateString()}
                         </span>
                       </div>
@@ -291,7 +291,7 @@ export default function TeamsPage() {
                   <div className="flex items-center gap-1.5 shrink-0 ml-2">
                     <a
                       href={`mailto:${member.user.email}`}
-                      className="p-1.5 rounded-md border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-50 transition-colors"
+                      className="p-1.5 rounded-[6px] border border-[var(--spark-border)] text-[var(--spark-text-secondary)] hover:text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface-subtle)] transition-colors duration-150"
                       aria-label="Send email"
                     >
                       <Mail className="h-3.5 w-3.5" />
@@ -299,7 +299,7 @@ export default function TeamsPage() {
                     <button
                       type="button"
                       onClick={() => handleStartChat(member.userId)}
-                      className="p-1.5 rounded-md border border-slate-200 text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                      className="p-1.5 rounded-[6px] border border-[var(--spark-border)] text-[var(--spark-text-secondary)] hover:text-[var(--spark-accent)] hover:bg-[var(--spark-highlight)] hover:border-[var(--spark-accent)]/30 transition-colors duration-150"
                       aria-label="Open chat"
                     >
                       <MessageSquare className="h-3.5 w-3.5" />
@@ -311,25 +311,25 @@ export default function TeamsPage() {
           </div>
         )}
 
-        {/* Real Invite Member Modal */}
+        {/* Real Invite Member Modal (Glassmorphic Overlay) */}
         {inviteModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div
-              className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] transition-opacity"
+              className="fixed inset-0 bg-[#0D0B14]/55 backdrop-blur-sm transition-opacity"
               onClick={() => setInviteModalOpen(false)}
             />
-            <div className="relative z-50 w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-modal animate-in fade-in-50 zoom-in-95">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div className="relative z-50 w-full max-w-md rounded-[14px] border spark-glass p-6 text-[var(--spark-text-primary)] shadow-modal animate-in fade-in-50 zoom-in-95">
+              <div className="flex items-center justify-between pb-3 border-b border-[var(--spark-border)]">
                 <div className="flex items-center gap-2">
-                  <UserPlus className="h-4 w-4 text-blue-600" />
-                  <h3 className="text-sm font-semibold text-slate-900">
+                  <UserPlus className="h-4 w-4 text-[var(--spark-accent)]" />
+                  <h3 className="text-sm font-semibold text-[var(--spark-text-primary)]">
                     Invite Member to Workspace
                   </h3>
                 </div>
                 <button
                   type="button"
                   onClick={() => setInviteModalOpen(false)}
-                  className="rounded-md p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                  className="rounded-[6px] p-1 text-[var(--spark-text-muted)] hover:text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface-subtle)] transition-colors duration-150"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -337,29 +337,29 @@ export default function TeamsPage() {
 
               {inviteFeedback && (
                 <div
-                  className={`mt-4 rounded-lg border p-3 text-xs flex items-start gap-2 ${
+                  className={`mt-4 rounded-[8px] border p-3 text-xs flex items-start gap-2 ${
                     inviteFeedback.type === "success"
-                      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                      : "border-red-200 bg-red-50 text-red-800"
+                      ? "border-[#10B981]/30 bg-[#10B981]/10 text-emerald-700 dark:text-emerald-300"
+                      : "border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300"
                   }`}
                 >
                   {inviteFeedback.type === "success" ? (
-                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <CheckCircle2 className="h-4 w-4 text-[#10B981] shrink-0 mt-0.5" />
                   ) : (
-                    <AlertCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
+                    <AlertCircle className="h-4 w-4 text-rose-500 shrink-0 mt-0.5" />
                   )}
                   <div className="space-y-1">
                     <p>{inviteFeedback.text}</p>
                     {inviteFeedback.devLink && (
                       <div className="pt-1">
-                        <span className="text-[11px] font-semibold block text-slate-700">
+                        <span className="text-[11px] font-semibold block text-[var(--spark-text-primary)]">
                           Direct Invitation Link:
                         </span>
                         <a
                           href={inviteFeedback.devLink}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-[11px] text-blue-600 underline break-all flex items-center gap-1"
+                          className="text-[11px] text-[var(--spark-accent)] underline break-all flex items-center gap-1"
                         >
                           <span>Accept Invitation Link</span>
                           <ExternalLink className="h-3 w-3" />
@@ -381,7 +381,7 @@ export default function TeamsPage() {
                 />
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-700">
+                  <label className="text-xs font-medium text-[var(--spark-text-secondary)]">
                     Assigned Workspace Role
                   </label>
                   <div className="grid grid-cols-2 gap-2">
@@ -390,14 +390,14 @@ export default function TeamsPage() {
                         key={r}
                         type="button"
                         onClick={() => setInviteRole(r)}
-                        className={`rounded-lg border p-2 text-xs font-medium text-left transition-colors ${
+                        className={`rounded-[8px] border p-2.5 text-xs font-medium text-left transition-colors duration-150 ${
                           inviteRole === r
-                            ? "border-blue-600 bg-blue-50/70 text-blue-900"
-                            : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                            ? "border-[var(--spark-accent)] bg-[var(--spark-highlight)] text-[var(--spark-highlight-text)]"
+                            : "border-[var(--spark-border)] bg-[var(--spark-surface)] text-[var(--spark-text-secondary)] hover:bg-[var(--spark-surface-subtle)]"
                         }`}
                       >
                         <div className="font-semibold">{r}</div>
-                        <div className="text-[10px] text-slate-500">
+                        <div className="text-[10px] text-[var(--spark-text-muted)] mt-0.5">
                           {r === "ADMIN" && "Full administrative control"}
                           {r === "MANAGER" && "Manage channels & members"}
                           {r === "MEMBER" && "Collaborate & communicate"}
@@ -408,7 +408,7 @@ export default function TeamsPage() {
                   </div>
                 </div>
 
-                <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
+                <div className="pt-3 flex items-center justify-end gap-2 border-t border-[var(--spark-border)]">
                   <Button
                     type="button"
                     variant="outline"

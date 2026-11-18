@@ -18,14 +18,14 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
         {label && (
           <label
             htmlFor={inputId}
-            className="block text-xs font-medium text-slate-700 select-none"
+            className="block text-xs font-medium text-[var(--spark-text-secondary)] select-none"
           >
             {label}
           </label>
         )}
         <div className="relative flex items-center">
           {leftIcon && (
-            <div className="pointer-events-none absolute left-3 flex items-center text-slate-400">
+            <div className="pointer-events-none absolute left-3 flex items-center text-[var(--spark-text-muted)]">
               {leftIcon}
             </div>
           )}
@@ -34,10 +34,10 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
             type={type}
             disabled={disabled}
             className={cn(
-              "flex h-9 w-full rounded-[8px] border bg-white px-3 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400 disabled:border-slate-200",
+              "flex h-9 w-full rounded-[6px] border bg-[var(--spark-surface)] px-3 py-1.5 text-sm text-[var(--spark-text-primary)] placeholder:text-[var(--spark-text-muted)] transition-colors duration-150 file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spark-accent)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--spark-canvas)] disabled:cursor-not-allowed disabled:bg-[var(--spark-surface-subtle)] disabled:text-[var(--spark-text-muted)] disabled:border-[var(--spark-border)]",
               error
-                ? "border-red-500 focus-visible:ring-red-500"
-                : "border-slate-200 hover:border-slate-300",
+                ? "border-rose-500 focus-visible:ring-rose-500"
+                : "border-[var(--spark-border)] hover:border-[var(--spark-border-strong)]",
               leftIcon && "pl-9",
               rightIcon && "pr-9",
               className
@@ -46,13 +46,15 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
             {...props}
           />
           {rightIcon && (
-            <div className="absolute right-3 flex items-center text-slate-400">
+            <div className="absolute right-3 flex items-center text-[var(--spark-text-muted)]">
               {rightIcon}
             </div>
           )}
         </div>
-        {error && <p className="text-xs text-red-600 font-normal">{error}</p>}
-        {!error && hint && <p className="text-xs text-slate-500 font-normal">{hint}</p>}
+        {error && <p className="text-xs text-rose-600 dark:text-rose-400 font-normal">{error}</p>}
+        {!error && hint && (
+          <p className="text-xs text-[var(--spark-text-muted)] font-normal">{hint}</p>
+        )}
       </div>
     );
   }
@@ -60,4 +62,3 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
 Input.displayName = "Input";
 
 export { Input };
-

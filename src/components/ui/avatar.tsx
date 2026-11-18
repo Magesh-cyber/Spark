@@ -35,10 +35,10 @@ export const Avatar: React.FC<AvatarProps> = ({
   };
 
   const statusColor = {
-    online: "bg-emerald-500",
-    busy: "bg-red-500",
-    away: "bg-amber-500",
-    offline: "bg-slate-400",
+    online: "bg-[#10B981]",
+    busy: "bg-rose-500",
+    away: "bg-[#F59E0B]",
+    offline: "bg-[var(--spark-text-muted)]",
   };
 
   // Generate initials
@@ -49,15 +49,15 @@ export const Avatar: React.FC<AvatarProps> = ({
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   }, [name, alt]);
 
-  // Generate subtle predictable pastel-neutral background from name
+  // Subtle predictable violet-harmonized hues that work cleanly in both Light & Dark mode
   const bgHue = React.useMemo(() => {
-    if (!name) return "bg-slate-100 text-slate-700";
+    if (!name) return "bg-[var(--spark-highlight)] text-[var(--spark-highlight-text)]";
     const colors = [
-      "bg-blue-50 text-blue-700",
-      "bg-slate-100 text-slate-700",
-      "bg-indigo-50 text-indigo-700",
-      "bg-sky-50 text-sky-700",
-      "bg-teal-50 text-teal-700",
+      "bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-200",
+      "bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-200",
+      "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-200",
+      "bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/45 dark:text-fuchsia-200",
+      "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/45 dark:text-emerald-200",
     ];
     let hash = 0;
     for (let i = 0; i < name.length; i++) {
@@ -69,7 +69,7 @@ export const Avatar: React.FC<AvatarProps> = ({
   return (
     <div
       className={cn(
-        "relative inline-flex shrink-0 items-center justify-center rounded-full font-medium select-none border border-slate-200/80 overflow-hidden",
+        "relative inline-flex shrink-0 items-center justify-center rounded-full font-semibold select-none border border-[var(--spark-border)] overflow-hidden transition-colors duration-150",
         sizeClasses[size],
         bgHue,
         className
@@ -91,7 +91,7 @@ export const Avatar: React.FC<AvatarProps> = ({
       {status && (
         <span
           className={cn(
-            "absolute bottom-0 right-0 rounded-full ring-white",
+            "absolute bottom-0 right-0 rounded-full ring-[var(--spark-surface)]",
             statusSize[size],
             statusColor[status]
           )}
@@ -101,4 +101,3 @@ export const Avatar: React.FC<AvatarProps> = ({
     </div>
   );
 };
-

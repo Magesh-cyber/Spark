@@ -17,19 +17,19 @@ export const SparkLogo: React.FC<SparkLogoProps> = ({
 }) => {
   const sizeMap = {
     sm: {
-      icon: "w-5 h-5",
+      icon: "w-6 h-6",
+      svg: "w-3.5 h-3.5",
       text: "text-base tracking-tight",
-      box: "h-7",
     },
     md: {
-      icon: "w-6 h-6",
-      text: "text-lg tracking-tight font-semibold",
-      box: "h-8",
+      icon: "w-7 h-7",
+      svg: "w-4 h-4",
+      text: "text-[17px] tracking-tight font-semibold",
     },
     lg: {
-      icon: "w-8 h-8",
+      icon: "w-9 h-9",
+      svg: "w-5 h-5",
       text: "text-2xl tracking-tight font-bold",
-      box: "h-10",
     },
   };
 
@@ -37,29 +37,33 @@ export const SparkLogo: React.FC<SparkLogoProps> = ({
 
   const content = (
     <div className={cn("inline-flex items-center gap-2.5 select-none", className)}>
-      {/* Precise geometric spark symbol: clean, non-decorative, professional */}
+      {/* Geometric Spark Emblem — Royal Violet (Light) / Luminous Violet (Dark) */}
       <div
         className={cn(
-          "flex items-center justify-center rounded-md bg-blue-600 text-white shadow-xs transition-colors",
+          "flex items-center justify-center rounded-[8px] bg-gradient-to-br from-[#6D28D9] to-[#8B5CF6] text-white shadow-xs ring-1 ring-inset ring-white/15 transition-all duration-150 group-hover:brightness-110",
           currentSize.icon
         )}
       >
         <svg
           viewBox="0 0 24 24"
           fill="none"
-          stroke="currentColor"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="w-4 h-4"
+          className={currentSize.svg}
+          aria-hidden="true"
         >
-          {/* Geometric Spark: 4-pointed symmetric star facet */}
-          <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" fill="white" stroke="none" />
+          <path
+            d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z"
+            fill="white"
+          />
         </svg>
       </div>
 
       {showWordmark && (
-        <span className={cn("text-slate-900 font-semibold tracking-tight", currentSize.text)}>
+        <span
+          className={cn(
+            "text-[var(--spark-text-primary)] font-semibold tracking-tight transition-colors duration-150",
+            currentSize.text
+          )}
+        >
           SPARK
         </span>
       )}
@@ -76,4 +80,3 @@ export const SparkLogo: React.FC<SparkLogoProps> = ({
 
   return content;
 };
-

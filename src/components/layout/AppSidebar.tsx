@@ -17,6 +17,8 @@ import {
   LineChart,
   X,
   Loader2,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import { SparkLogo } from "@/components/brand/SparkLogo";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
@@ -70,9 +72,28 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ className, isMobile }) =
   const { activeWorkspace, sidebarOpen, setSidebarOpen } = useWorkspace();
   const chat = useNexconnChatOptional();
   const [optimisticHref, setOptimisticHref] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState(false);
   const prefetchedRoutesRef = useRef<Set<string>>(new Set());
 
   const totalChatUnread = chat?.totalUnreadCount ?? 0;
+
+  // Hydrate collapsed rail preference from localStorage
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem("spark_rail_collapsed");
+      if (saved === "true") setCollapsed(true);
+    } catch {}
+  }, []);
+
+  const toggleCollapsed = () => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem("spark_rail_collapsed", String(next));
+      } catch {}
+      return next;
+    });
+  };
 
   // Clear optimistic active state whenever route completes navigation
   useEffect(() => {
@@ -88,7 +109,6 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ className, isMobile }) =
   useEffect(() => {
     const timers: ReturnType<typeof setTimeout>[] = [];
 
-    // Wave 1: Primary routes immediately after paint
     timers.push(
       setTimeout(() => {
         PRIORITY_ROUTES.forEach((href) => {
@@ -100,7 +120,6 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ className, isMobile }) =
       }, 200)
     );
 
-    // Wave 2: Secondary routes staggered gently during idle time
     timers.push(
       setTimeout(() => {
         navItems.forEach((item, idx) => {
@@ -123,31 +142,67 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ className, isMobile }) =
     };
   }, [router, isPersonal, navItems]);
 
-  const sidebarContent = (
-    <div className="flex h-full w-full flex-col justify-between bg-white text-slate-800">
-      <div className="flex flex-col flex-1 overflow-y-auto">
-        {/* Top Header: Brand + Close for mobile */}
-        <div className="flex h-[56px] items-center justify-between px-4 border-b border-slate-100">
-          <SparkLogo size="md" href="/" />
-          {isMobile && (
+  const renderSidebarContent = (isCompact: boolean, mobileMode: boolean) => (
+    <div className="flex h-full w-full flex-col justify-between bg-[var(--spark-surface)] text-[var(--spark-text-primary)] transition-colors duration-150">
+      <div className="flex flex-col flex-1 overflow-y-auto overflow-x-hidden">
+        {/* Top Header: Brand + Collapse / Mobile Close */}
+        <div
+          className={cn(
+            "flex h-[58px] items-center border-b border-[var(--spark-border)] shrink-0",
+            isCompact ? "justify-center px-2" : "justify-between px-4"
+          )}
+        >
+          <SparkLogo size="md" href="/" showWordmark={!isCompact} />
+
+          {mobileMode ? (
             <button
+              type="button"
               onClick={() => setSidebarOpen(false)}
-              className="rounded-md p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 lg:hidden"
+              className="rounded-[6px] p-1.5 text-[var(--spark-text-muted)] hover:text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface-subtle)] lg:hidden transition-colors duration-150"
               aria-label="Close sidebar"
             >
               <X className="h-4 w-4" />
             </button>
+          ) : (
+            !isCompact && (
+              <button
+                type="button"
+                onClick={toggleCollapsed}
+                className="hidden lg:inline-flex rounded-[6px] p-1.5 text-[var(--spark-text-muted)] hover:text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface-subtle)] transition-colors duration-150"
+                title="Collapse navigation rail"
+                aria-label="Collapse navigation rail"
+              >
+                <PanelLeftClose className="h-4 w-4" />
+              </button>
+            )
           )}
         </div>
 
+        {/* Expand button when collapsed on desktop */}
+        {!mobileMode && isCompact && (
+          <div className="flex justify-center pt-2.5 px-2">
+            <button
+              type="button"
+              onClick={toggleCollapsed}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-[6px] text-[var(--spark-text-muted)] hover:text-[var(--spark-accent)] hover:bg-[var(--spark-highlight)] transition-colors duration-150"
+              title="Expand navigation rail"
+              aria-label="Expand navigation rail"
+            >
+              <PanelLeftOpen className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+
         {/* Global Workspace Switcher */}
-        <WorkspaceSwitcher />
+        <WorkspaceSwitcher compact={isCompact} />
 
         {/* Navigation Items List */}
-        <nav className="flex-1 px-3 py-2 space-y-0.5">
-          <div className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400 select-none">
-            {isPersonal ? "Personal Workspace" : "Organization Workspace"}
-          </div>
+        <nav className={cn("flex-1 py-2 space-y-0.5", isCompact ? "px-2" : "px-3")}>
+          {!isCompact && (
+            <div className="px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--spark-text-muted)] select-none">
+              {isPersonal ? "Personal Workspace" : "Organization Workspace"}
+            </div>
+          )}
 
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -170,6 +225,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ className, isMobile }) =
                 key={item.href + item.title}
                 href={item.href}
                 prefetch={false}
+                title={isCompact ? item.title : undefined}
                 onMouseEnter={() => {
                   if (!prefetchedRoutesRef.current.has(item.href)) {
                     prefetchedRoutesRef.current.add(item.href);
@@ -180,42 +236,52 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ className, isMobile }) =
                   if (pathname !== item.href) {
                     setOptimisticHref(item.href);
                   }
-                  if (isMobile) setSidebarOpen(false);
+                  if (mobileMode) setSidebarOpen(false);
                 }}
                 className={cn(
-                  "group flex items-center justify-between rounded-[8px] px-2.5 py-1.5 text-xs font-medium transition-colors select-none",
+                  "group relative flex items-center rounded-[8px] text-xs font-medium transition-colors duration-150 select-none",
+                  isCompact
+                    ? "justify-center h-9 w-full px-0"
+                    : "justify-between px-2.5 py-2",
                   isActive
-                    ? "bg-blue-50 text-blue-700 font-semibold"
-                    : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900"
+                    ? "bg-[var(--spark-highlight)] text-[var(--spark-highlight-text)] font-semibold"
+                    : "text-[var(--spark-text-secondary)] hover:bg-[var(--spark-surface-subtle)] hover:text-[var(--spark-text-primary)]"
                 )}
               >
-                <div className="flex items-center gap-2.5 truncate">
+                <div className={cn("flex items-center truncate", !isCompact && "gap-2.5")}>
                   {isNavigatingToThis ? (
-                    <Loader2 className="h-4 w-4 shrink-0 animate-spin text-blue-600" />
+                    <Loader2 className="h-4 w-4 shrink-0 animate-spin text-[var(--spark-accent)]" />
                   ) : (
                     <Icon
                       className={cn(
-                        "h-4 w-4 shrink-0 transition-colors",
-                        isActive ? "text-blue-600" : "text-slate-400 group-hover:text-slate-600"
+                        "h-4 w-4 shrink-0 transition-colors duration-150",
+                        isActive
+                          ? "text-[var(--spark-accent)]"
+                          : "text-[var(--spark-text-muted)] group-hover:text-[var(--spark-text-primary)]"
                       )}
                     />
                   )}
-                  <span className="truncate">{item.title}</span>
+                  {!isCompact && <span className="truncate">{item.title}</span>}
                 </div>
 
-                {dynamicBadge && (
+                {/* Unread Badge (expanded vs compact dot) */}
+                {dynamicBadge && !isCompact && (
                   <span
                     className={cn(
-                      "inline-flex items-center justify-center min-w-4 h-4 rounded-full px-1.5 text-[10px] font-bold leading-none",
+                      "inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full px-1.5 text-[10px] font-bold leading-none",
                       item.href === "/chat" && totalChatUnread > 0
-                        ? "bg-blue-600 text-white shadow-2xs"
+                        ? "bg-[var(--spark-accent)] text-white shadow-2xs"
                         : isActive
-                        ? "bg-blue-200/60 text-blue-800"
-                        : "bg-slate-100 text-slate-600 group-hover:bg-slate-200"
+                        ? "bg-[var(--spark-accent)]/20 text-[var(--spark-highlight-text)]"
+                        : "bg-[var(--spark-surface-subtle)] text-[var(--spark-text-secondary)]"
                     )}
                   >
                     {dynamicBadge}
                   </span>
+                )}
+
+                {dynamicBadge && isCompact && item.href === "/chat" && totalChatUnread > 0 && (
+                  <span className="absolute top-1.5 right-2 h-2 w-2 rounded-full bg-[var(--spark-accent)] ring-2 ring-[var(--spark-surface)]" />
                 )}
               </Link>
             );
@@ -223,32 +289,35 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ className, isMobile }) =
         </nav>
       </div>
 
-      {/* User Account Footer */}
-      <UserMenu />
+      {/* Bottom Rail Controls: User Account Footer */}
+      <div className="shrink-0">
+        <UserMenu compact={isCompact} />
+      </div>
     </div>
   );
 
   return (
     <>
-      {/* Desktop Persistent Sidebar */}
+      {/* Desktop Persistent Collapsible Navigation Rail */}
       <aside
         className={cn(
-          "hidden lg:flex w-[240px] shrink-0 border-r border-slate-200 bg-white min-h-screen sticky top-0 h-screen z-30",
+          "hidden lg:flex shrink-0 border-r border-[var(--spark-border)] bg-[var(--spark-surface)] min-h-screen sticky top-0 h-screen z-30 transition-[width] duration-150 ease-out",
+          collapsed ? "w-[68px]" : "w-[244px]",
           className
         )}
       >
-        {sidebarContent}
+        {renderSidebarContent(collapsed, false)}
       </aside>
 
       {/* Mobile Drawer */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div
-            className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity"
+            className="fixed inset-0 bg-[#0D0B14]/60 backdrop-blur-xs transition-opacity"
             onClick={() => setSidebarOpen(false)}
           />
-          <div className="fixed inset-y-0 left-0 w-[260px] max-w-[85vw] bg-white shadow-xl animate-in slide-in-from-left duration-200">
-            {sidebarContent}
+          <div className="fixed inset-y-0 left-0 w-[268px] max-w-[85vw] bg-[var(--spark-surface)] border-r border-[var(--spark-border)] shadow-modal animate-in slide-in-from-left duration-200">
+            {renderSidebarContent(false, true)}
           </div>
         </div>
       )}

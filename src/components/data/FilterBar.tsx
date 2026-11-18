@@ -1,7 +1,6 @@
 import * as React from "react";
-import { Search, SlidersHorizontal, LayoutGrid, List } from "lucide-react";
+import { Search, LayoutGrid, List } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface FilterBarProps {
@@ -28,7 +27,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   return (
     <div
       className={cn(
-        "flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-2",
+        "flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-1",
         className
       )}
     >
@@ -46,17 +45,18 @@ export const FilterBar: React.FC<FilterBarProps> = ({
 
       <div className="flex items-center gap-2">
         {onViewModeChange && viewMode && (
-          <div className="flex items-center rounded-lg border border-slate-200 bg-white p-0.5">
+          <div className="flex items-center rounded-[8px] border border-[var(--spark-border)] bg-[var(--spark-surface)] p-0.5">
             <button
               type="button"
               onClick={() => onViewModeChange("list")}
               className={cn(
-                "rounded-md p-1.5 text-xs transition-colors",
+                "rounded-[6px] p-1.5 text-xs transition-colors duration-150",
                 viewMode === "list"
-                  ? "bg-slate-100 text-slate-900 font-medium"
-                  : "text-slate-500 hover:text-slate-800"
+                  ? "bg-[var(--spark-highlight)] text-[var(--spark-highlight-text)] font-medium"
+                  : "text-[var(--spark-text-secondary)] hover:text-[var(--spark-text-primary)]"
               )}
               aria-label="List view"
+              title="List view"
             >
               <List className="h-4 w-4" />
             </button>
@@ -64,12 +64,13 @@ export const FilterBar: React.FC<FilterBarProps> = ({
               type="button"
               onClick={() => onViewModeChange("board")}
               className={cn(
-                "rounded-md p-1.5 text-xs transition-colors",
+                "rounded-[6px] p-1.5 text-xs transition-colors duration-150",
                 viewMode === "board"
-                  ? "bg-slate-100 text-slate-900 font-medium"
-                  : "text-slate-500 hover:text-slate-800"
+                  ? "bg-[var(--spark-highlight)] text-[var(--spark-highlight-text)] font-medium"
+                  : "text-[var(--spark-text-secondary)] hover:text-[var(--spark-text-primary)]"
               )}
               aria-label="Board view"
+              title="Board view"
             >
               <LayoutGrid className="h-4 w-4" />
             </button>
@@ -80,4 +81,3 @@ export const FilterBar: React.FC<FilterBarProps> = ({
     </div>
   );
 };
-

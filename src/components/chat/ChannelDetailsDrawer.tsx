@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { Avatar } from "@/components/ui/avatar";
-import { FileText, Pin, Trash2, Plus, ExternalLink, AlertTriangle } from "lucide-react";
+import { Pin, Trash2, Plus, ExternalLink } from "lucide-react";
 import { useWorkspace } from "@/lib/workspace-context";
 import { useNexconnChat } from "./NexconnChatProvider";
 import { pinArtifactToChannel, deleteWorkspaceChannel } from "@/lib/actions/chat-channels";
@@ -48,7 +48,11 @@ export function ChannelDetailsDrawer() {
     if (!activeWorkspace?.id || !channelDetails?.id) return;
     if (channelDetails.isDefault) return;
 
-    if (!confirm(`Are you sure you want to delete #${channelDetails.name}? All channel history will be permanently removed.`)) {
+    if (
+      !confirm(
+        `Are you sure you want to delete #${channelDetails.name}? All channel history will be permanently removed.`
+      )
+    ) {
       return;
     }
 
@@ -67,13 +71,13 @@ export function ChannelDetailsDrawer() {
   };
 
   return (
-    <div className="w-64 shrink-0 border-l border-slate-200 bg-slate-50/40 p-4 space-y-4 overflow-y-auto select-none">
+    <div className="w-72 shrink-0 border-l border-[var(--spark-border)] bg-[var(--spark-canvas)] dark:bg-[var(--spark-surface)] p-4 space-y-4 overflow-y-auto select-none transition-colors duration-150">
       {/* About */}
       <div>
-        <h4 className="text-xs font-semibold text-slate-900">
+        <h4 className="text-xs font-semibold text-[var(--spark-text-primary)]">
           {isChannel ? `About #${activeConversation.name}` : `Direct Message`}
         </h4>
-        <p className="mt-1 text-xs text-slate-500 font-normal leading-relaxed">
+        <p className="mt-1 text-xs text-[var(--spark-text-secondary)] font-normal leading-relaxed">
           {isChannel
             ? activeConversation.description || "No topic set for this channel."
             : `Private direct conversation with ${activeConversation.name}.`}
@@ -82,42 +86,44 @@ export function ChannelDetailsDrawer() {
 
       {/* Members */}
       {isChannel && channelDetails && (
-        <div className="border-t border-slate-200 pt-3">
+        <div className="border-t border-[var(--spark-border)] pt-3.5">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--spark-text-muted)]">
               Channel Members ({channelDetails.members.length + 1})
             </span>
           </div>
 
-          <div className="mt-2 space-y-2 max-h-48 overflow-y-auto">
+          <div className="mt-2.5 space-y-2 max-h-48 overflow-y-auto">
             {/* Creator */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
               <Avatar
                 name={channelDetails.creator.fullName}
                 size="sm"
                 src={channelDetails.creator.avatarUrl || undefined}
               />
               <div className="truncate">
-                <div className="text-xs font-medium text-slate-800 truncate">
+                <div className="text-xs font-medium text-[var(--spark-text-primary)] truncate">
                   {channelDetails.creator.fullName}
                 </div>
-                <div className="text-[10px] text-slate-400">Creator</div>
+                <div className="text-[10px] text-[var(--spark-accent)] font-medium">Creator</div>
               </div>
             </div>
 
             {/* Other Members */}
             {channelDetails.members.map((member) => (
-              <div key={member.id} className="flex items-center gap-2">
+              <div key={member.id} className="flex items-center gap-2.5">
                 <Avatar
                   name={member.fullName}
                   size="sm"
                   src={member.avatarUrl || undefined}
                 />
                 <div className="truncate">
-                  <div className="text-xs font-medium text-slate-800 truncate">
+                  <div className="text-xs font-medium text-[var(--spark-text-primary)] truncate">
                     {member.fullName}
                   </div>
-                  <div className="text-[10px] text-slate-400 truncate">{member.email}</div>
+                  <div className="text-[10px] text-[var(--spark-text-muted)] truncate">
+                    {member.email}
+                  </div>
                 </div>
               </div>
             ))}
@@ -127,14 +133,14 @@ export function ChannelDetailsDrawer() {
 
       {/* Pinned Artifacts */}
       {isChannel && channelDetails && (
-        <div className="border-t border-slate-200 pt-3">
+        <div className="border-t border-[var(--spark-border)] pt-3.5">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--spark-text-muted)]">
               Pinned Artifacts ({channelDetails.pinnedArtifacts.length})
             </span>
             <button
               onClick={() => setIsAddingPin(!isAddingPin)}
-              className="text-slate-400 hover:text-blue-600 p-0.5"
+              className="text-[var(--spark-text-muted)] hover:text-[var(--spark-accent)] p-1 rounded-[6px] hover:bg-[var(--spark-highlight)] transition-colors duration-150"
               title="Pin an artifact"
             >
               <Plus className="h-3.5 w-3.5" />
@@ -142,13 +148,16 @@ export function ChannelDetailsDrawer() {
           </div>
 
           {isAddingPin && (
-            <form onSubmit={handleAddPin} className="mt-2 space-y-2 p-2 rounded-lg bg-white border border-slate-200 text-xs">
+            <form
+              onSubmit={handleAddPin}
+              className="mt-2 space-y-2 p-2.5 rounded-[8px] bg-[var(--spark-surface)] border border-[var(--spark-border)] text-xs"
+            >
               <input
                 type="text"
                 placeholder="Title (e.g. Master Spec)"
                 value={pinTitle}
                 onChange={(e) => setPinTitle(e.target.value)}
-                className="w-full rounded border border-slate-200 px-2 py-1 text-xs focus:outline-blue-600"
+                className="w-full rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] px-2 py-1 text-xs text-[var(--spark-text-primary)] placeholder:text-[var(--spark-text-muted)] focus:outline-none focus:border-[var(--spark-accent)]"
                 required
               />
               <input
@@ -156,21 +165,21 @@ export function ChannelDetailsDrawer() {
                 placeholder="URL (https://...)"
                 value={pinUrl}
                 onChange={(e) => setPinUrl(e.target.value)}
-                className="w-full rounded border border-slate-200 px-2 py-1 text-xs focus:outline-blue-600"
+                className="w-full rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] px-2 py-1 text-xs text-[var(--spark-text-primary)] placeholder:text-[var(--spark-text-muted)] focus:outline-none focus:border-[var(--spark-accent)]"
                 required
               />
-              <div className="flex justify-end gap-1">
+              <div className="flex justify-end gap-1.5">
                 <button
                   type="button"
                   onClick={() => setIsAddingPin(false)}
-                  className="px-2 py-0.5 text-[11px] text-slate-500 hover:bg-slate-100 rounded"
+                  className="px-2 py-1 text-[11px] text-[var(--spark-text-secondary)] hover:bg-[var(--spark-surface-subtle)] rounded-[6px]"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isPinning}
-                  className="px-2 py-0.5 text-[11px] bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                  className="px-2.5 py-1 text-[11px] bg-[var(--spark-accent)] text-white rounded-[6px] hover:bg-[var(--spark-accent-hover)] disabled:opacity-50"
                 >
                   {isPinning ? "Pinning..." : "Pin"}
                 </button>
@@ -180,7 +189,7 @@ export function ChannelDetailsDrawer() {
 
           <div className="mt-2 space-y-1.5 text-xs">
             {channelDetails.pinnedArtifacts.length === 0 ? (
-              <span className="text-[11px] text-slate-400 font-normal italic">
+              <span className="text-[11px] text-[var(--spark-text-muted)] font-normal italic">
                 No pinned artifacts
               </span>
             ) : (
@@ -190,11 +199,11 @@ export function ChannelDetailsDrawer() {
                   href={artifact.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center gap-1.5 text-blue-600 hover:underline truncate group"
+                  className="flex items-center gap-1.5 text-[var(--spark-accent)] hover:underline truncate group"
                 >
-                  <Pin className="h-3.5 w-3.5 text-slate-400 shrink-0 group-hover:text-blue-600" />
+                  <Pin className="h-3.5 w-3.5 text-[var(--spark-text-muted)] shrink-0 group-hover:text-[var(--spark-accent)]" />
                   <span className="truncate">{artifact.title}</span>
-                  <ExternalLink className="h-2.5 w-2.5 text-slate-400 shrink-0" />
+                  <ExternalLink className="h-2.5 w-2.5 text-[var(--spark-text-muted)] shrink-0" />
                 </a>
               ))
             )}
@@ -204,11 +213,11 @@ export function ChannelDetailsDrawer() {
 
       {/* Danger Zone: Delete Channel */}
       {isChannel && channelDetails && !channelDetails.isDefault && (
-        <div className="border-t border-slate-200 pt-3">
+        <div className="border-t border-[var(--spark-border)] pt-3.5">
           <button
             onClick={handleDeleteChannel}
             disabled={isDeleting}
-            className="flex items-center gap-1.5 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 p-1.5 rounded-md w-full transition-colors font-medium"
+            className="flex items-center gap-1.5 text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 p-2 rounded-[6px] w-full transition-colors duration-150 font-medium"
           >
             <Trash2 className="h-3.5 w-3.5" />
             <span>Delete #{channelDetails.name}</span>
@@ -218,4 +227,3 @@ export function ChannelDetailsDrawer() {
     </div>
   );
 }
-

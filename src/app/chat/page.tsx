@@ -30,17 +30,17 @@ function ChatInner() {
   }, [mobileView, setIsConversationVisible]);
 
   return (
-    <div className="relative flex h-[calc(100dvh-96px)] sm:h-[calc(100vh-100px)] overflow-hidden rounded-[10px] border border-slate-200 bg-white shadow-2xs">
-      {/* Left Column: Channels & DMs */}
+    <div className="relative flex h-[calc(100dvh-76px)] sm:h-[calc(100vh-90px)] overflow-hidden rounded-[12px] border border-[var(--spark-border)] bg-[var(--spark-surface)] shadow-subtle transition-colors duration-150">
+      {/* Contextual Secondary Sidebar: Channels & Direct Messages */}
       <ChannelSidebar
         onSelectConversation={() => setMobileView("chat")}
         className={cn(mobileView === "chat" ? "hidden md:flex" : "flex")}
       />
 
-      {/* Center Column: Header, Messages, Composer */}
+      {/* Main Workspace Canvas: Header, Messages, Composer */}
       <div
         className={cn(
-          "flex flex-1 flex-col justify-between min-w-0 bg-white",
+          "flex flex-1 flex-col justify-between min-w-0 bg-[var(--spark-surface)]",
           mobileView === "list" ? "hidden md:flex" : "flex"
         )}
       >
@@ -53,14 +53,14 @@ function ChatInner() {
         <MessageComposer />
       </div>
 
-      {/* Right Column: Channel Details & Pinned Resources */}
+      {/* Right Slide-Over Panel: Channel Details & Pinned Resources */}
       {showRightPanel && (
         <>
           <div
-            className="fixed inset-0 z-30 bg-slate-900/30 xl:hidden"
+            className="fixed inset-0 z-30 bg-[#0D0B14]/50 backdrop-blur-[2px] xl:hidden"
             onClick={() => setShowRightPanel(false)}
           />
-          <div className="fixed inset-y-0 right-0 z-40 flex xl:static xl:z-auto shadow-xl xl:shadow-none">
+          <div className="fixed inset-y-0 right-0 z-40 flex xl:static xl:z-auto shadow-modal xl:shadow-none">
             <ChannelDetailsDrawer />
           </div>
         </>

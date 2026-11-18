@@ -3,17 +3,25 @@
 import React, { useState, useEffect } from "react";
 import { ShellLayout } from "@/components/layout/ShellLayout";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { useWorkspace } from "@/lib/workspace-context";
+import { useTheme } from "@/lib/theme-context";
 import { updateUserProfile, changeUserPassword } from "@/lib/actions/profile";
-import { AlertCircle, CheckCircle2, Lock, Save, User as UserIcon } from "lucide-react";
+import { AlertCircle, CheckCircle2, Lock, Save, Moon, Sun } from "lucide-react";
 
 export default function SettingsPage() {
   const { currentUser, setCurrentUser, activeWorkspace } = useWorkspace();
+  const { theme, setTheme } = useTheme();
   const [name, setName] = useState(currentUser.name);
   const [avatarUrl, setAvatarUrl] = useState(currentUser.avatarUrl || "");
   const [emailNotifs, setEmailNotifs] = useState(true);
@@ -105,8 +113,65 @@ export default function SettingsPage() {
       <div className="space-y-6 max-w-3xl">
         <PageHeader
           title="Account & Workspace Settings"
-          description="Manage your verified profile, security credentials, and active workspace configuration."
+          description="Manage your verified profile, security credentials, appearance, and active workspace configuration."
         />
+
+        {/* Appearance / Theme Preference Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Appearance &amp; Theme</CardTitle>
+            <CardDescription>
+              Switch between SPARK Light Mode and Dark Mode. Your preference is persisted automatically.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setTheme("light")}
+                className={`flex items-center gap-3 rounded-[10px] border p-3.5 text-left transition-all duration-150 ${
+                  theme === "light"
+                    ? "border-[var(--spark-accent)] bg-[var(--spark-highlight)] ring-1 ring-[var(--spark-accent)]"
+                    : "border-[var(--spark-border)] bg-[var(--spark-canvas)] hover:bg-[var(--spark-surface-subtle)]"
+                }`}
+              >
+                <div className="flex h-9 w-9 items-center justify-center rounded-[8px] bg-[#FFFFFF] border border-[#E6E2F0] text-[#6D28D9]">
+                  <Sun className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-[var(--spark-text-primary)]">
+                    Light Mode
+                  </p>
+                  <p className="text-[11px] text-[var(--spark-text-secondary)]">
+                    Cool Violet-Tint White &amp; Royal Violet
+                  </p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setTheme("dark")}
+                className={`flex items-center gap-3 rounded-[10px] border p-3.5 text-left transition-all duration-150 ${
+                  theme === "dark"
+                    ? "border-[var(--spark-accent)] bg-[var(--spark-highlight)] ring-1 ring-[var(--spark-accent)]"
+                    : "border-[var(--spark-border)] bg-[var(--spark-canvas)] hover:bg-[var(--spark-surface-subtle)]"
+                }`}
+              >
+                <div className="flex h-9 w-9 items-center justify-center rounded-[8px] bg-[#161321] border border-[#282338] text-[#8B5CF6]">
+                  <Moon className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-[var(--spark-text-primary)]">
+                    Dark Mode
+                  </p>
+                  <p className="text-[11px] text-[var(--spark-text-secondary)]">
+                    Deep Obsidian-Plum &amp; Luminous Violet
+                  </p>
+                </div>
+              </button>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Profile Details Form */}
         <form onSubmit={handleProfileSave}>
@@ -119,15 +184,15 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {profileError && (
-                <div className="rounded-lg border border-red-200 bg-red-50/70 p-3 text-xs text-red-700 flex items-start gap-2">
-                  <AlertCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
+                <div className="rounded-[8px] border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-700 dark:text-rose-300 flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 text-rose-500 shrink-0 mt-0.5" />
                   <span>{profileError}</span>
                 </div>
               )}
 
               {profileSuccess && (
-                <div className="rounded-lg border border-emerald-200 bg-emerald-50/80 p-3 text-xs text-emerald-800 flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                <div className="rounded-[8px] border border-[#10B981]/30 bg-[#10B981]/10 p-3 text-xs text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-[#10B981] shrink-0" />
                   <span>Profile updated successfully!</span>
                 </div>
               )}
@@ -135,8 +200,10 @@ export default function SettingsPage() {
               <div className="flex items-center gap-4">
                 <Avatar name={name} src={avatarUrl} size="xl" />
                 <div className="space-y-1">
-                  <p className="text-xs font-semibold text-slate-800">Profile Avatar</p>
-                  <p className="text-[11px] text-slate-500">
+                  <p className="text-xs font-semibold text-[var(--spark-text-primary)]">
+                    Profile Avatar
+                  </p>
+                  <p className="text-[11px] text-[var(--spark-text-secondary)]">
                     Generated from your initials or custom image URL.
                   </p>
                 </div>
@@ -186,22 +253,22 @@ export default function SettingsPage() {
         <form onSubmit={handlePasswordChange}>
           <Card>
             <CardHeader>
-              <CardTitle>Security & Password</CardTitle>
+              <CardTitle>Security &amp; Password</CardTitle>
               <CardDescription>
                 Update your account password. We recommend using a unique password of at least 8 characters.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {passwordError && (
-                <div className="rounded-lg border border-red-200 bg-red-50/70 p-3 text-xs text-red-700 flex items-start gap-2">
-                  <AlertCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
+                <div className="rounded-[8px] border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-700 dark:text-rose-300 flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 text-rose-500 shrink-0 mt-0.5" />
                   <span>{passwordError}</span>
                 </div>
               )}
 
               {passwordSuccess && (
-                <div className="rounded-lg border border-emerald-200 bg-emerald-50/80 p-3 text-xs text-emerald-800 flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                <div className="rounded-[8px] border border-[#10B981]/30 bg-[#10B981]/10 p-3 text-xs text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-[#10B981] shrink-0" />
                   <span>Password changed successfully!</span>
                 </div>
               )}
@@ -269,17 +336,27 @@ export default function SettingsPage() {
             <CardDescription>Settings for {activeWorkspace.name}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2 text-xs">
-            <div className="flex justify-between py-1.5 border-b border-slate-100">
-              <span className="text-slate-500 font-medium">Workspace Name</span>
-              <span className="font-semibold text-slate-800">{activeWorkspace.name}</span>
+            <div className="flex justify-between py-2 border-b border-[var(--spark-border)]">
+              <span className="text-[var(--spark-text-secondary)] font-medium">
+                Workspace Name
+              </span>
+              <span className="font-semibold text-[var(--spark-text-primary)]">
+                {activeWorkspace.name}
+              </span>
             </div>
-            <div className="flex justify-between py-1.5 border-b border-slate-100">
-              <span className="text-slate-500 font-medium">Workspace Type</span>
-              <span className="capitalize font-semibold text-slate-800">{activeWorkspace.type}</span>
+            <div className="flex justify-between py-2 border-b border-[var(--spark-border)]">
+              <span className="text-[var(--spark-text-secondary)] font-medium">
+                Workspace Type
+              </span>
+              <span className="capitalize font-semibold text-[var(--spark-text-primary)]">
+                {activeWorkspace.type}
+              </span>
             </div>
-            <div className="flex justify-between py-1.5">
-              <span className="text-slate-500 font-medium">Your Role</span>
-              <span className="capitalize font-semibold text-blue-600">{activeWorkspace.role}</span>
+            <div className="flex justify-between py-2">
+              <span className="text-[var(--spark-text-secondary)] font-medium">Your Role</span>
+              <span className="capitalize font-semibold text-[var(--spark-accent)]">
+                {activeWorkspace.role}
+              </span>
             </div>
           </CardContent>
         </Card>

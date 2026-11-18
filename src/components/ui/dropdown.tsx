@@ -63,6 +63,7 @@ export function DropdownTrigger({
   );
 }
 
+/* Glassmorphism Overlay strictly for floating dropdown menus */
 export function DropdownContent({
   children,
   align = "right",
@@ -80,7 +81,7 @@ export function DropdownContent({
   return (
     <div
       className={cn(
-        "absolute z-50 mt-1.5 rounded-lg border border-slate-200 bg-white p-1 text-slate-800 shadow-elevated focus:outline-none animate-in fade-in-50 zoom-in-95",
+        "absolute z-50 mt-1.5 rounded-[12px] border spark-glass p-1.5 text-[var(--spark-text-primary)] shadow-elevated focus:outline-none animate-in fade-in-50 zoom-in-95",
         width,
         align === "right" ? "right-0" : "left-0",
         className
@@ -120,29 +121,28 @@ export function DropdownItem({
       disabled={disabled}
       onClick={handleClick}
       className={cn(
-        "flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors text-left",
+        "flex w-full items-center gap-2 rounded-[6px] px-2.5 py-1.5 text-xs font-medium transition-colors duration-150 text-left",
         destructive
-          ? "text-red-600 hover:bg-red-50"
-          : "text-slate-700 hover:bg-slate-100 hover:text-slate-900",
+          ? "text-rose-600 dark:text-rose-400 hover:bg-rose-500/10"
+          : "text-[var(--spark-text-secondary)] hover:bg-[var(--spark-surface-subtle)] hover:text-[var(--spark-text-primary)]",
         disabled && "opacity-50 pointer-events-none",
         className
       )}
     >
-      {icon && <span className="h-4 w-4 shrink-0 text-slate-400">{icon}</span>}
+      {icon && <span className="h-4 w-4 shrink-0 text-[var(--spark-text-muted)]">{icon}</span>}
       <span className="flex-1 truncate">{children}</span>
     </button>
   );
 }
 
 export function DropdownSeparator() {
-  return <div className="my-1 h-px bg-slate-100" />;
+  return <div className="my-1 h-px bg-[var(--spark-border)]" />;
 }
 
 export function DropdownLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+    <div className="px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-[var(--spark-text-muted)]">
       {children}
     </div>
   );
 }
-

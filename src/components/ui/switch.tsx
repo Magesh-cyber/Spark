@@ -27,13 +27,13 @@ export const Switch: React.FC<SwitchProps> = ({
         disabled={disabled}
         onClick={() => onCheckedChange(!checked)}
         className={cn(
-          "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50",
-          checked ? "bg-blue-600" : "bg-slate-200"
+          "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-150 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spark-accent)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--spark-canvas)] disabled:cursor-not-allowed disabled:opacity-50",
+          checked ? "bg-[var(--spark-accent)]" : "bg-[var(--spark-border-strong)]"
         )}
       >
         <span
           className={cn(
-            "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition duration-200 ease-in-out",
+            "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition duration-150 ease-in-out",
             checked ? "translate-x-4" : "translate-x-0"
           )}
         />
@@ -43,13 +43,13 @@ export const Switch: React.FC<SwitchProps> = ({
           {label && (
             <span
               onClick={() => !disabled && onCheckedChange(!checked)}
-              className="text-xs font-medium text-slate-800 cursor-pointer"
+              className="text-xs font-medium text-[var(--spark-text-primary)] cursor-pointer"
             >
               {label}
             </span>
           )}
           {description && (
-            <span className="text-[11px] text-slate-500 font-normal leading-tight">
+            <span className="text-[11px] text-[var(--spark-text-secondary)] font-normal leading-tight">
               {description}
             </span>
           )}
@@ -58,4 +58,3 @@ export const Switch: React.FC<SwitchProps> = ({
     </div>
   );
 };
-

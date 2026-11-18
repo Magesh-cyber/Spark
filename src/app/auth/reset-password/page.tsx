@@ -3,8 +3,9 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertCircle, CheckCircle2, Lock, ArrowLeft } from "lucide-react";
+import { AlertCircle, CheckCircle2, Lock } from "lucide-react";
 import { SparkLogo } from "@/components/brand/SparkLogo";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
@@ -24,14 +25,17 @@ export default function ResetPasswordPage() {
   useEffect(() => {
     const supabase = createClient();
     supabase.auth.getSession().then(({ data: { session } }) => {
-      const hasHash = typeof window !== "undefined" && window.location.hash.includes("access_token");
+      const hasHash =
+        typeof window !== "undefined" && window.location.hash.includes("access_token");
       if (session || hasHash) {
         setHasValidSession(true);
       }
       setSessionChecked(true);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "PASSWORD_RECOVERY" || (session && event === "SIGNED_IN")) {
         setHasValidSession(true);
       }
@@ -79,38 +83,46 @@ export default function ResetPasswordPage() {
 
       setIsSuccess(true);
       setTimeout(() => {
-        router.push("/auth/login?message=Password updated successfully. Please sign in with your new credentials.");
+        router.push(
+          "/auth/login?message=Password updated successfully. Please sign in with your new credentials."
+        );
       }, 1500);
     } catch {
-      setGeneralError("An unexpected error occurred while updating your password. Please try again.");
+      setGeneralError(
+        "An unexpected error occurred while updating your password. Please try again."
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#F8FAFC] px-4 py-12">
+    <div className="relative flex min-h-screen items-center justify-center bg-[var(--spark-canvas)] px-4 py-12 transition-colors duration-150">
+      <div className="fixed top-4 right-4">
+        <ThemeToggle variant="icon" />
+      </div>
+
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center space-y-2">
           <div className="inline-flex justify-center">
             <SparkLogo size="lg" />
           </div>
-          <h1 className="text-xl font-semibold tracking-tight text-slate-900">
+          <h1 className="text-xl font-semibold tracking-tight text-[var(--spark-text-primary)]">
             Create new password
           </h1>
-          <p className="text-xs text-slate-500 font-normal">
+          <p className="text-xs text-[var(--spark-text-secondary)] font-normal">
             Choose a strong password for your SPARK account.
           </p>
         </div>
 
-        <div className="rounded-[10px] border border-slate-200 bg-white p-6 shadow-subtle">
+        <div className="rounded-[12px] border border-[var(--spark-border)] bg-[var(--spark-surface)] p-6 shadow-subtle">
           {sessionChecked && !hasValidSession ? (
             <div className="space-y-4">
-              <div className="rounded-lg border border-red-200 bg-red-50/70 p-3.5 text-xs text-red-700 flex items-start gap-2.5">
-                <AlertCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
+              <div className="rounded-[8px] border border-rose-500/30 bg-rose-500/10 p-3.5 text-xs text-rose-700 dark:text-rose-300 flex items-start gap-2.5">
+                <AlertCircle className="h-4 w-4 text-rose-500 shrink-0 mt-0.5" />
                 <div className="space-y-1">
-                  <p className="font-semibold text-red-900">Recovery link invalid or expired</p>
-                  <p className="text-slate-600 leading-relaxed">
+                  <p className="font-semibold">Recovery link invalid or expired</p>
+                  <p className="text-[var(--spark-text-secondary)] leading-relaxed">
                     This password reset link is invalid, has already been used, or has expired. Please request a new recovery link.
                   </p>
                 </div>
@@ -129,18 +141,20 @@ export default function ResetPasswordPage() {
               </div>
             </div>
           ) : isSuccess ? (
-            <div className="rounded-lg border border-emerald-200 bg-emerald-50/80 p-4 text-center space-y-2">
-              <CheckCircle2 className="h-6 w-6 text-emerald-600 mx-auto" />
-              <p className="text-xs font-semibold text-emerald-900">Password Updated!</p>
-              <p className="text-[11px] text-slate-600">
+            <div className="rounded-[8px] border border-[#10B981]/30 bg-[#10B981]/10 p-4 text-center space-y-2">
+              <CheckCircle2 className="h-6 w-6 text-[#10B981] mx-auto" />
+              <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                Password Updated!
+              </p>
+              <p className="text-[11px] text-[var(--spark-text-secondary)]">
                 Redirecting you to sign in...
               </p>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               {generalError && (
-                <div className="rounded-lg border border-red-200 bg-red-50/70 p-3 text-xs text-red-700 flex items-start gap-2">
-                  <AlertCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
+                <div className="rounded-[8px] border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-700 dark:text-rose-300 flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 text-rose-500 shrink-0 mt-0.5" />
                   <span>{generalError}</span>
                 </div>
               )}
@@ -178,10 +192,10 @@ export default function ResetPasswordPage() {
                 </Button>
               </div>
 
-              <div className="border-t border-slate-100 pt-3 text-center">
+              <div className="border-t border-[var(--spark-border)] pt-3 text-center">
                 <Link
                   href="/auth/login"
-                  className="text-xs font-medium text-slate-600 hover:text-slate-900"
+                  className="text-xs font-medium text-[var(--spark-text-secondary)] hover:text-[var(--spark-accent)]"
                 >
                   Cancel and return to sign in
                 </Link>
@@ -193,4 +207,3 @@ export default function ResetPasswordPage() {
     </div>
   );
 }
-

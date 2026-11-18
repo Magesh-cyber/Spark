@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Mail, CheckCircle2, AlertCircle, ArrowLeft, RefreshCw } from "lucide-react";
 import { SparkLogo } from "@/components/brand/SparkLogo";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/client";
@@ -59,11 +60,11 @@ function VerifyEmailContent() {
   };
 
   return (
-    <div className="rounded-[10px] border border-slate-200 bg-white p-6 shadow-subtle space-y-5">
+    <div className="rounded-[12px] border border-[var(--spark-border)] bg-[var(--spark-surface)] p-6 shadow-subtle space-y-5">
       {errorParam ? (
-        <div className="rounded-lg border border-red-200 bg-red-50/60 p-3.5 flex items-start gap-3">
-          <AlertCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
-          <div className="text-xs text-red-700 leading-relaxed">
+        <div className="rounded-[8px] border border-rose-500/30 bg-rose-500/10 p-3.5 flex items-start gap-3">
+          <AlertCircle className="h-4 w-4 text-rose-500 shrink-0 mt-0.5" />
+          <div className="text-xs text-rose-700 dark:text-rose-300 leading-relaxed">
             <p className="font-semibold">Verification link invalid or expired</p>
             <p className="mt-0.5">
               The verification link you clicked may have expired. Please request a new link below.
@@ -71,16 +72,20 @@ function VerifyEmailContent() {
           </div>
         </div>
       ) : (
-        <div className="flex items-center gap-3.5 rounded-lg border border-blue-100 bg-blue-50/50 p-4">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+        <div className="flex items-center gap-3.5 rounded-[8px] border border-[var(--spark-accent)]/25 bg-[var(--spark-highlight)]/55 p-4">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--spark-highlight)] text-[var(--spark-accent)]">
             <Mail className="h-5 w-5" />
           </div>
-          <div className="text-xs text-slate-700">
-            <p className="font-semibold text-slate-900">Verification Link Sent</p>
-            <p className="mt-0.5 text-slate-600">
+          <div className="text-xs text-[var(--spark-text-secondary)]">
+            <p className="font-semibold text-[var(--spark-text-primary)]">
+              Verification Link Sent
+            </p>
+            <p className="mt-0.5">
               {email ? (
                 <>
-                  Sent to <span className="font-medium text-slate-900">{email}</span>. Click the link in your email to activate your account.
+                  Sent to{" "}
+                  <span className="font-medium text-[var(--spark-text-primary)]">{email}</span>.
+                  Click the link in your email to activate your account.
                 </>
               ) : (
                 "Click the link sent to your work email to activate your account."
@@ -91,11 +96,11 @@ function VerifyEmailContent() {
       )}
 
       {/* Resend Verification Form */}
-      <div className="border-t border-slate-100 pt-4 space-y-3">
-        <h3 className="text-xs font-semibold text-slate-800">
+      <div className="border-t border-[var(--spark-border)] pt-4 space-y-3">
+        <h3 className="text-xs font-semibold text-[var(--spark-text-primary)]">
           Didn&apos;t receive an email?
         </h3>
-        <p className="text-xs text-slate-500 font-normal leading-relaxed">
+        <p className="text-xs text-[var(--spark-text-secondary)] font-normal leading-relaxed">
           Check your spam folder or enter your email to dispatch a fresh verification link.
         </p>
 
@@ -110,15 +115,15 @@ function VerifyEmailContent() {
           />
 
           {resendStatus === "success" && (
-            <div className="rounded-md border border-emerald-200 bg-emerald-50/80 p-2.5 text-xs text-emerald-800 flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+            <div className="rounded-[6px] border border-[#10B981]/30 bg-[#10B981]/10 p-2.5 text-xs text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-[#10B981] shrink-0" />
               <span>{statusMessage}</span>
             </div>
           )}
 
           {resendStatus === "error" && (
-            <div className="rounded-md border border-red-200 bg-red-50/80 p-2.5 text-xs text-red-800 flex items-center gap-2">
-              <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />
+            <div className="rounded-[6px] border border-rose-500/30 bg-rose-500/10 p-2.5 text-xs text-rose-700 dark:text-rose-300 flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-rose-500 shrink-0" />
               <span>{statusMessage}</span>
             </div>
           )}
@@ -135,17 +140,17 @@ function VerifyEmailContent() {
         </form>
       </div>
 
-      <div className="border-t border-slate-100 pt-4 flex items-center justify-between text-xs">
+      <div className="border-t border-[var(--spark-border)] pt-4 flex items-center justify-between text-xs">
         <Link
           href="/auth/login"
-          className="inline-flex items-center gap-1.5 font-medium text-slate-600 hover:text-slate-900"
+          className="inline-flex items-center gap-1.5 font-medium text-[var(--spark-text-secondary)] hover:text-[var(--spark-accent)]"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           <span>Back to Sign In</span>
         </Link>
         <Link
           href="/auth/signup"
-          className="font-medium text-blue-600 hover:text-blue-700"
+          className="font-medium text-[var(--spark-accent)] hover:text-[var(--spark-accent-hover)]"
         >
           Use another email
         </Link>
@@ -156,21 +161,29 @@ function VerifyEmailContent() {
 
 export default function VerifyEmailPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#F8FAFC] px-4 py-12">
+    <div className="relative flex min-h-screen items-center justify-center bg-[var(--spark-canvas)] px-4 py-12 transition-colors duration-150">
+      <div className="fixed top-4 right-4">
+        <ThemeToggle variant="icon" />
+      </div>
+
       <div className="w-full max-w-md space-y-6">
         <div className="text-center space-y-2">
           <div className="inline-flex justify-center">
             <SparkLogo size="lg" />
           </div>
-          <h1 className="text-xl font-semibold tracking-tight text-slate-900">
+          <h1 className="text-xl font-semibold tracking-tight text-[var(--spark-text-primary)]">
             Check your email
           </h1>
-          <p className="text-xs text-slate-500 font-normal">
+          <p className="text-xs text-[var(--spark-text-secondary)] font-normal">
             We sent a verification link to confirm your SPARK account.
           </p>
         </div>
 
-        <Suspense fallback={<div className="h-64 rounded-[10px] bg-white border border-slate-200 animate-pulse" />}>
+        <Suspense
+          fallback={
+            <div className="h-64 rounded-[12px] bg-[var(--spark-surface)] border border-[var(--spark-border)] animate-pulse" />
+          }
+        >
           <VerifyEmailContent />
         </Suspense>
       </div>

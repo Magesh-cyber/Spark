@@ -1,6 +1,7 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
+  darkMode: "class",
   content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -9,51 +10,72 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // SPARK Visual Tokens
+        // SPARK Dual-Theme Purple & Violet Tokens
         spark: {
-          blue: {
-            DEFAULT: "#2563EB",
-            hover: "#1D4ED8",
-            subtle: "#EFF6FF",
-          },
-          violet: {
-            DEFAULT: "#7C3AED",
-            subtle: "#F5F3FF",
-          },
-          bg: "#F8FAFC",
+          canvas: "var(--spark-canvas)",
           surface: {
-            DEFAULT: "#FFFFFF",
-            secondary: "#F1F5F9",
-          },
-          text: {
-            primary: "#0F172A",
-            secondary: "#475569",
-            muted: "#94A3B8",
+            DEFAULT: "var(--spark-surface)",
+            subtle: "var(--spark-surface-subtle)",
+            secondary: "var(--spark-surface-subtle)",
           },
           border: {
-            DEFAULT: "#E2E8F0",
-            strong: "#CBD5E1",
+            DEFAULT: "var(--spark-border)",
+            strong: "var(--spark-border-strong)",
+          },
+          text: {
+            primary: "var(--spark-text-primary)",
+            secondary: "var(--spark-text-secondary)",
+            muted: "var(--spark-text-muted)",
+          },
+          accent: {
+            DEFAULT: "var(--spark-accent)",
+            hover: "var(--spark-accent-hover)",
+            fg: "var(--spark-accent-fg)",
+          },
+          highlight: {
+            DEFAULT: "var(--spark-highlight)",
+            text: "var(--spark-highlight-text)",
+          },
+          bg: "var(--spark-canvas)",
+          violet: {
+            DEFAULT: "var(--spark-accent)",
+            hover: "var(--spark-accent-hover)",
+            subtle: "var(--spark-highlight)",
           },
           status: {
-            success: "#16A34A",
-            warning: "#D97706",
-            error: "#DC2626",
-            info: "#2563EB",
+            success: "#10B981",
+            warning: "#F59E0B",
+            error: "#EF4444",
+            info: "var(--spark-accent)",
           },
         },
       },
       borderRadius: {
-        control: "8px",
+        control: "6px",
         card: "10px",
         modal: "12px",
       },
       fontFamily: {
-        sans: ["Inter", "system-ui", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "sans-serif"],
+        sans: [
+          "Inter",
+          "system-ui",
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "Segoe UI",
+          "Roboto",
+          "sans-serif",
+        ],
       },
       boxShadow: {
-        subtle: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
-        elevated: "0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05)",
-        modal: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
+        "2xs": "0 1px 1px 0 rgba(20, 17, 31, 0.04)",
+        xs: "0 1px 2px 0 rgba(20, 17, 31, 0.06)",
+        subtle: "0 1px 2px 0 rgba(20, 17, 31, 0.05)",
+        card: "0 2px 8px -2px rgba(109, 40, 217, 0.08), 0 1px 2px 0 rgba(20, 17, 31, 0.04)",
+        elevated:
+          "0 8px 20px -4px rgba(20, 17, 31, 0.12), 0 2px 6px -2px rgba(20, 17, 31, 0.06)",
+        modal:
+          "0 20px 35px -8px rgba(13, 11, 20, 0.25), 0 8px 14px -6px rgba(13, 11, 20, 0.14)",
+        "violet-glow": "0 0 0 2px rgba(139, 92, 246, 0.55), 0 0 24px rgba(139, 92, 246, 0.28)",
       },
     },
   },
@@ -61,4 +83,3 @@ const config: Config = {
 };
 
 export default config;
-

@@ -16,22 +16,21 @@ export default function DocsPage() {
     <ShellLayout>
       <div className="space-y-6">
         <PageHeader
-          title="Docs & Knowledge Base"
-          description={`Central repository for product specifications, architectural notes, and team knowledge for ${activeWorkspace?.name || "your workspace"}.`}
+          title="Docs"
+          description={`Shared notes, specifications, and team documentation for ${activeWorkspace?.name || "your workspace"}.`}
         />
 
         <FilterBar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          searchPlaceholder="Search documents by title or category..."
+          searchPlaceholder="Search documents..."
         />
 
-        {/* Truthful Empty State — No fabricated documents or fictional authors */}
-        <div className="rounded-[10px] border border-slate-200 bg-white p-8">
+        <div className="rounded-[10px] border border-[var(--spark-border)] bg-[var(--spark-surface)] p-8">
           <EmptyState
             icon={<FileText className="h-5 w-5" />}
-            title="No workspace documents yet"
-            description="Documentation storage, versioning, and shared product specifications will populate here once documents are initialized in this workspace."
+            title="No documents yet"
+            description="Documents created in this workspace will appear here."
           />
         </div>
       </div>

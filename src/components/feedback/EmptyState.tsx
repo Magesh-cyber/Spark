@@ -13,6 +13,7 @@ interface EmptyStateProps {
   className?: string;
 }
 
+/* Selective Claymorphism: tactile 3D icon medallion inside clean minimalist frame */
 export const EmptyState: React.FC<EmptyStateProps> = ({
   icon,
   title,
@@ -26,17 +27,19 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   return (
     <div
       className={cn(
-        "flex min-h-[300px] flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white/60 p-8 text-center",
+        "flex min-h-[240px] flex-col items-center justify-center rounded-[12px] border border-dashed border-[var(--spark-border-strong)] bg-[var(--spark-canvas)]/60 p-8 text-center transition-colors duration-150",
         className
       )}
     >
       {icon && (
-        <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-500">
+        <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-[18px] spark-clay-icon text-[var(--spark-accent)] transition-transform duration-150 hover:scale-[1.03]">
           {icon}
         </div>
       )}
-      <h3 className="text-sm font-semibold text-slate-900 tracking-tight">{title}</h3>
-      <p className="mt-1 max-w-sm text-xs text-slate-500 font-normal leading-relaxed">
+      <h3 className="text-sm font-semibold text-[var(--spark-text-primary)] tracking-tight">
+        {title}
+      </h3>
+      <p className="mt-1 max-w-sm text-xs text-[var(--spark-text-secondary)] font-normal leading-relaxed">
         {description}
       </p>
 
@@ -57,4 +60,3 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
     </div>
   );
 };
-

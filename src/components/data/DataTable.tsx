@@ -30,9 +30,14 @@ export function DataTable<T>({
   }
 
   return (
-    <div className={cn("w-full overflow-x-auto rounded-[10px] border border-slate-200 bg-white", className)}>
+    <div
+      className={cn(
+        "w-full overflow-x-auto rounded-[10px] border border-[var(--spark-border)] bg-[var(--spark-surface)]",
+        className
+      )}
+    >
       <table className="w-full text-left text-sm">
-        <thead className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+        <thead className="border-b border-[var(--spark-border)] bg-[var(--spark-surface-subtle)]/70 text-[11px] font-semibold uppercase tracking-wider text-[var(--spark-text-secondary)]">
           <tr>
             {columns.map((column, index) => (
               <th
@@ -44,7 +49,7 @@ export function DataTable<T>({
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100">
+        <tbody className="divide-y divide-[var(--spark-border)]">
           {data.map((item) => {
             const key = keyExtractor(item);
             return (
@@ -52,7 +57,7 @@ export function DataTable<T>({
                 key={key}
                 onClick={() => onRowClick?.(item)}
                 className={cn(
-                  "transition-colors hover:bg-slate-50/70",
+                  "transition-colors duration-150 hover:bg-[var(--spark-surface-subtle)]/50",
                   onRowClick && "cursor-pointer"
                 )}
               >
@@ -67,7 +72,7 @@ export function DataTable<T>({
                     <td
                       key={colIndex}
                       className={cn(
-                        "px-4 py-3 text-xs text-slate-700 first:pl-5 last:pr-5 first:font-medium first:text-slate-900",
+                        "px-4 py-3 text-xs text-[var(--spark-text-secondary)] first:pl-5 last:pr-5 first:font-medium first:text-[var(--spark-text-primary)]",
                         column.className
                       )}
                     >
@@ -83,4 +88,3 @@ export function DataTable<T>({
     </div>
   );
 }
-

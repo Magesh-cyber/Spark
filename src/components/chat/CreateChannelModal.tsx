@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { X, Hash, Lock, Users, AlertCircle } from "lucide-react";
+import { X, Hash, Lock, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useWorkspace } from "@/lib/workspace-context";
@@ -27,8 +27,10 @@ export function CreateChannelModal({ isOpen, onClose }: CreateChannelModalProps)
   if (!isOpen) return null;
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Sanitize to lowercase alphanumeric and hyphens
-    const val = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/--+/g, "-");
+    const val = e.target.value
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, "-")
+      .replace(/--+/g, "-");
     setName(val);
   };
 
@@ -64,7 +66,6 @@ export function CreateChannelModal({ isOpen, onClose }: CreateChannelModalProps)
 
       await refreshChannels();
 
-      // Switch to newly created channel
       setActiveConversation({
         type: "channel",
         id: res.channel.id,
@@ -87,29 +88,33 @@ export function CreateChannelModal({ isOpen, onClose }: CreateChannelModalProps)
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
-      <div className="w-full max-w-md rounded-[10px] border border-slate-200 bg-white p-6 shadow-xl animate-in fade-in-50 zoom-in-95 duration-150">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0D0B14]/55 backdrop-blur-sm p-4">
+      <div className="w-full max-w-md rounded-[14px] border spark-glass p-6 text-[var(--spark-text-primary)] shadow-modal animate-in fade-in-50 zoom-in-95 duration-150">
+        <div className="flex items-center justify-between border-b border-[var(--spark-border)] pb-3.5">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-[var(--spark-highlight)] text-[var(--spark-accent)]">
               <Hash className="h-4 w-4" />
             </div>
             <div>
-              <h2 className="text-sm font-semibold text-slate-900">Create a Channel</h2>
-              <p className="text-xs text-slate-500">Channels organize team conversations by topic.</p>
+              <h2 className="text-sm font-semibold text-[var(--spark-text-primary)]">
+                Create a Channel
+              </h2>
+              <p className="text-xs text-[var(--spark-text-secondary)]">
+                Channels organize team conversations by topic.
+              </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+            className="rounded-[6px] p-1.5 text-[var(--spark-text-muted)] hover:bg-[var(--spark-surface-subtle)] hover:text-[var(--spark-text-primary)] transition-colors duration-150"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
         {error && (
-          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs text-red-700 flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />
+          <div className="mt-3 rounded-[8px] border border-rose-500/30 bg-rose-500/10 p-2.5 text-xs text-rose-700 dark:text-rose-300 flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 shrink-0" />
             <span>{error}</span>
           </div>
         )}
@@ -125,7 +130,7 @@ export function CreateChannelModal({ isOpen, onClose }: CreateChannelModalProps)
           />
 
           <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1">
+            <label className="block text-xs font-medium text-[var(--spark-text-secondary)] mb-1">
               Description (Optional)
             </label>
             <textarea
@@ -133,26 +138,28 @@ export function CreateChannelModal({ isOpen, onClose }: CreateChannelModalProps)
               onChange={(e) => setDescription(e.target.value)}
               placeholder="What is this channel about?"
               rows={2}
-              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600"
+              className="w-full rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-surface)] px-3 py-2 text-xs text-[var(--spark-text-primary)] placeholder:text-[var(--spark-text-muted)] focus:border-[var(--spark-accent)] focus:outline-none focus:ring-1 focus:ring-[var(--spark-accent)] transition-colors duration-150"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1.5">Visibility</label>
-            <div className="grid grid-cols-2 gap-2">
+            <label className="block text-xs font-medium text-[var(--spark-text-secondary)] mb-1.5">
+              Visibility
+            </label>
+            <div className="grid grid-cols-2 gap-2.5">
               <button
                 type="button"
                 onClick={() => setType("PUBLIC")}
-                className={`flex items-start gap-2.5 rounded-lg border p-2.5 text-left transition-all ${
+                className={`flex items-start gap-2.5 rounded-[8px] border p-2.5 text-left transition-all duration-150 ${
                   type === "PUBLIC"
-                    ? "border-blue-600 bg-blue-50/50 text-blue-900 ring-1 ring-blue-600"
-                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                    ? "border-[var(--spark-accent)] bg-[var(--spark-highlight)] text-[var(--spark-highlight-text)] ring-1 ring-[var(--spark-accent)]"
+                    : "border-[var(--spark-border)] bg-[var(--spark-surface)] text-[var(--spark-text-secondary)] hover:bg-[var(--spark-surface-subtle)]"
                 }`}
               >
-                <Hash className="h-4 w-4 mt-0.5 text-blue-600 shrink-0" />
+                <Hash className="h-4 w-4 mt-0.5 text-[var(--spark-accent)] shrink-0" />
                 <div>
                   <div className="text-xs font-semibold">Public</div>
-                  <div className="text-[11px] text-slate-500 font-normal">
+                  <div className="text-[11px] text-[var(--spark-text-secondary)] font-normal">
                     Anyone in this workspace can view and join.
                   </div>
                 </div>
@@ -161,16 +168,16 @@ export function CreateChannelModal({ isOpen, onClose }: CreateChannelModalProps)
               <button
                 type="button"
                 onClick={() => setType("PRIVATE")}
-                className={`flex items-start gap-2.5 rounded-lg border p-2.5 text-left transition-all ${
+                className={`flex items-start gap-2.5 rounded-[8px] border p-2.5 text-left transition-all duration-150 ${
                   type === "PRIVATE"
-                    ? "border-blue-600 bg-blue-50/50 text-blue-900 ring-1 ring-blue-600"
-                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                    ? "border-[var(--spark-accent)] bg-[var(--spark-highlight)] text-[var(--spark-highlight-text)] ring-1 ring-[var(--spark-accent)]"
+                    : "border-[var(--spark-border)] bg-[var(--spark-surface)] text-[var(--spark-text-secondary)] hover:bg-[var(--spark-surface-subtle)]"
                 }`}
               >
-                <Lock className="h-4 w-4 mt-0.5 text-amber-600 shrink-0" />
+                <Lock className="h-4 w-4 mt-0.5 text-[#F59E0B] shrink-0" />
                 <div>
                   <div className="text-xs font-semibold">Private</div>
-                  <div className="text-[11px] text-slate-500 font-normal">
+                  <div className="text-[11px] text-[var(--spark-text-secondary)] font-normal">
                     Only invited members can view this channel.
                   </div>
                 </div>
@@ -180,31 +187,41 @@ export function CreateChannelModal({ isOpen, onClose }: CreateChannelModalProps)
 
           {type === "PRIVATE" && directPeers.length > 0 && (
             <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">
+              <label className="block text-xs font-medium text-[var(--spark-text-secondary)] mb-1">
                 Add Members to Private Channel
               </label>
-              <div className="max-h-36 overflow-y-auto rounded-lg border border-slate-200 p-2 space-y-1">
+              <div className="max-h-36 overflow-y-auto rounded-[8px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] p-2 space-y-1">
                 {directPeers.map((peer) => (
                   <label
                     key={peer.id}
-                    className="flex items-center gap-2 rounded px-2 py-1 hover:bg-slate-50 text-xs cursor-pointer"
+                    className="flex items-center gap-2 rounded-[6px] px-2 py-1 hover:bg-[var(--spark-surface-subtle)] text-xs cursor-pointer"
                   >
                     <input
                       type="checkbox"
                       checked={selectedMemberIds.includes(peer.id)}
                       onChange={() => toggleMember(peer.id)}
-                      className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                      className="rounded border-[var(--spark-border-strong)] accent-[var(--spark-accent)]"
                     />
-                    <span className="font-medium text-slate-800">{peer.fullName}</span>
-                    <span className="text-[10px] text-slate-400">({peer.email})</span>
+                    <span className="font-medium text-[var(--spark-text-primary)]">
+                      {peer.fullName}
+                    </span>
+                    <span className="text-[10px] text-[var(--spark-text-muted)]">
+                      ({peer.email})
+                    </span>
                   </label>
                 ))}
               </div>
             </div>
           )}
 
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
-            <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={isSubmitting}>
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-[var(--spark-border)]">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onClose}
+              disabled={isSubmitting}
+            >
               Cancel
             </Button>
             <Button type="submit" size="sm" isLoading={isSubmitting}>
@@ -216,4 +233,3 @@ export function CreateChannelModal({ isOpen, onClose }: CreateChannelModalProps)
     </div>
   );
 }
-

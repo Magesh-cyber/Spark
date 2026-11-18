@@ -50,7 +50,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
         <DialogDescription>{description}</DialogDescription>
       </DialogHeader>
       <DialogContent>
-        <p className="text-xs text-slate-600 font-normal">
+        <p className="text-xs text-[var(--spark-text-secondary)] font-normal">
           Please confirm this action to proceed.
         </p>
       </DialogContent>
@@ -70,4 +70,3 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
     </Dialog>
   );
 };
-

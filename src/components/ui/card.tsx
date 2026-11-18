@@ -1,6 +1,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
+/* Flat 2.0 Card — Crisp solid surface, subtle 1px border, light elevation */
 const Card = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
@@ -8,7 +9,7 @@ const Card = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      "rounded-[10px] border border-slate-200 bg-white text-slate-900 transition-colors",
+      "rounded-[12px] border border-[var(--spark-border)] bg-[var(--spark-surface)] text-[var(--spark-text-primary)] shadow-subtle transition-all duration-150",
       className
     )}
     {...props}
@@ -22,7 +23,10 @@ const CardHeader = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn("flex flex-col space-y-1.5 p-5 border-b border-slate-100", className)}
+    className={cn(
+      "flex flex-col space-y-1 p-5 border-b border-[var(--spark-border)]",
+      className
+    )}
     {...props}
   />
 ));
@@ -34,7 +38,10 @@ const CardTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <h3
     ref={ref}
-    className={cn("text-base font-semibold leading-none tracking-tight text-slate-900", className)}
+    className={cn(
+      "text-base font-semibold leading-none tracking-tight text-[var(--spark-text-primary)]",
+      className
+    )}
     {...props}
   />
 ));
@@ -46,7 +53,10 @@ const CardDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <p
     ref={ref}
-    className={cn("text-xs text-slate-500 font-normal leading-relaxed", className)}
+    className={cn(
+      "text-xs text-[var(--spark-text-secondary)] font-normal leading-relaxed",
+      className
+    )}
     {...props}
   />
 ));
@@ -66,11 +76,13 @@ const CardFooter = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn("flex items-center p-5 pt-0 border-t border-slate-100 mt-4", className)}
+    className={cn(
+      "flex items-center p-5 pt-4 border-t border-[var(--spark-border)] mt-4",
+      className
+    )}
     {...props}
   />
 ));
 CardFooter.displayName = "CardFooter";
 
 export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent };
-

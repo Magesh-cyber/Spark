@@ -5,11 +5,8 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
   ArrowLeft,
-  Users,
   UserPlus,
   Mail,
-  Shield,
-  MoreVertical,
   AlertCircle,
   CheckCircle2,
   Trash2,
@@ -41,14 +38,16 @@ export default function WorkspaceMembersPage() {
   const [members, setMembers] = useState<WorkspaceMemberItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Invite modal state
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"ADMIN" | "MANAGER" | "MEMBER" | "GUEST">("MEMBER");
   const [isInviting, setIsInviting] = useState(false);
-  const [inviteFeedback, setInviteFeedback] = useState<{ type: "success" | "error"; text: string; devLink?: string } | null>(null);
+  const [inviteFeedback, setInviteFeedback] = useState<{
+    type: "success" | "error";
+    text: string;
+    devLink?: string;
+  } | null>(null);
 
-  // Action status message
   const [actionError, setActionError] = useState("");
 
   const loadData = useCallback(async () => {
@@ -133,7 +132,7 @@ export default function WorkspaceMembersPage() {
   if (isLoading) {
     return (
       <ShellLayout>
-        <div className="max-w-4xl mx-auto py-12 px-6 text-center text-slate-500 text-xs">
+        <div className="max-w-4xl mx-auto py-12 px-6 text-center text-[var(--spark-text-secondary)] text-xs">
           Loading member directory...
         </div>
       </ShellLayout>
@@ -144,10 +143,14 @@ export default function WorkspaceMembersPage() {
     return (
       <ShellLayout>
         <div className="max-w-md mx-auto py-16 px-6 text-center space-y-4">
-          <AlertCircle className="h-10 w-10 text-red-500 mx-auto" />
-          <h2 className="text-base font-semibold text-slate-900">Workspace Not Found</h2>
+          <AlertCircle className="h-10 w-10 text-rose-500 mx-auto" />
+          <h2 className="text-base font-semibold text-[var(--spark-text-primary)]">
+            Workspace Not Found
+          </h2>
           <Link href="/workspaces">
-            <Button variant="outline" size="sm">Return to Workspaces</Button>
+            <Button variant="outline" size="sm">
+              Return to Workspaces
+            </Button>
           </Link>
         </div>
       </ShellLayout>
@@ -159,23 +162,22 @@ export default function WorkspaceMembersPage() {
 
   return (
     <ShellLayout>
-      <div className="max-w-4xl mx-auto py-8 px-6 space-y-6">
-        {/* Navigation & Header */}
+      <div className="max-w-4xl mx-auto py-4 space-y-6">
         <div>
           <Link
             href={`/workspaces/${workspace.slug}`}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-900 transition-colors mb-4"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--spark-text-secondary)] hover:text-[var(--spark-accent)] transition-colors duration-150 mb-4"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
             <span>Back to {workspace.name}</span>
           </Link>
 
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200/80 pb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-[var(--spark-border)] pb-6">
             <div>
-              <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+              <h1 className="text-2xl font-bold tracking-tight text-[var(--spark-text-primary)]">
                 Team Directory
               </h1>
-              <p className="text-sm text-slate-500 mt-1">
+              <p className="text-sm text-[var(--spark-text-secondary)] mt-1">
                 {members.length} member{members.length === 1 ? "" : "s"} in {workspace.name}
               </p>
             </div>
@@ -203,15 +205,15 @@ export default function WorkspaceMembersPage() {
         </div>
 
         {actionError && (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700 flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />
+          <div className="rounded-[8px] border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-700 dark:text-rose-300 flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 shrink-0 text-rose-500" />
             <span>{actionError}</span>
           </div>
         )}
 
         {/* Member Table */}
-        <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-subtle">
-          <div className="divide-y divide-slate-100">
+        <div className="rounded-[10px] border border-[var(--spark-border)] bg-[var(--spark-surface)] overflow-hidden">
+          <div className="divide-y divide-[var(--spark-border)]">
             {members.map((mem) => {
               const canEditRole = canChangeMemberRoles(callerRole, mem.role, "MEMBER");
               const canManage = canManageMembers(callerRole, mem.role);
@@ -220,7 +222,7 @@ export default function WorkspaceMembersPage() {
               return (
                 <div
                   key={mem.id}
-                  className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 hover:bg-slate-50/60 transition-colors"
+                  className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 hover:bg-[var(--spark-surface-subtle)]/50 transition-colors duration-150"
                 >
                   <div className="flex items-center gap-3">
                     <Avatar
@@ -230,7 +232,7 @@ export default function WorkspaceMembersPage() {
                     />
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-slate-900">
+                        <span className="text-sm font-semibold text-[var(--spark-text-primary)]">
                           {mem.user.fullName}
                         </span>
                         {isSuspended && (
@@ -239,19 +241,18 @@ export default function WorkspaceMembersPage() {
                           </Badge>
                         )}
                       </div>
-                      <p className="text-xs text-slate-500 font-normal">
+                      <p className="text-xs text-[var(--spark-text-secondary)] font-normal">
                         {mem.user.email}
                       </p>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-3">
-                    {/* Role select or badge */}
                     {canEditRole ? (
                       <select
                         value={mem.role}
                         onChange={(e) => handleRoleChange(mem.id, e.target.value as WorkspaceRole)}
-                        className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+                        className="rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-surface)] px-2.5 py-1 text-xs font-medium text-[var(--spark-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spark-accent)]"
                       >
                         <option value="ADMIN">Admin</option>
                         <option value="MANAGER">Manager</option>
@@ -260,14 +261,13 @@ export default function WorkspaceMembersPage() {
                       </select>
                     ) : (
                       <Badge
-                        variant={mem.role === "OWNER" ? "info" : "default"}
+                        variant={mem.role === "OWNER" ? "violet" : "default"}
                         size="sm"
                       >
                         {mem.role}
                       </Badge>
                     )}
 
-                    {/* Management actions */}
                     {canManage && (
                       <div className="flex items-center gap-1">
                         {isSuspended ? (
@@ -275,7 +275,7 @@ export default function WorkspaceMembersPage() {
                             type="button"
                             title="Reactivate Member"
                             onClick={() => handleStatusChange(mem.id, "ACTIVE")}
-                            className="p-1.5 rounded text-emerald-600 hover:bg-emerald-50 transition-colors"
+                            className="p-1.5 rounded-[6px] text-[#10B981] hover:bg-[#10B981]/12 transition-colors duration-150"
                           >
                             <RotateCcw className="h-4 w-4" />
                           </button>
@@ -284,7 +284,7 @@ export default function WorkspaceMembersPage() {
                             type="button"
                             title="Suspend Member"
                             onClick={() => handleStatusChange(mem.id, "SUSPENDED")}
-                            className="p-1.5 rounded text-amber-600 hover:bg-amber-50 transition-colors"
+                            className="p-1.5 rounded-[6px] text-[#F59E0B] hover:bg-[#F59E0B]/12 transition-colors duration-150"
                           >
                             <Ban className="h-4 w-4" />
                           </button>
@@ -294,7 +294,7 @@ export default function WorkspaceMembersPage() {
                           type="button"
                           title="Remove Member"
                           onClick={() => handleRemoveMember(mem.id)}
-                          className="p-1.5 rounded text-red-600 hover:bg-red-50 transition-colors"
+                          className="p-1.5 rounded-[6px] text-rose-500 hover:bg-rose-500/12 transition-colors duration-150"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -307,18 +307,18 @@ export default function WorkspaceMembersPage() {
           </div>
         </div>
 
-        {/* Invite Member Modal */}
+        {/* Invite Member Modal (Glassmorphic Overlay) */}
         {inviteModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-            <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-elevated animate-in fade-in-50 zoom-in-95 space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <h3 className="text-sm font-semibold text-slate-900">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0D0B14]/55 backdrop-blur-sm p-4">
+            <div className="w-full max-w-md rounded-[14px] border spark-glass p-6 text-[var(--spark-text-primary)] shadow-modal animate-in fade-in-50 zoom-in-95 space-y-4">
+              <div className="flex items-center justify-between border-b border-[var(--spark-border)] pb-3">
+                <h3 className="text-sm font-semibold text-[var(--spark-text-primary)]">
                   Invite Team Member
                 </h3>
                 <button
                   type="button"
                   onClick={() => setInviteModalOpen(false)}
-                  className="text-xs text-slate-400 hover:text-slate-600"
+                  className="text-xs text-[var(--spark-text-muted)] hover:text-[var(--spark-text-primary)]"
                 >
                   ✕
                 </button>
@@ -326,28 +326,30 @@ export default function WorkspaceMembersPage() {
 
               {inviteFeedback && (
                 <div
-                  className={`rounded-lg border p-3 text-xs space-y-1.5 ${
+                  className={`rounded-[8px] border p-3 text-xs space-y-1.5 ${
                     inviteFeedback.type === "success"
-                      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                      : "border-red-200 bg-red-50 text-red-700"
+                      ? "border-[#10B981]/30 bg-[#10B981]/10 text-emerald-700 dark:text-emerald-300"
+                      : "border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300"
                   }`}
                 >
                   <div className="flex items-center gap-1.5 font-medium">
                     {inviteFeedback.type === "success" ? (
-                      <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                      <CheckCircle2 className="h-4 w-4 text-[#10B981] shrink-0" />
                     ) : (
-                      <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />
+                      <AlertCircle className="h-4 w-4 text-rose-500 shrink-0" />
                     )}
                     <span>{inviteFeedback.text}</span>
                   </div>
                   {inviteFeedback.devLink && (
-                    <div className="pt-1 text-[11px] font-mono break-all text-slate-700 border-t border-emerald-200/60 mt-1">
-                      <p className="font-semibold text-slate-900">Dev Acceptance Link:</p>
+                    <div className="pt-1 text-[11px] font-mono break-all border-t border-[#10B981]/25 mt-1">
+                      <p className="font-semibold text-[var(--spark-text-primary)]">
+                        Dev Acceptance Link:
+                      </p>
                       <a
                         href={inviteFeedback.devLink}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-blue-600 underline"
+                        className="text-[var(--spark-accent)] underline"
                       >
                         {inviteFeedback.devLink}
                       </a>
@@ -367,22 +369,24 @@ export default function WorkspaceMembersPage() {
                 />
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  <label className="block text-xs font-medium text-[var(--spark-text-secondary)] mb-1.5">
                     Assign Role
                   </label>
                   <select
                     value={inviteRole}
-                    onChange={(e) => setInviteRole(e.target.value as "ADMIN" | "MANAGER" | "MEMBER" | "GUEST")}
-                    className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+                    onChange={(e) =>
+                      setInviteRole(e.target.value as "ADMIN" | "MANAGER" | "MEMBER" | "GUEST")
+                    }
+                    className="w-full rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-surface)] px-3 py-2 text-xs text-[var(--spark-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spark-accent)]"
                   >
                     <option value="MEMBER">Member (Standard collaborator)</option>
-                    <option value="MANAGER">Manager (Can invite & organize team)</option>
+                    <option value="MANAGER">Manager (Can invite &amp; organize team)</option>
                     <option value="ADMIN">Admin (Full workspace administration)</option>
                     <option value="GUEST">Guest (Restricted shared access)</option>
                   </select>
                 </div>
 
-                <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
+                <div className="pt-2 flex items-center justify-end gap-2 border-t border-[var(--spark-border)]">
                   <Button
                     variant="ghost"
                     type="button"
@@ -390,11 +394,7 @@ export default function WorkspaceMembersPage() {
                   >
                     Close
                   </Button>
-                  <Button
-                    variant="primary"
-                    type="submit"
-                    isLoading={isInviting}
-                  >
+                  <Button variant="primary" type="submit" isLoading={isInviting}>
                     Dispatch Invitation
                   </Button>
                 </div>

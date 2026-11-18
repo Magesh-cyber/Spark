@@ -11,7 +11,6 @@ import {
   Clock,
   AlertCircle,
   CheckCircle2,
-  ExternalLink,
 } from "lucide-react";
 import { ShellLayout } from "@/components/layout/ShellLayout";
 import { Button } from "@/components/ui/button";
@@ -95,7 +94,7 @@ export default function WorkspaceInvitationsPage() {
   if (isLoading) {
     return (
       <ShellLayout>
-        <div className="max-w-4xl mx-auto py-12 px-6 text-center text-slate-500 text-xs">
+        <div className="max-w-4xl mx-auto py-12 px-6 text-center text-[var(--spark-text-secondary)] text-xs">
           Loading invitations...
         </div>
       </ShellLayout>
@@ -106,8 +105,8 @@ export default function WorkspaceInvitationsPage() {
     return (
       <ShellLayout>
         <div className="max-w-md mx-auto py-16 px-6 text-center space-y-4">
-          <AlertCircle className="h-10 w-10 text-red-500 mx-auto" />
-          <h2 className="text-base font-semibold text-slate-900">
+          <AlertCircle className="h-10 w-10 text-rose-500 mx-auto" />
+          <h2 className="text-base font-semibold text-[var(--spark-text-primary)]">
             Workspace Not Found
           </h2>
           <Link href="/workspaces">
@@ -122,22 +121,22 @@ export default function WorkspaceInvitationsPage() {
 
   return (
     <ShellLayout>
-      <div className="max-w-4xl mx-auto py-8 px-6 space-y-6">
+      <div className="max-w-4xl mx-auto py-4 space-y-6">
         <div>
           <Link
             href={`/workspaces/${workspace.slug}/members`}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-900 transition-colors mb-4"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--spark-text-secondary)] hover:text-[var(--spark-accent)] transition-colors duration-150 mb-4"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
             <span>Back to Members</span>
           </Link>
 
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200/80 pb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-[var(--spark-border)] pb-6">
             <div>
-              <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+              <h1 className="text-2xl font-bold tracking-tight text-[var(--spark-text-primary)]">
                 Pending Invitations
               </h1>
-              <p className="text-sm text-slate-500 mt-1">
+              <p className="text-sm text-[var(--spark-text-secondary)] mt-1">
                 Outstanding invitations for {workspace.name}. Tokens expire after 7 days.
               </p>
             </div>
@@ -151,28 +150,30 @@ export default function WorkspaceInvitationsPage() {
 
         {actionMessage && (
           <div
-            className={`rounded-lg border p-3.5 text-xs space-y-1.5 ${
+            className={`rounded-[8px] border p-3.5 text-xs space-y-1.5 ${
               actionMessage.type === "success"
-                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                : "border-red-200 bg-red-50 text-red-700"
+                ? "border-[#10B981]/30 bg-[#10B981]/10 text-emerald-700 dark:text-emerald-300"
+                : "border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300"
             }`}
           >
             <div className="flex items-center gap-2 font-medium">
               {actionMessage.type === "success" ? (
-                <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                <CheckCircle2 className="h-4 w-4 text-[#10B981] shrink-0" />
               ) : (
-                <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />
+                <AlertCircle className="h-4 w-4 text-rose-500 shrink-0" />
               )}
               <span>{actionMessage.text}</span>
             </div>
             {actionMessage.devLink && (
-              <div className="pt-1 text-[11px] font-mono break-all text-slate-700 border-t border-emerald-200/60 mt-1">
-                <p className="font-semibold text-slate-900">Dev Acceptance Link:</p>
+              <div className="pt-1 text-[11px] font-mono break-all border-t border-[#10B981]/25 mt-1">
+                <p className="font-semibold text-[var(--spark-text-primary)]">
+                  Dev Acceptance Link:
+                </p>
                 <a
                   href={actionMessage.devLink}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-blue-600 underline"
+                  className="text-[var(--spark-accent)] underline"
                 >
                   {actionMessage.devLink}
                 </a>
@@ -182,43 +183,39 @@ export default function WorkspaceInvitationsPage() {
         )}
 
         {invitations.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center bg-slate-50/50 space-y-2">
-            <Mail className="h-8 w-8 text-slate-400 mx-auto" />
-            <h3 className="text-sm font-semibold text-slate-800">
+          <div className="rounded-[10px] border border-dashed border-[var(--spark-border-strong)] p-8 text-center bg-[var(--spark-surface-subtle)]/40 space-y-2">
+            <Mail className="h-8 w-8 text-[var(--spark-accent)] mx-auto opacity-80" />
+            <h3 className="text-sm font-semibold text-[var(--spark-text-primary)]">
               No pending invitations
             </h3>
-            <p className="text-xs text-slate-500 max-w-sm mx-auto">
+            <p className="text-xs text-[var(--spark-text-secondary)] max-w-sm mx-auto">
               All invitations have either been accepted or expired. Invite colleagues from the team directory page.
             </p>
           </div>
         ) : (
-          <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-subtle divide-y divide-slate-100">
+          <div className="rounded-[10px] border border-[var(--spark-border)] bg-[var(--spark-surface)] overflow-hidden divide-y divide-[var(--spark-border)]">
             {invitations.map((inv) => (
               <div
                 key={inv.id}
-                className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 hover:bg-slate-50/60 transition-colors"
+                className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 hover:bg-[var(--spark-surface-subtle)]/50 transition-colors duration-150"
               >
                 <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-600 shrink-0">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-[8px] bg-[var(--spark-highlight)] text-[var(--spark-accent)] shrink-0">
                     <Mail className="h-4 w-4" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-slate-900">
+                      <span className="text-sm font-semibold text-[var(--spark-text-primary)]">
                         {inv.email}
                       </span>
                       <Badge variant="outline" size="sm">
                         {inv.role}
                       </Badge>
                     </div>
-                    <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1.5">
+                    <p className="text-xs text-[var(--spark-text-secondary)] mt-0.5 flex items-center gap-1.5">
                       <Clock className="h-3 w-3" />
-                      <span>
-                        Expires {new Date(inv.expiresAt).toLocaleDateString()}
-                      </span>
-                      {inv.inviter && (
-                        <span>· Invited by {inv.inviter.fullName}</span>
-                      )}
+                      <span>Expires {new Date(inv.expiresAt).toLocaleDateString()}</span>
+                      {inv.inviter && <span>· Invited by {inv.inviter.fullName}</span>}
                     </p>
                   </div>
                 </div>
@@ -236,7 +233,7 @@ export default function WorkspaceInvitationsPage() {
                     variant="ghost"
                     size="sm"
                     onClick={() => handleRevoke(inv.id)}
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    className="text-rose-600 dark:text-rose-400 hover:bg-rose-500/10"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>

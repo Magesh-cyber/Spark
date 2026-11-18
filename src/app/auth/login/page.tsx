@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { SparkLogo } from "@/components/brand/SparkLogo";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -23,7 +24,6 @@ function LoginForm() {
   const messageParam = searchParams.get("message");
   const rawReturnTo = searchParams.get("returnTo");
 
-  // Prevent open redirect vulnerabilities: Ensure returnTo is a safe relative internal route
   const returnTo = getSafeRedirectUrl(rawReturnTo, "/");
 
   const [email, setEmail] = useState("");
@@ -38,7 +38,6 @@ function LoginForm() {
     setErrors({});
     setGeneralError("");
 
-    // Validate with Zod
     const validationResult = loginSchema.safeParse({
       email,
       password,
@@ -72,7 +71,9 @@ function LoginForm() {
             "Your email has not been verified yet. Please check your inbox or request a new verification link."
           );
         } else if (error.message.toLowerCase().includes("invalid login credentials")) {
-          setGeneralError("Invalid email or password. Please verify your credentials and try again.");
+          setGeneralError(
+            "Invalid email or password. Please verify your credentials and try again."
+          );
         } else {
           setGeneralError(error.message);
         }
@@ -80,7 +81,6 @@ function LoginForm() {
       }
 
       if (data.session) {
-        // Clear any leftover state from a previous account on this browser
         clearAllClientCaches();
         clearBootstrapMemory();
         if (typeof window !== "undefined") {
@@ -91,11 +91,9 @@ function LoginForm() {
           } catch {}
         }
 
-        // Prefetch target route + chat bundle and preload ALL workspace/chat/team data in one round-trip
         router.prefetch(returnTo);
         router.prefetch("/chat");
 
-        // Wait up to 1.4s for bootstrap so dashboard & chat open instantaneously without delaying login
         await Promise.race([
           prefetchWorkspaceBootstrap(undefined, { force: true }),
           new Promise((resolve) => setTimeout(resolve, 1400)),
@@ -111,17 +109,17 @@ function LoginForm() {
   };
 
   return (
-    <div className="rounded-[10px] border border-slate-200 bg-white p-6 shadow-subtle">
+    <div className="rounded-[12px] border border-[var(--spark-border)] bg-[var(--spark-surface)] p-6 shadow-subtle transition-colors duration-150">
       {messageParam && (
-        <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50/80 p-3 text-xs text-emerald-800 flex items-start gap-2">
-          <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+        <div className="mb-4 rounded-[8px] border border-[#10B981]/30 bg-[#10B981]/10 p-3 text-xs text-emerald-700 dark:text-emerald-300 flex items-start gap-2">
+          <CheckCircle2 className="h-4 w-4 text-[#10B981] shrink-0 mt-0.5" />
           <span>{messageParam}</span>
         </div>
       )}
 
       {generalError && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50/70 p-3 text-xs text-red-700 flex items-start gap-2">
-          <AlertCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
+        <div className="mb-4 rounded-[8px] border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-700 dark:text-rose-300 flex items-start gap-2">
+          <AlertCircle className="h-4 w-4 text-rose-500 shrink-0 mt-0.5" />
           <span>{generalError}</span>
         </div>
       )}
@@ -157,7 +155,7 @@ function LoginForm() {
           />
           <Link
             href="/auth/forgot-password"
-            className="font-medium text-blue-600 hover:text-blue-700 hover:underline"
+            className="font-medium text-[var(--spark-accent)] hover:text-[var(--spark-accent-hover)] hover:underline"
           >
             Forgot password?
           </Link>
@@ -175,12 +173,12 @@ function LoginForm() {
         </div>
       </form>
 
-      <div className="mt-5 border-t border-slate-100 pt-4 text-center">
-        <p className="text-xs text-slate-500">
+      <div className="mt-5 border-t border-[var(--spark-border)] pt-4 text-center">
+        <p className="text-xs text-[var(--spark-text-secondary)]">
           Don&apos;t have an account?{" "}
           <Link
             href="/auth/signup"
-            className="font-medium text-blue-600 hover:text-blue-700 hover:underline"
+            className="font-medium text-[var(--spark-accent)] hover:text-[var(--spark-accent-hover)] hover:underline"
           >
             Create one
           </Link>
@@ -192,27 +190,33 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#F8FAFC] px-4 py-12">
+    <div className="relative flex min-h-screen items-center justify-center bg-[var(--spark-canvas)] px-4 py-12 transition-colors duration-150">
+      <div className="fixed top-4 right-4">
+        <ThemeToggle variant="icon" />
+      </div>
+
       <div className="w-full max-w-sm space-y-6">
-        {/* Brand & Header */}
         <div className="text-center space-y-2">
           <div className="inline-flex justify-center">
             <SparkLogo size="lg" />
           </div>
-          <h1 className="text-xl font-semibold tracking-tight text-slate-900">
+          <h1 className="text-xl font-semibold tracking-tight text-[var(--spark-text-primary)]">
             Sign in to SPARK
           </h1>
-          <p className="text-xs text-slate-500 font-normal">
+          <p className="text-xs text-[var(--spark-text-secondary)] font-normal">
             Enter your credentials to access your workspace.
           </p>
         </div>
 
-        <Suspense fallback={<div className="h-64 rounded-[10px] bg-white border border-slate-200 animate-pulse" />}>
+        <Suspense
+          fallback={
+            <div className="h-64 rounded-[12px] bg-[var(--spark-surface)] border border-[var(--spark-border)] animate-pulse" />
+          }
+        >
           <LoginForm />
         </Suspense>
 
-        {/* System & Security Notice */}
-        <p className="text-center text-[11px] text-slate-400">
+        <p className="text-center text-[11px] text-[var(--spark-text-muted)]">
           Protected by enterprise-grade security and SOC2 compliance.
         </p>
       </div>

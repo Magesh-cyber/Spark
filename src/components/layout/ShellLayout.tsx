@@ -6,6 +6,7 @@ import { AppSidebar } from "./AppSidebar";
 import { AppHeader } from "./AppHeader";
 import { GlobalSearchModal } from "./GlobalSearchModal";
 import { TopProgressBar } from "./TopProgressBar";
+import { cn } from "@/lib/utils";
 
 export const ShellLayoutContext = createContext<boolean>(false);
 
@@ -31,17 +32,27 @@ export const ShellLayout: React.FC<ShellLayoutProps> = ({ children }) => {
     return <>{children}</>;
   }
 
+  // Full-bleed three-pane canvas on messaging view for maximum horizontal ergonomics
+  const isFullBleedWorkspace = pathname?.startsWith("/chat");
+
   return (
     <ShellLayoutContext.Provider value={true}>
       <TopProgressBar />
-      <div className="flex min-h-screen bg-[#F8FAFC] text-slate-900 antialiased">
-        {/* App Sidebar: Desktop persistent + Mobile drawer */}
+      <div className="flex min-h-screen bg-[var(--spark-canvas)] text-[var(--spark-text-primary)] antialiased transition-colors duration-150">
+        {/* Far-Left Collapsible Navigation Rail (Desktop persistent + Mobile drawer) */}
         <AppSidebar />
 
         {/* Main Content Area */}
         <div className="flex flex-1 flex-col min-w-0">
           <AppHeader />
-          <main className="flex-1 p-4 sm:p-6 md:p-8 max-w-7xl w-full mx-auto">
+          <main
+            className={cn(
+              "flex-1 w-full mx-auto",
+              isFullBleedWorkspace
+                ? "p-2 sm:p-4 max-w-none"
+                : "p-4 sm:p-6 md:p-8 max-w-7xl"
+            )}
+          >
             {children}
           </main>
         </div>

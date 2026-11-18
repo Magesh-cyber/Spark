@@ -36,7 +36,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
         <div
           role="tooltip"
           className={cn(
-            "pointer-events-none absolute z-50 whitespace-nowrap rounded-[6px] bg-slate-900 px-2 py-1 text-[11px] font-medium text-white shadow-md animate-in fade-in zoom-in-95",
+            "pointer-events-none absolute z-50 whitespace-nowrap rounded-[6px] border border-[var(--spark-border-strong)] bg-[#14111F] dark:bg-[#2E1F47] px-2 py-1 text-[11px] font-medium text-[#F4F2FA] shadow-elevated animate-in fade-in zoom-in-95",
             positionClasses[position],
             className
           )}
@@ -47,4 +47,3 @@ export const Tooltip: React.FC<TooltipProps> = ({
     </div>
   );
 };
-
