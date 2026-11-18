@@ -22,6 +22,10 @@ export interface DirectMessagePeerItem {
 export async function getWorkspaceDirectMessagePeers(
   workspaceId: string
 ): Promise<{ peers: DirectMessagePeerItem[]; error: string | null }> {
+  if (!workspaceId || workspaceId === "personal-fallback") {
+    return { peers: [], error: null };
+  }
+
   try {
     const access = await verifyWorkspaceAccess(workspaceId);
 

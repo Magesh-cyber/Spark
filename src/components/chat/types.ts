@@ -1,4 +1,3 @@
-import { ChatChannelItem } from "@/lib/actions/chat-channels";
 import { DirectMessagePeerItem } from "@/lib/actions/chat-direct";
 
 export type ConversationType = "channel" | "direct";
@@ -13,6 +12,11 @@ export interface ActiveConversation {
   peer?: DirectMessagePeerItem;
 }
 
+export interface MessageSeenEntry {
+  userId: string;
+  name: string;
+}
+
 export interface ChatMessageItem {
   id: string;
   senderId: string;
@@ -23,12 +27,27 @@ export interface ChatMessageItem {
   timestamp: number;
   isMe: boolean;
   messageType: string;
+  status?: "sending" | "sent" | "delivered" | "read" | "error";
+  seenBy?: MessageSeenEntry[];
+  channelType?: number; // 1 = Direct, 3 = Group
   fileInfo?: {
     name: string;
     url: string;
     size?: number;
-    type: "image" | "file";
+    mimeType?: string;
+    type: "image" | "video" | "audio" | "file";
+    encrypted?: boolean;
   };
+}
+
+export interface ConversationSummary {
+  lastMessageText?: string;
+  lastMessageTime?: string;
+  lastMessageTimestamp?: number;
+  lastSenderId?: string;
+  lastSenderName?: string;
+  unreadCount: number;
+  isTyping?: boolean;
 }
 
 export interface ChannelDetailsData {
@@ -42,4 +61,3 @@ export interface ChannelDetailsData {
   pinnedArtifacts: Array<{ id: string; title: string; url: string; pinnedBy: string; createdAt: string }>;
   createdAt: string;
 }
-

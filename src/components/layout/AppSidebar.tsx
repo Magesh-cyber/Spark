@@ -1,8 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   CheckSquare,
@@ -16,11 +16,13 @@ import {
   Users,
   LineChart,
   X,
+  Loader2,
 } from "lucide-react";
 import { SparkLogo } from "@/components/brand/SparkLogo";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 import { UserMenu } from "./UserMenu";
 import { useWorkspace } from "@/lib/workspace-context";
+import { useNexconnChatOptional } from "@/components/chat/NexconnChatProvider";
 import { cn } from "@/lib/utils";
 
 interface AppSidebarProps {
@@ -35,40 +37,91 @@ interface NavItem {
   badge?: string;
 }
 
+const PERSONAL_NAV_ITEMS: NavItem[] = [
+  { title: "Home", href: "/", icon: LayoutDashboard },
+  { title: "My Tasks", href: "/tasks", icon: CheckSquare },
+  { title: "Projects", href: "/projects", icon: FolderKanban },
+  { title: "Chat", href: "/chat", icon: MessageSquare },
+  { title: "Meet", href: "/meet", icon: Video },
+  { title: "AI Assistant", href: "/ai", icon: Bot },
+  { title: "Docs", href: "/docs", icon: FileText },
+  { title: "Settings", href: "/settings", icon: Settings },
+];
+
+const ORG_NAV_ITEMS: NavItem[] = [
+  { title: "Overview", href: "/", icon: LayoutDashboard },
+  { title: "Chat", href: "/chat", icon: MessageSquare },
+  { title: "Meetings", href: "/meet", icon: Video },
+  { title: "Projects", href: "/projects", icon: FolderKanban },
+  { title: "My Tasks", href: "/tasks", icon: CheckSquare },
+  { title: "Calendar", href: "/calendar", icon: Calendar },
+  { title: "AI Assistant", href: "/ai", icon: Bot },
+  { title: "Docs & Knowledge", href: "/docs", icon: FileText },
+  { title: "People & Teams", href: "/teams", icon: Users },
+  { title: "Insights", href: "/insights", icon: LineChart },
+  { title: "Settings", href: "/settings", icon: Settings },
+];
+
+const PRIORITY_ROUTES = ["/", "/chat", "/teams", "/insights"];
+
 export const AppSidebar: React.FC<AppSidebarProps> = ({ className, isMobile }) => {
   const pathname = usePathname();
+  const router = useRouter();
   const { activeWorkspace, sidebarOpen, setSidebarOpen } = useWorkspace();
+  const chat = useNexconnChatOptional();
+  const [optimisticHref, setOptimisticHref] = useState<string | null>(null);
+  const prefetchedRoutesRef = useRef<Set<string>>(new Set());
+
+  const totalChatUnread = chat?.totalUnreadCount ?? 0;
+
+  // Clear optimistic active state whenever route completes navigation
+  useEffect(() => {
+    setOptimisticHref(null);
+  }, [pathname]);
 
   const isPersonal =
     activeWorkspace.type === "personal" || activeWorkspace.type === "PERSONAL";
 
-  // Navigation schema strictly honoring Section 7
-  const personalNavItems: NavItem[] = [
-    { title: "Home", href: "/", icon: LayoutDashboard },
-    { title: "My Tasks", href: "/tasks", icon: CheckSquare },
-    { title: "Projects", href: "/projects", icon: FolderKanban },
-    { title: "Chat", href: "/chat", icon: MessageSquare },
-    { title: "Meet", href: "/meet", icon: Video },
-    { title: "AI Assistant", href: "/ai", icon: Bot },
-    { title: "Docs", href: "/docs", icon: FileText },
-    { title: "Settings", href: "/settings", icon: Settings },
-  ];
+  const navItems = isPersonal ? PERSONAL_NAV_ITEMS : ORG_NAV_ITEMS;
 
-  const orgNavItems: NavItem[] = [
-    { title: "Overview", href: "/", icon: LayoutDashboard },
-    { title: "Chat", href: "/chat", icon: MessageSquare },
-    { title: "Meetings", href: "/meet", icon: Video },
-    { title: "Projects", href: "/projects", icon: FolderKanban },
-    { title: "My Tasks", href: "/tasks", icon: CheckSquare },
-    { title: "Calendar", href: "/calendar", icon: Calendar },
-    { title: "AI Assistant", href: "/ai", icon: Bot },
-    { title: "Docs & Knowledge", href: "/docs", icon: FileText },
-    { title: "People & Teams", href: "/teams", icon: Users },
-    { title: "Insights", href: "/insights", icon: LineChart },
-    { title: "Settings", href: "/settings", icon: Settings },
-  ];
+  // Staggered once-only background prefetch so routes load instantaneously without saturating CPU
+  useEffect(() => {
+    const timers: ReturnType<typeof setTimeout>[] = [];
 
-  const navItems = isPersonal ? personalNavItems : orgNavItems;
+    // Wave 1: Primary routes immediately after paint
+    timers.push(
+      setTimeout(() => {
+        PRIORITY_ROUTES.forEach((href) => {
+          if (!prefetchedRoutesRef.current.has(href)) {
+            prefetchedRoutesRef.current.add(href);
+            router.prefetch(href);
+          }
+        });
+      }, 200)
+    );
+
+    // Wave 2: Secondary routes staggered gently during idle time
+    timers.push(
+      setTimeout(() => {
+        navItems.forEach((item, idx) => {
+          if (!prefetchedRoutesRef.current.has(item.href)) {
+            timers.push(
+              setTimeout(() => {
+                if (!prefetchedRoutesRef.current.has(item.href)) {
+                  prefetchedRoutesRef.current.add(item.href);
+                  router.prefetch(item.href);
+                }
+              }, idx * 120)
+            );
+          }
+        });
+      }, 900)
+    );
+
+    return () => {
+      timers.forEach((t) => clearTimeout(t));
+    };
+  }, [router, isPersonal, navItems]);
 
   const sidebarContent = (
     <div className="flex h-full w-full flex-col justify-between bg-white text-slate-800">
@@ -98,16 +151,35 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ className, isMobile }) =
 
           {navItems.map((item) => {
             const Icon = item.icon;
+            const targetPath = optimisticHref ?? pathname;
             const isActive =
               item.href === "/"
-                ? pathname === "/"
-                : pathname?.startsWith(item.href);
+                ? targetPath === "/"
+                : targetPath?.startsWith(item.href);
+            const isNavigatingToThis = optimisticHref === item.href && pathname !== item.href;
+
+            const dynamicBadge =
+              item.href === "/chat" && totalChatUnread > 0
+                ? totalChatUnread > 99
+                  ? "99+"
+                  : String(totalChatUnread)
+                : item.badge;
 
             return (
               <Link
                 key={item.href + item.title}
                 href={item.href}
+                prefetch={false}
+                onMouseEnter={() => {
+                  if (!prefetchedRoutesRef.current.has(item.href)) {
+                    prefetchedRoutesRef.current.add(item.href);
+                  }
+                  router.prefetch(item.href);
+                }}
                 onClick={() => {
+                  if (pathname !== item.href) {
+                    setOptimisticHref(item.href);
+                  }
                   if (isMobile) setSidebarOpen(false);
                 }}
                 className={cn(
@@ -118,25 +190,31 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ className, isMobile }) =
                 )}
               >
                 <div className="flex items-center gap-2.5 truncate">
-                  <Icon
-                    className={cn(
-                      "h-4 w-4 shrink-0 transition-colors",
-                      isActive ? "text-blue-600" : "text-slate-400 group-hover:text-slate-600"
-                    )}
-                  />
+                  {isNavigatingToThis ? (
+                    <Loader2 className="h-4 w-4 shrink-0 animate-spin text-blue-600" />
+                  ) : (
+                    <Icon
+                      className={cn(
+                        "h-4 w-4 shrink-0 transition-colors",
+                        isActive ? "text-blue-600" : "text-slate-400 group-hover:text-slate-600"
+                      )}
+                    />
+                  )}
                   <span className="truncate">{item.title}</span>
                 </div>
 
-                {item.badge && (
+                {dynamicBadge && (
                   <span
                     className={cn(
-                      "inline-flex items-center rounded-full px-1.5 py-0.2 text-[10px] font-medium leading-none",
-                      isActive
+                      "inline-flex items-center justify-center min-w-4 h-4 rounded-full px-1.5 text-[10px] font-bold leading-none",
+                      item.href === "/chat" && totalChatUnread > 0
+                        ? "bg-blue-600 text-white shadow-2xs"
+                        : isActive
                         ? "bg-blue-200/60 text-blue-800"
                         : "bg-slate-100 text-slate-600 group-hover:bg-slate-200"
                     )}
                   >
-                    {item.badge}
+                    {dynamicBadge}
                   </span>
                 )}
               </Link>
@@ -177,4 +255,3 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ className, isMobile }) =
     </>
   );
 };
-

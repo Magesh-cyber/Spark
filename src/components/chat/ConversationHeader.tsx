@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Hash, Lock, Info, Users, Sparkles } from "lucide-react";
+import { Hash, Lock, Info, Users, ArrowLeft } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { useNexconnChat } from "./NexconnChatProvider";
 import { cn } from "@/lib/utils";
@@ -9,13 +9,15 @@ import { cn } from "@/lib/utils";
 interface ConversationHeaderProps {
   showRightPanel: boolean;
   onToggleRightPanel: () => void;
+  onBackToList?: () => void;
 }
 
 export function ConversationHeader({
   showRightPanel,
   onToggleRightPanel,
+  onBackToList,
 }: ConversationHeaderProps) {
-  const { activeConversation, channelDetails } = useNexconnChat();
+  const { activeConversation, channelDetails, onlineUserIds } = useNexconnChat();
 
   if (!activeConversation) {
     return (
@@ -30,6 +32,16 @@ export function ConversationHeader({
   return (
     <div className="flex h-12 items-center justify-between border-b border-slate-200 px-4 bg-white select-none">
       <div className="flex items-center gap-2.5 truncate min-w-0">
+        {onBackToList && (
+          <button
+            type="button"
+            onClick={onBackToList}
+            className="md:hidden p-1.5 -ml-1 rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors shrink-0"
+            aria-label="Back to conversations"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </button>
+        )}
         {isChannel ? (
           activeConversation.isPrivate ? (
             <Lock className="h-4 w-4 text-slate-400 shrink-0" />
@@ -37,11 +49,19 @@ export function ConversationHeader({
             <Hash className="h-4 w-4 text-slate-500 shrink-0" />
           )
         ) : (
-          <Avatar
-            name={activeConversation.name}
-            size="sm"
-            src={activeConversation.peer?.avatarUrl || undefined}
-          />
+          <div className="relative shrink-0">
+            <Avatar
+              name={activeConversation.name}
+              size="sm"
+              src={activeConversation.peer?.avatarUrl || undefined}
+            />
+            {onlineUserIds[activeConversation.nexconnTargetId] && (
+              <span
+                className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-white"
+                title="Online"
+              />
+            )}
+          </div>
         )}
 
         <div className="flex items-baseline gap-2 truncate">

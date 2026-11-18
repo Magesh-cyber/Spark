@@ -41,6 +41,10 @@ export interface WorkspaceDashboardData {
 export async function getWorkspaceDashboardData(
   workspaceId: string
 ): Promise<{ success: boolean; data?: WorkspaceDashboardData; error?: string }> {
+  if (!workspaceId || workspaceId === "personal-fallback") {
+    return { success: false, error: "Workspace context is still loading." };
+  }
+
   try {
     const access = await verifyWorkspaceAccess(workspaceId);
 

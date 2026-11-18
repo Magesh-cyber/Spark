@@ -78,6 +78,7 @@ export const UserMenu: React.FC = () => {
           <div className="py-1">
             <Link
               href="/settings"
+              prefetch={false}
               onClick={() => setOpen(false)}
               className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors"
             >
@@ -86,6 +87,7 @@ export const UserMenu: React.FC = () => {
             </Link>
             <Link
               href={activeWorkspace.slug ? `/workspaces/${activeWorkspace.slug}/settings` : "/settings"}
+              prefetch={false}
               onClick={() => setOpen(false)}
               className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors"
             >

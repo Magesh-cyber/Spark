@@ -34,6 +34,8 @@ import {
   getWorkspaceDashboardData,
   WorkspaceDashboardData,
 } from "@/lib/actions/dashboard";
+import { clientDashboardCache } from "@/lib/client-caches";
+import { subscribeBootstrap } from "@/lib/bootstrap-client";
 
 export default function WorkspaceHomePage() {
   const { activeWorkspace, currentUser } = useWorkspace();
@@ -44,18 +46,42 @@ export default function WorkspaceHomePage() {
   const [buttonLoading, setButtonLoading] = useState(false);
 
   // Real database-driven dashboard state
-  const [dashboardData, setDashboardData] = useState<WorkspaceDashboardData | null>(null);
-  const [isLoadingDashboard, setIsLoadingDashboard] = useState(true);
+  const [dashboardData, setDashboardData] = useState<WorkspaceDashboardData | null>(() => {
+    if (activeWorkspace?.id && clientDashboardCache.has(activeWorkspace.id)) {
+      return clientDashboardCache.get(activeWorkspace.id)!;
+    }
+    return null;
+  });
+  const [isLoadingDashboard, setIsLoadingDashboard] = useState<boolean>(() => {
+    return !activeWorkspace?.id || !clientDashboardCache.has(activeWorkspace.id);
+  });
 
   const isPersonal =
     activeWorkspace.type === "personal" || activeWorkspace.type === "PERSONAL";
 
   const loadDashboard = useCallback(async () => {
-    if (!activeWorkspace?.id) return;
-    setIsLoadingDashboard(true);
+    if (!activeWorkspace?.id || activeWorkspace.id === "personal-fallback") {
+      setIsLoadingDashboard(false);
+      return;
+    }
+
+    // Hydrate immediately from cache if available (0ms render)
+    const cached = clientDashboardCache.get(activeWorkspace.id);
+    if (cached) {
+      setDashboardData(cached);
+      setIsLoadingDashboard(false);
+      // Skip redundant server round-trip when bootstrap just delivered fresh data
+      if (clientDashboardCache.isFresh(activeWorkspace.id)) {
+        return;
+      }
+    } else {
+      setIsLoadingDashboard(true);
+    }
+
     try {
       const res = await getWorkspaceDashboardData(activeWorkspace.id);
       if (res.success && res.data) {
+        clientDashboardCache.set(activeWorkspace.id, res.data);
         setDashboardData(res.data);
       }
     } catch (err) {
@@ -68,6 +94,15 @@ export default function WorkspaceHomePage() {
   useEffect(() => {
     loadDashboard();
   }, [loadDashboard]);
+
+  useEffect(() => {
+    return subscribeBootstrap((payload) => {
+      if (payload.dashboard && payload.activeWorkspace?.id === activeWorkspace?.id) {
+        setDashboardData(payload.dashboard);
+        setIsLoadingDashboard(false);
+      }
+    });
+  }, [activeWorkspace?.id]);
 
   return (
     <ShellLayout>
@@ -91,12 +126,12 @@ export default function WorkspaceHomePage() {
           }
           actions={
             <div className="flex items-center gap-2">
-              <Link href="/teams">
+              <Link href="/teams" prefetch={true}>
                 <Button variant="outline" size="sm" leftIcon={<Users className="h-3.5 w-3.5" />}>
                   Team Directory
                 </Button>
               </Link>
-              <Link href="/chat">
+              <Link href="/chat" prefetch={true}>
                 <Button
                   variant="primary"
                   size="sm"
@@ -207,6 +242,7 @@ export default function WorkspaceHomePage() {
                     </div>
                     <Link
                       href="/chat"
+                      prefetch={true}
                       className="text-xs font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1"
                     >
                       <span>Open chat</span>
@@ -246,6 +282,7 @@ export default function WorkspaceHomePage() {
                               </Badge>
                               <Link
                                 href="/chat"
+                                prefetch={true}
                                 className="text-xs font-medium text-blue-600 hover:underline"
                               >
                                 Join
@@ -267,6 +304,7 @@ export default function WorkspaceHomePage() {
                     </div>
                     <Link
                       href="/tasks"
+                      prefetch={true}
                       className="text-xs font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1"
                     >
                       <span>Task board</span>

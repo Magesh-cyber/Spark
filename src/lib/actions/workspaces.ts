@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getAuthenticatedUser } from "@/lib/supabase/auth-cache";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import {
@@ -145,27 +146,15 @@ export async function getUserWorkspaces(): Promise<{
   workspaces: Workspace[];
   error: string | null;
 }> {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthenticatedUser();
 
   if (!user) {
     return { workspaces: [], error: "Unauthenticated" };
   }
 
   try {
-    // Ensure personal workspace exists
-    const fullName =
-      user.user_metadata?.full_name ||
-      user.user_metadata?.name ||
-      user.email?.split("@")[0] ||
-      "SPARK User";
-
-    await ensurePersonalWorkspace(user.id, user.email || "", fullName);
-
-    // Fetch all active memberships for user
-    const memberships = await prisma.workspaceMember.findMany({
+    // 1. Fetch all active memberships for user first (fast path)
+    let memberships = await prisma.workspaceMember.findMany({
       where: {
         userId: user.id,
         status: "ACTIVE",
@@ -183,6 +172,41 @@ export async function getUserWorkspaces(): Promise<{
         joinedAt: "asc",
       },
     });
+
+    // 2. Only ensure personal workspace if user has none
+    const hasPersonalWorkspace = memberships.some(
+      (m) => m.workspace.type === "PERSONAL"
+    );
+
+    if (!hasPersonalWorkspace) {
+      const fullName =
+        user.user_metadata?.full_name ||
+        user.user_metadata?.name ||
+        user.email?.split("@")[0] ||
+        "SPARK User";
+
+      await ensurePersonalWorkspace(user.id, user.email || "", fullName);
+
+      // Re-fetch memberships now that personal workspace is created
+      memberships = await prisma.workspaceMember.findMany({
+        where: {
+          userId: user.id,
+          status: "ACTIVE",
+        },
+        include: {
+          workspace: {
+            include: {
+              _count: {
+                select: { members: true },
+              },
+            },
+          },
+        },
+        orderBy: {
+          joinedAt: "asc",
+        },
+      });
+    }
 
     const workspaces: Workspace[] = memberships.map((m) => ({
       id: m.workspace.id,
@@ -240,10 +264,7 @@ export async function getWorkspaceBySlug(slug: string) {
  * Creates a new organization workspace.
  */
 export async function createOrganizationWorkspace(input: CreateWorkspaceInput) {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthenticatedUser();
 
   if (!user) {
     return { success: false, error: "Unauthenticated", workspace: null };

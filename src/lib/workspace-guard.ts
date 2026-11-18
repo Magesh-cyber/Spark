@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { getAuthenticatedUser } from "@/lib/supabase/auth-cache";
 import { prisma } from "@/lib/prisma";
 import { WorkspaceRole, WorkspaceType, MembershipStatus } from "./types";
 import { ROLE_HIERARCHY } from "./permissions";
@@ -60,13 +60,17 @@ export async function verifyWorkspaceAccess(
   workspaceIdOrSlug: string,
   minRole?: WorkspaceRole
 ): Promise<WorkspaceAccessResult> {
-  const supabase = createClient();
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
+  // Fast fail on uninitialized client state
+  if (!workspaceIdOrSlug || workspaceIdOrSlug === "personal-fallback") {
+    throw new WorkspaceAccessError(
+      "WORKSPACE_NOT_FOUND",
+      "Workspace context is still loading."
+    );
+  }
 
-  if (authError || !user) {
+  const user = await getAuthenticatedUser();
+
+  if (!user) {
     throw new WorkspaceAccessError(
       "UNAUTHENTICATED",
       "Authentication required to access workspace."

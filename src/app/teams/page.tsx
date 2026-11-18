@@ -13,9 +13,12 @@ import { FilterBar } from "@/components/data/FilterBar";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { LoadingState } from "@/components/feedback/LoadingState";
 import { useWorkspace } from "@/lib/workspace-context";
+import { useNexconnChatOptional } from "@/components/chat/NexconnChatProvider";
 import { getWorkspaceMembers } from "@/lib/actions/workspace-members";
 import { inviteWorkspaceMember } from "@/lib/actions/workspace-invitations";
 import { getOrCreateDirectConversation } from "@/lib/actions/chat-direct";
+import { clientMembersCache } from "@/lib/client-caches";
+import { subscribeBootstrap } from "@/lib/bootstrap-client";
 import { WorkspaceMemberItem, WorkspaceRole } from "@/lib/types";
 import { canInviteMembers } from "@/lib/permissions";
 import {
@@ -33,8 +36,16 @@ import {
 export default function TeamsPage() {
   const router = useRouter();
   const { activeWorkspace, currentUser } = useWorkspace();
-  const [members, setMembers] = useState<WorkspaceMemberItem[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const chat = useNexconnChatOptional();
+  const [members, setMembers] = useState<WorkspaceMemberItem[]>(() => {
+    if (activeWorkspace?.id && clientMembersCache.has(activeWorkspace.id)) {
+      return clientMembersCache.get(activeWorkspace.id)!;
+    }
+    return [];
+  });
+  const [isLoading, setIsLoading] = useState<boolean>(() => {
+    return !activeWorkspace?.id || !clientMembersCache.has(activeWorkspace.id);
+  });
   const [error, setError] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -49,41 +60,83 @@ export default function TeamsPage() {
     devLink?: string;
   } | null>(null);
 
-  const fetchMembers = useCallback(async () => {
-    if (!activeWorkspace?.id) return;
-    setIsLoading(true);
-    setError("");
-    try {
-      const res = await getWorkspaceMembers(activeWorkspace.id);
-      if (res.error) {
-        setError(res.error);
-        setMembers([]);
-      } else {
-        setMembers(res.members || []);
+  const fetchMembers = useCallback(
+    async (force = false) => {
+      if (!activeWorkspace?.id || activeWorkspace.id === "personal-fallback") {
+        setIsLoading(false);
+        return;
       }
-    } catch {
-      setError("An unexpected error occurred while loading team members.");
-      setMembers([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [activeWorkspace?.id]);
+
+      // Hydrate immediately from shared cache if available (0ms render)
+      const cached = clientMembersCache.get(activeWorkspace.id);
+      if (cached) {
+        setMembers(cached);
+        setIsLoading(false);
+        if (!force && clientMembersCache.isFresh(activeWorkspace.id)) {
+          return;
+        }
+      } else {
+        setIsLoading(true);
+      }
+
+      setError("");
+      try {
+        const res = await getWorkspaceMembers(activeWorkspace.id);
+        if (res.error) {
+          setError(res.error);
+          if (!cached) setMembers([]);
+        } else {
+          const fresh = res.members || [];
+          clientMembersCache.set(activeWorkspace.id, fresh);
+          setMembers(fresh);
+        }
+      } catch {
+        setError("An unexpected error occurred while loading team members.");
+        if (!cached) setMembers([]);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [activeWorkspace?.id]
+  );
 
   useEffect(() => {
-    fetchMembers();
+    fetchMembers(false);
   }, [fetchMembers]);
 
-  const handleStartChat = async (peerUserId: string) => {
+  useEffect(() => {
+    return subscribeBootstrap((payload) => {
+      if (payload.members && payload.activeWorkspace?.id === activeWorkspace?.id) {
+        setMembers(payload.members);
+        setIsLoading(false);
+      }
+    });
+  }, [activeWorkspace?.id]);
+
+  const handleStartChat = (peerUserId: string) => {
     if (!activeWorkspace?.id || peerUserId === currentUser.id) {
       router.push("/chat");
       return;
     }
-    try {
-      await getOrCreateDirectConversation(activeWorkspace.id, peerUserId);
-      router.push("/chat");
-    } catch {
-      router.push("/chat");
+    const targetMember = members.find((m) => m.user.id === peerUserId);
+    if (chat && targetMember) {
+      chat.setActiveConversation({
+        type: "direct",
+        id: targetMember.user.id,
+        name: targetMember.user.fullName,
+        nexconnTargetId: targetMember.user.id,
+        peer: {
+          id: targetMember.user.id,
+          fullName: targetMember.user.fullName,
+          avatarUrl: targetMember.user.avatarUrl || null,
+          email: targetMember.user.email,
+          role: targetMember.role,
+        },
+      });
     }
+    // Persist direct conversation row asynchronously so navigation to /chat is instantaneous
+    getOrCreateDirectConversation(activeWorkspace.id, peerUserId).catch(() => {});
+    router.push("/chat");
   };
 
   const handleInviteSubmit = async (e: React.FormEvent) => {
@@ -107,7 +160,7 @@ export default function TeamsPage() {
         });
         setInviteEmail("");
         // Reload member directory
-        await fetchMembers();
+        await fetchMembers(true);
       } else {
         setInviteFeedback({
           type: "error",
@@ -181,7 +234,7 @@ export default function TeamsPage() {
               size="sm"
               variant="outline"
               className="mt-4"
-              onClick={fetchMembers}
+              onClick={() => fetchMembers(true)}
             >
               Try Again
             </Button>

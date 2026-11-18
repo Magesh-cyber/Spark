@@ -6,11 +6,20 @@ import React, {
   useState,
   useEffect,
   useCallback,
+  useRef,
+  useMemo,
 } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { Workspace, User, NotificationItem } from "./types";
 import { createClient } from "@/lib/supabase/client";
 import { getUserWorkspaces } from "@/lib/actions/workspaces";
+import {
+  prefetchWorkspaceBootstrap,
+  subscribeBootstrap,
+  getLastBootstrapPayload,
+  clearBootstrapMemory,
+} from "./bootstrap-client";
+import { clearAllClientCaches } from "./client-caches";
 
 interface WorkspaceContextType {
   activeWorkspace: Workspace;
@@ -46,107 +55,206 @@ const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefin
 
 export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([FALLBACK_WORKSPACE]);
-  const [activeWorkspace, setActiveWorkspace] = useState<Workspace>(FALLBACK_WORKSPACE);
+  const pathname = usePathname();
+
+  const initialBootstrap = getLastBootstrapPayload();
+
+  const [workspaces, setWorkspaces] = useState<Workspace[]>(
+    () => initialBootstrap?.workspaces || [FALLBACK_WORKSPACE]
+  );
+  const [activeWorkspace, setActiveWorkspace] = useState<Workspace>(
+    () => initialBootstrap?.activeWorkspace || FALLBACK_WORKSPACE
+  );
   const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchModalOpen, setSearchModalOpen] = useState(false);
-  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
-  const [isLoadingWorkspaces, setIsLoadingWorkspaces] = useState(true);
+  const [isLoadingAuth, setIsLoadingAuth] = useState(() => !initialBootstrap?.user?.id);
+  const [isLoadingWorkspaces, setIsLoadingWorkspaces] = useState(
+    () => !initialBootstrap?.workspaces?.length
+  );
 
-  const [currentUser, setCurrentUser] = useState<User>({
-    id: "",
-    name: "SPARK User",
-    email: "",
-    role: "Member",
-    title: "Team Member",
-  });
+  const [currentUser, setCurrentUser] = useState<User>(
+    () =>
+      initialBootstrap?.user || {
+        id: "",
+        name: "SPARK User",
+        email: "",
+        role: "Member",
+        title: "Team Member",
+      }
+  );
 
-  // Load real workspaces from backend
-  const refreshWorkspaces = useCallback(async () => {
-    setIsLoadingWorkspaces(true);
+  const refreshPromiseRef = useRef<Promise<void> | null>(null);
+  const pathnameRef = useRef(pathname);
+  pathnameRef.current = pathname;
+
+  // Hydrate immediately from localStorage on mount for 0ms first paint
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (getLastBootstrapPayload()) return;
     try {
-      const res = await getUserWorkspaces();
-      if (res.workspaces && res.workspaces.length > 0) {
-        setWorkspaces(res.workspaces);
-
-        // Check if there is an active persisted workspace ID
-        const persistedId =
-          typeof window !== "undefined"
-            ? localStorage.getItem("spark_active_workspace_id")
-            : null;
-
-        const found = res.workspaces.find(
-          (w) => w.id === persistedId || w.slug === persistedId
-        );
-
-        if (found) {
-          setActiveWorkspace(found);
-        } else {
-          // Default to personal workspace or the first available workspace
-          const personal = res.workspaces.find(
-            (w) => w.type === "personal" || w.type === "PERSONAL"
-          );
-          setActiveWorkspace(personal || res.workspaces[0]);
+      const cachedWsStr = localStorage.getItem("spark_cached_workspaces");
+      if (cachedWsStr) {
+        const parsedWs: Workspace[] = JSON.parse(cachedWsStr);
+        if (Array.isArray(parsedWs) && parsedWs.length > 0) {
+          setWorkspaces(parsedWs);
+          setIsLoadingWorkspaces(false);
+          const persistedId = localStorage.getItem("spark_active_workspace_id");
+          const found = parsedWs.find((w) => w.id === persistedId || w.slug === persistedId);
+          const personal = parsedWs.find((w) => w.type === "personal" || w.type === "PERSONAL");
+          setActiveWorkspace(found || personal || parsedWs[0]);
         }
       }
-    } catch (err) {
-      console.error("Error refreshing workspaces in WorkspaceProvider:", err);
-    } finally {
-      setIsLoadingWorkspaces(false);
+
+      const cachedUserStr = localStorage.getItem("spark_cached_user");
+      if (cachedUserStr) {
+        const parsedUser: User = JSON.parse(cachedUserStr);
+        if (parsedUser?.id) {
+          setCurrentUser(parsedUser);
+          setIsLoadingAuth(false);
+        }
+      }
+    } catch {}
+  }, []);
+
+  // Stay synced whenever any bootstrap call resolves (login, mount, workspace switch)
+  useEffect(() => {
+    return subscribeBootstrap((payload) => {
+      if (payload.user?.id) {
+        setCurrentUser(payload.user);
+        setIsLoadingAuth(false);
+      }
+      if (payload.workspaces?.length > 0) {
+        setWorkspaces(payload.workspaces);
+        setIsLoadingWorkspaces(false);
+      }
+      if (payload.activeWorkspace?.id) {
+        setActiveWorkspace(payload.activeWorkspace);
+      }
+    });
+  }, []);
+
+  // Load real workspaces from backend (deduplicated)
+  const refreshWorkspaces = useCallback(async () => {
+    if (refreshPromiseRef.current) {
+      return refreshPromiseRef.current;
+    }
+
+    const task = (async () => {
+      try {
+        const res = await getUserWorkspaces();
+        if (res.workspaces && res.workspaces.length > 0) {
+          setWorkspaces(res.workspaces);
+
+          if (typeof window !== "undefined") {
+            try {
+              localStorage.setItem("spark_cached_workspaces", JSON.stringify(res.workspaces));
+            } catch {}
+          }
+
+          const persistedId =
+            typeof window !== "undefined"
+              ? localStorage.getItem("spark_active_workspace_id")
+              : null;
+
+          const found = res.workspaces.find(
+            (w) => w.id === persistedId || w.slug === persistedId
+          );
+
+          if (found) {
+            setActiveWorkspace(found);
+          } else {
+            const personal = res.workspaces.find(
+              (w) => w.type === "personal" || w.type === "PERSONAL"
+            );
+            setActiveWorkspace(personal || res.workspaces[0]);
+          }
+        }
+      } catch (err) {
+        console.error("Error refreshing workspaces in WorkspaceProvider:", err);
+      } finally {
+        setIsLoadingWorkspaces(false);
+        refreshPromiseRef.current = null;
+      }
+    })();
+
+    refreshPromiseRef.current = task;
+    return task;
+  }, []);
+
+  // Optimistic workspace switch + unified background preload of all data for new workspace
+  const handleSetActiveWorkspace = useCallback((ws: Workspace) => {
+    setActiveWorkspace(ws);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("spark_active_workspace_id", ws.id);
+      document.cookie = `spark_active_workspace_id=${ws.id}; path=/; max-age=31536000; SameSite=Lax`;
+    }
+    if (ws.id && ws.id !== "personal-fallback") {
+      prefetchWorkspaceBootstrap(ws.id, { force: true }).catch(() => {});
     }
   }, []);
 
-  // Set active workspace with persistence
-  const handleSetActiveWorkspace = useCallback(
-    (ws: Workspace) => {
-      setActiveWorkspace(ws);
-      if (typeof window !== "undefined") {
-        localStorage.setItem("spark_active_workspace_id", ws.id);
-        document.cookie = `spark_active_workspace_id=${ws.id}; path=/; max-age=31536000; SameSite=Lax`;
-      }
-    },
-    []
-  );
+  // Fast boot: read local session (0.5ms) -> single /api/bootstrap round-trip (eliminates double WAN auth!)
+  const loadSessionAndBootstrap = useCallback(async () => {
+    const isAuthRoute = pathnameRef.current?.startsWith("/auth");
+    if (isAuthRoute) {
+      setIsLoadingAuth(false);
+      setIsLoadingWorkspaces(false);
+      return;
+    }
 
-  // Load real authenticated user from Supabase
-  const loadUser = useCallback(async () => {
     try {
       const supabase = createClient();
+      // getSession() reads locally from cookies without a 650ms WAN round-trip
       const {
-        data: { user },
-      } = await supabase.auth.getUser();
+        data: { session },
+      } = await supabase.auth.getSession();
 
-      if (user) {
+      if (session?.user) {
+        const u = session.user;
         const fullName =
-          user.user_metadata?.full_name ||
-          user.user_metadata?.name ||
-          user.email?.split("@")[0] ||
+          u.user_metadata?.full_name ||
+          u.user_metadata?.name ||
+          u.email?.split("@")[0] ||
           "SPARK User";
 
-        setCurrentUser({
-          id: user.id,
-          name: fullName,
-          email: user.email || "",
-          role: "Workspace Owner",
-          title: "Account Owner",
-          avatarUrl: user.user_metadata?.avatar_url,
-        });
+        setCurrentUser((prev) =>
+          prev.id === u.id
+            ? prev
+            : {
+                id: u.id,
+                name: fullName,
+                email: u.email || "",
+                role: "Workspace Owner",
+                title: "Account Owner",
+                avatarUrl: u.user_metadata?.avatar_url,
+              }
+        );
+        setIsLoadingAuth(false);
 
-        // After user is verified, load real workspaces
-        await refreshWorkspaces();
+        const persistedId =
+          typeof window !== "undefined"
+            ? localStorage.getItem("spark_active_workspace_id") || undefined
+            : undefined;
+
+        // One single round-trip hydrates workspaces + dashboard + teams + chat channels + DMs + Nexconn token
+        const payload = await prefetchWorkspaceBootstrap(persistedId);
+        if (!payload) {
+          // Fallback to server action if bootstrap fails
+          await refreshWorkspaces();
+        }
       }
     } catch (err) {
-      console.error("Error loading user in WorkspaceProvider:", err);
+      console.error("Error bootstrapping session in WorkspaceProvider:", err);
     } finally {
       setIsLoadingAuth(false);
+      setIsLoadingWorkspaces(false);
     }
   }, [refreshWorkspaces]);
 
   useEffect(() => {
-    loadUser();
+    loadSessionAndBootstrap();
 
-    // Listen to Supabase auth events
     const supabase = createClient();
     const {
       data: { subscription },
@@ -159,19 +267,28 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
           u.email?.split("@")[0] ||
           "SPARK User";
 
-        setCurrentUser({
+        const userObj: User = {
           id: u.id,
           name,
           email: u.email || "",
           role: "Workspace Owner",
           title: "Account Owner",
           avatarUrl: u.user_metadata?.avatar_url,
-        });
+        };
+
+        setCurrentUser(userObj);
+        setIsLoadingAuth(false);
 
         if (event === "SIGNED_IN") {
-          await refreshWorkspaces();
+          const persistedId =
+            typeof window !== "undefined"
+              ? localStorage.getItem("spark_active_workspace_id") || undefined
+              : undefined;
+          await prefetchWorkspaceBootstrap(persistedId);
         }
       } else if (event === "SIGNED_OUT") {
+        clearAllClientCaches();
+        clearBootstrapMemory();
         setCurrentUser({
           id: "",
           name: "SPARK User",
@@ -186,35 +303,38 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     return () => {
       subscription.unsubscribe();
     };
-  }, [loadUser, refreshWorkspaces]);
+  }, [loadSessionAndBootstrap]);
 
-  // Real Sign Out implementation
-  const signOut = async () => {
+  // Real Sign Out implementation with complete cache cleanup
+  const signOut = useCallback(async () => {
     try {
       const supabase = createClient();
-      await supabase.auth.signOut();
+      clearAllClientCaches();
+      clearBootstrapMemory();
       if (typeof window !== "undefined") {
         localStorage.removeItem("spark_active_workspace_id");
+        localStorage.removeItem("spark_cached_workspaces");
+        localStorage.removeItem("spark_cached_user");
         document.cookie = "spark_active_workspace_id=; path=/; max-age=0";
       }
+      await supabase.auth.signOut();
       router.push("/auth/login");
-      router.refresh();
     } catch (err) {
       console.error("Sign out failed:", err);
     }
-  };
+  }, [router]);
 
   const unreadNotificationCount = notifications.filter((n) => !n.read).length;
 
-  const markNotificationAsRead = (id: string) => {
+  const markNotificationAsRead = useCallback((id: string) => {
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n))
     );
-  };
+  }, []);
 
-  const markAllNotificationsAsRead = () => {
+  const markAllNotificationsAsRead = useCallback(() => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-  };
+  }, []);
 
   // Keyboard shortcut listener for Global Search (Cmd+K / Ctrl+K)
   useEffect(() => {
@@ -228,28 +348,46 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  const contextValue = useMemo<WorkspaceContextType>(
+    () => ({
+      activeWorkspace,
+      workspaces,
+      setActiveWorkspace: handleSetActiveWorkspace,
+      refreshWorkspaces,
+      currentUser,
+      setCurrentUser,
+      notifications,
+      unreadNotificationCount,
+      markNotificationAsRead,
+      markAllNotificationsAsRead,
+      sidebarOpen,
+      setSidebarOpen,
+      searchModalOpen,
+      setSearchModalOpen,
+      signOut,
+      isLoadingAuth,
+      isLoadingWorkspaces,
+    }),
+    [
+      activeWorkspace,
+      workspaces,
+      handleSetActiveWorkspace,
+      refreshWorkspaces,
+      currentUser,
+      notifications,
+      unreadNotificationCount,
+      markNotificationAsRead,
+      markAllNotificationsAsRead,
+      sidebarOpen,
+      searchModalOpen,
+      signOut,
+      isLoadingAuth,
+      isLoadingWorkspaces,
+    ]
+  );
+
   return (
-    <WorkspaceContext.Provider
-      value={{
-        activeWorkspace,
-        workspaces,
-        setActiveWorkspace: handleSetActiveWorkspace,
-        refreshWorkspaces,
-        currentUser,
-        setCurrentUser,
-        notifications,
-        unreadNotificationCount,
-        markNotificationAsRead,
-        markAllNotificationsAsRead,
-        sidebarOpen,
-        setSidebarOpen,
-        searchModalOpen,
-        setSearchModalOpen,
-        signOut,
-        isLoadingAuth,
-        isLoadingWorkspaces,
-      }}
-    >
+    <WorkspaceContext.Provider value={contextValue}>
       {children}
     </WorkspaceContext.Provider>
   );

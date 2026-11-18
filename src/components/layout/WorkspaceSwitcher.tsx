@@ -12,6 +12,7 @@ import {
   Grid,
 } from "lucide-react";
 import { useWorkspace } from "@/lib/workspace-context";
+import { prefetchWorkspaceBootstrap } from "@/lib/bootstrap-client";
 import { Workspace } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -90,6 +91,11 @@ export const WorkspaceSwitcher: React.FC = () => {
             <button
               key={ws.id}
               type="button"
+              onMouseEnter={() => {
+                if (ws.id !== activeWorkspace.id) {
+                  prefetchWorkspaceBootstrap(ws.id, { preloadOnly: true });
+                }
+              }}
               onClick={() => {
                 setActiveWorkspace(ws);
                 setOpen(false);
@@ -117,6 +123,11 @@ export const WorkspaceSwitcher: React.FC = () => {
                 <button
                   key={ws.id}
                   type="button"
+                  onMouseEnter={() => {
+                    if (ws.id !== activeWorkspace.id) {
+                      prefetchWorkspaceBootstrap(ws.id, { preloadOnly: true });
+                    }
+                  }}
                   onClick={() => {
                     setActiveWorkspace(ws);
                     setOpen(false);
@@ -145,6 +156,7 @@ export const WorkspaceSwitcher: React.FC = () => {
           {/* Workspace Management Actions */}
           <Link
             href="/workspaces/create"
+            prefetch={false}
             onClick={() => setOpen(false)}
             className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
           >
@@ -154,6 +166,7 @@ export const WorkspaceSwitcher: React.FC = () => {
 
           <Link
             href={`/workspaces/${activeWorkspace.slug}/settings`}
+            prefetch={false}
             onClick={() => setOpen(false)}
             className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
           >
@@ -163,6 +176,7 @@ export const WorkspaceSwitcher: React.FC = () => {
 
           <Link
             href="/workspaces"
+            prefetch={false}
             onClick={() => setOpen(false)}
             className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
           >

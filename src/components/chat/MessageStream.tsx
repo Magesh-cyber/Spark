@@ -1,123 +1,534 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState, useMemo } from "react";
 import { Avatar } from "@/components/ui/avatar";
-import { FileText, Download, Image as ImageIcon, MessageSquare } from "lucide-react";
+import {
+  FileText,
+  Download,
+  MessageSquare,
+  Check,
+  CheckCheck,
+  Clock,
+  ChevronDown,
+  AlertCircle,
+  Lock,
+  X,
+  ZoomIn,
+} from "lucide-react";
 import { useNexconnChat } from "./NexconnChatProvider";
+import { ChatMessageItem } from "./types";
+import { cn } from "@/lib/utils";
+
+function getDateDividerLabel(timestamp: number): string {
+  const date = new Date(timestamp);
+  const now = new Date();
+
+  const isToday =
+    date.getDate() === now.getDate() &&
+    date.getMonth() === now.getMonth() &&
+    date.getFullYear() === now.getFullYear();
+
+  if (isToday) return "Today";
+
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  const isYesterday =
+    date.getDate() === yesterday.getDate() &&
+    date.getMonth() === yesterday.getMonth() &&
+    date.getFullYear() === yesterday.getFullYear();
+
+  if (isYesterday) return "Yesterday";
+
+  return date.toLocaleDateString([], {
+    month: "short",
+    day: "numeric",
+    year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
+  });
+}
+
+function formatFileSize(bytes?: number): string {
+  if (!bytes || bytes <= 0) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+function appendDownloadParam(url: string): string {
+  if (!url) return "#";
+  if (url.startsWith("blob:")) return url;
+  return url.includes("?") ? `${url}&download=1` : `${url}?download=1`;
+}
 
 export function MessageStream() {
-  const { messages, isLoadingMessages, activeConversation } = useNexconnChat();
-  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const {
+    messages,
+    isLoadingMessages,
+    activeConversation,
+    isOtherTyping,
+  } = useNexconnChat();
 
-  // Auto-scroll to bottom on new messages
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState<{ url: string; name: string } | null>(
+    null
+  );
+
+  // Identify the latest outgoing message ID so we display the clean text receipt ("Seen" / "Delivered" / "Sent" / "Pending") underneath it
+  const latestMyMessageId = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].isMe) return messages[i].id;
+    }
+    return null;
   }, [messages]);
+
+  // Group messages by calendar day
+  const groupedMessages = useMemo(() => {
+    const groups: { dateLabel: string; items: ChatMessageItem[] }[] = [];
+    let currentLabel = "";
+    let currentItems: ChatMessageItem[] = [];
+
+    for (const msg of messages) {
+      const label = getDateDividerLabel(msg.timestamp);
+      if (label !== currentLabel) {
+        if (currentItems.length > 0) {
+          groups.push({ dateLabel: currentLabel, items: currentItems });
+        }
+        currentLabel = label;
+        currentItems = [msg];
+      } else {
+        currentItems.push(msg);
+      }
+    }
+
+    if (currentItems.length > 0) {
+      groups.push({ dateLabel: currentLabel, items: currentItems });
+    }
+
+    return groups;
+  }, [messages]);
+
+  const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
+    bottomRef.current?.scrollIntoView({ behavior });
+  };
+
+  useEffect(() => {
+    scrollToBottom("auto");
+  }, [activeConversation?.id]);
+
+  const showScrollBottomRef = useRef(false);
+  showScrollBottomRef.current = showScrollBottom;
+
+  useEffect(() => {
+    if (!showScrollBottomRef.current) {
+      scrollToBottom("smooth");
+    }
+  }, [messages, isOtherTyping]);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    const distanceToBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    setShowScrollBottom(distanceToBottom > 150);
+  };
 
   if (!activeConversation) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-6 text-center text-slate-400">
-        <MessageSquare className="h-10 w-10 text-slate-300 mb-2 stroke-1" />
-        <p className="text-sm font-medium text-slate-600">No conversation selected</p>
-        <p className="text-xs text-slate-400">Choose a channel or direct message from the sidebar.</p>
+      <div className="flex-1 flex flex-col items-center justify-center p-6 text-center text-slate-400 bg-slate-50/20">
+        <div className="h-12 w-12 rounded-full bg-slate-100 flex items-center justify-center mb-3">
+          <MessageSquare className="h-6 w-6 text-slate-400 stroke-1" />
+        </div>
+        <p className="text-sm font-semibold text-slate-700">No conversation selected</p>
+        <p className="text-xs text-slate-400 mt-0.5">
+          Select a channel or direct message from the sidebar to start chatting.
+        </p>
       </div>
     );
   }
 
   if (isLoadingMessages) {
     return (
-      <div className="flex-1 flex items-center justify-center p-6 text-center">
-        <div className="flex items-center gap-2 text-xs text-slate-400">
-          <span className="h-2 w-2 rounded-full bg-blue-600 animate-ping" />
-          <span>Loading message history...</span>
+      <div className="flex-1 flex items-center justify-center p-6 text-center bg-slate-50/20">
+        <div className="flex flex-col items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-blue-600 animate-bounce [animation-delay:-0.3s]" />
+            <span className="h-2 w-2 rounded-full bg-blue-600 animate-bounce [animation-delay:-0.15s]" />
+            <span className="h-2 w-2 rounded-full bg-blue-600 animate-bounce" />
+          </div>
+          <span className="text-xs text-slate-400 font-medium">Loading messages...</span>
         </div>
       </div>
     );
   }
 
-  if (messages.length === 0) {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
-        <div className="h-12 w-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mb-3">
-          <MessageSquare className="h-6 w-6" />
-        </div>
-        <h3 className="text-sm font-semibold text-slate-900">
-          {activeConversation.type === "channel"
-            ? `Welcome to #${activeConversation.name}!`
-            : `Direct conversation with ${activeConversation.name}`}
-        </h3>
-        <p className="text-xs text-slate-500 max-w-sm mt-1">
-          {activeConversation.type === "channel"
-            ? activeConversation.description || "This is the start of the channel. Send a message to get the conversation started."
-            : "This is the beginning of your direct message history. Messages are private and securely routed through Nexconn."}
-        </p>
-      </div>
-    );
-  }
+  const isChannel = activeConversation.type === "channel";
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 space-y-4">
-      {messages.map((msg) => (
-        <div key={msg.id} className="flex items-start gap-3 group transition-colors hover:bg-slate-50/50 -mx-2 px-2 py-1 rounded-md">
-          <Avatar name={msg.senderName} size="md" />
+    <div
+      ref={scrollContainerRef}
+      onScroll={handleScroll}
+      className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 bg-slate-50/20 relative"
+    >
+      {/* Subtle Secure Transmission Notice */}
+      <div className="flex justify-center">
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50/80 border border-emerald-200/70 text-[10px] font-medium text-emerald-700 select-none">
+          <Lock className="h-2.5 w-2.5 shrink-0" />
+          <span>Secured with TLS &amp; AES-256 encrypted workspace media</span>
+        </div>
+      </div>
 
-          <div className="flex-1 min-w-0">
-            <div className="flex items-baseline gap-2">
-              <span className="text-xs font-semibold text-slate-900">
-                {msg.senderName}
-              </span>
-              <span className="text-[10px] text-slate-400 font-normal">
-                {msg.time}
-              </span>
-            </div>
+      {/* Empty State */}
+      {messages.length === 0 && (
+        <div className="flex flex-col items-center justify-center text-center py-12">
+          <div className="h-12 w-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mb-3 shadow-2xs">
+            <MessageSquare className="h-6 w-6" />
+          </div>
+          <h3 className="text-sm font-semibold text-slate-900">
+            {isChannel
+              ? `Welcome to #${activeConversation.name}!`
+              : `Direct conversation with ${activeConversation.name}`}
+          </h3>
+          <p className="text-xs text-slate-500 max-w-sm mt-1">
+            {isChannel
+              ? activeConversation.description ||
+                "This is the start of the channel. Share messages, photos, videos, or documents securely."
+              : "This is the start of your private conversation. All messages and media are strictly workspace-authorized."}
+          </p>
+        </div>
+      )}
 
-            {msg.text && (
-              <p className="mt-0.5 text-xs text-slate-700 leading-relaxed whitespace-pre-wrap break-words max-w-3xl">
-                {msg.text}
-              </p>
-            )}
+      {/* Message Groups by Date */}
+      {groupedMessages.map((group) => (
+        <div key={group.dateLabel} className="space-y-3">
+          {/* Centered Date Badge */}
+          <div className="flex justify-center my-3 sticky top-1 z-10">
+            <span className="px-2.5 py-0.5 rounded-full bg-white/90 backdrop-blur-xs border border-slate-200/80 text-[10px] font-semibold text-slate-500 shadow-2xs">
+              {group.dateLabel}
+            </span>
+          </div>
 
-            {/* Attachment Card */}
-            {msg.fileInfo && (
-              <div className="mt-2">
-                {msg.fileInfo.type === "image" ? (
-                  <div className="max-w-sm rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={msg.fileInfo.url}
-                      alt={msg.fileInfo.name}
-                      className="max-h-60 w-auto object-cover"
-                    />
-                  </div>
-                ) : (
-                  <a
-                    href={msg.fileInfo.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-2.5 rounded-lg border border-slate-200 bg-white p-2.5 hover:bg-slate-50 text-xs transition-colors shadow-2xs group/file"
-                  >
-                    <div className="flex h-8 w-8 items-center justify-center rounded bg-blue-50 text-blue-600">
-                      <FileText className="h-4 w-4" />
+          {/* Messages in Group */}
+          {group.items.map((msg) => {
+            const isMe = msg.isMe;
+            const isLatestOutgoing = isMe && msg.id === latestMyMessageId;
+
+            const receiptTitle =
+              msg.status === "sending"
+                ? "Pending"
+                : msg.status === "error"
+                ? "Failed to send"
+                : msg.status === "read"
+                ? msg.seenBy && msg.seenBy.length > 0 && isChannel
+                  ? `Seen by ${msg.seenBy.map((s) => s.name).join(", ")}`
+                  : "Seen"
+                : msg.status === "delivered"
+                ? "Delivered"
+                : "Sent";
+
+            return (
+              <div key={msg.id} className="space-y-1">
+                <div
+                  className={cn(
+                    "flex items-end gap-2 group transition-all",
+                    isMe ? "justify-end" : "justify-start"
+                  )}
+                >
+                  {/* Incoming Message Avatar */}
+                  {!isMe && (
+                    <div className="shrink-0 mb-0.5">
+                      <Avatar
+                        name={msg.senderName}
+                        size="sm"
+                        src={msg.senderAvatar || undefined}
+                      />
                     </div>
-                    <div className="truncate max-w-xs">
-                      <div className="font-medium text-slate-800 truncate group-hover/file:text-blue-600">
-                        {msg.fileInfo.name}
+                  )}
+
+                  {/* Message Bubble */}
+                  <div
+                    className={cn(
+                      "relative max-w-[85%] sm:max-w-md lg:max-w-lg px-3.5 py-2 shadow-2xs transition-all",
+                      isMe
+                        ? "bg-blue-600 text-white rounded-2xl rounded-tr-xs"
+                        : "bg-white border border-slate-200 text-slate-800 rounded-2xl rounded-tl-xs"
+                    )}
+                  >
+                    {/* Sender Name in Group Channels */}
+                    {!isMe && isChannel && (
+                      <div className="text-[11px] font-semibold text-blue-600 mb-0.5 select-none">
+                        {msg.senderName}
                       </div>
-                      {msg.fileInfo.size && (
-                        <div className="text-[10px] text-slate-400">
-                          {(msg.fileInfo.size / 1024).toFixed(1)} KB
-                        </div>
+                    )}
+
+                    {/* Attachment Card (Image / Video / Audio / File) */}
+                    {msg.fileInfo && (
+                      <div className={cn(msg.text ? "mb-2" : "mb-0.5")}>
+                        {msg.fileInfo.type === "image" ? (
+                          <div className="relative group/img rounded-xl overflow-hidden border border-black/10 bg-black/5">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={msg.fileInfo.url}
+                              alt={msg.fileInfo.name}
+                              onClick={() =>
+                                setLightboxImage({
+                                  url: msg.fileInfo!.url,
+                                  name: msg.fileInfo!.name,
+                                })
+                              }
+                              className="max-h-64 w-auto max-w-full object-cover rounded-xl cursor-pointer transition-transform group-hover/img:scale-[1.01]"
+                            />
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setLightboxImage({
+                                  url: msg.fileInfo!.url,
+                                  name: msg.fileInfo!.name,
+                                })
+                              }
+                              className="absolute top-2 right-2 p-1.5 rounded-full bg-slate-900/55 text-white opacity-0 group-hover/img:opacity-100 transition-opacity"
+                              aria-label="Preview full image"
+                            >
+                              <ZoomIn className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        ) : msg.fileInfo.type === "video" ? (
+                          <div className="rounded-xl overflow-hidden border border-black/10 bg-black">
+                            <video
+                              src={msg.fileInfo.url}
+                              controls
+                              playsInline
+                              preload="metadata"
+                              className="max-h-64 w-full max-w-xs sm:max-w-sm rounded-xl"
+                            />
+                          </div>
+                        ) : msg.fileInfo.type === "audio" ? (
+                          <div className="py-1">
+                            <audio
+                              src={msg.fileInfo.url}
+                              controls
+                              preload="metadata"
+                              className="h-9 max-w-[240px] sm:max-w-xs"
+                            />
+                            <div
+                              className={cn(
+                                "text-[10px] mt-1 truncate",
+                                isMe ? "text-blue-100" : "text-slate-400"
+                              )}
+                            >
+                              {msg.fileInfo.name}
+                            </div>
+                          </div>
+                        ) : (
+                          <a
+                            href={appendDownloadParam(msg.fileInfo.url)}
+                            target="_blank"
+                            rel="noreferrer"
+                            download={msg.fileInfo.name}
+                            className={cn(
+                              "inline-flex items-center gap-2.5 rounded-xl p-2.5 text-xs transition-colors border max-w-full",
+                              isMe
+                                ? "bg-blue-700/80 border-blue-500 text-white hover:bg-blue-700"
+                                : "bg-slate-50 border-slate-200 text-slate-800 hover:bg-slate-100"
+                            )}
+                          >
+                            <div
+                              className={cn(
+                                "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+                                isMe
+                                  ? "bg-white/20 text-white"
+                                  : "bg-blue-50 text-blue-600"
+                              )}
+                            >
+                              <FileText className="h-4 w-4" />
+                            </div>
+                            <div className="truncate min-w-0">
+                              <div className="font-medium truncate">
+                                {msg.fileInfo.name}
+                              </div>
+                              <div
+                                className={cn(
+                                  "text-[10px] flex items-center gap-1.5",
+                                  isMe ? "text-blue-100" : "text-slate-400"
+                                )}
+                              >
+                                {msg.fileInfo.size ? (
+                                  <span>{formatFileSize(msg.fileInfo.size)}</span>
+                                ) : null}
+                                {msg.fileInfo.encrypted && (
+                                  <span className="inline-flex items-center gap-0.5">
+                                    <Lock className="h-2.5 w-2.5" />
+                                    Encrypted
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <Download className="h-3.5 w-3.5 ml-1 shrink-0 opacity-80" />
+                          </a>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Message Text / Caption */}
+                    {msg.text && (
+                      <p
+                        className={cn(
+                          "text-xs leading-relaxed whitespace-pre-wrap break-words",
+                          isMe ? "text-white" : "text-slate-800"
+                        )}
+                      >
+                        {msg.text}
+                      </p>
+                    )}
+
+                    {/* Message Meta: Time + Live Read Receipt Icon */}
+                    <div
+                      className={cn(
+                        "flex items-center justify-end gap-1 mt-1 text-[10px] select-none",
+                        isMe ? "text-blue-100" : "text-slate-400"
+                      )}
+                    >
+                      <span>{msg.time}</span>
+
+                      {isMe && (
+                        <span
+                          className="inline-flex items-center ml-0.5"
+                          title={receiptTitle}
+                        >
+                          {msg.status === "sending" ? (
+                            <Clock
+                              className="h-3 w-3 text-blue-100/90 animate-pulse"
+                              aria-label="Pending"
+                            />
+                          ) : msg.status === "error" ? (
+                            <AlertCircle
+                              className="h-3 w-3 text-amber-200"
+                              aria-label="Failed to send"
+                            />
+                          ) : msg.status === "read" ? (
+                            <CheckCheck
+                              className="h-3.5 w-3.5 text-cyan-200 drop-shadow-[0_0_2px_rgba(165,243,252,0.5)]"
+                              aria-label="Seen"
+                            />
+                          ) : msg.status === "delivered" ? (
+                            <CheckCheck
+                              className="h-3.5 w-3.5 text-blue-100/80"
+                              aria-label="Delivered"
+                            />
+                          ) : (
+                            <Check
+                              className="h-3.5 w-3.5 text-blue-100/80"
+                              aria-label="Sent"
+                            />
+                          )}
+                        </span>
                       )}
                     </div>
-                    <Download className="h-3.5 w-3.5 text-slate-400 ml-2" />
-                  </a>
+                  </div>
+                </div>
+
+                {/* Clear Instagram / WhatsApp style status label under the latest outgoing message */}
+                {isLatestOutgoing && (
+                  <div className="flex justify-end pr-1 text-[10px] font-medium select-none">
+                    {msg.status === "sending" ? (
+                      <span className="text-slate-400">Pending...</span>
+                    ) : msg.status === "error" ? (
+                      <span className="text-rose-500">Not delivered</span>
+                    ) : msg.status === "read" ? (
+                      <span className="text-blue-600">
+                        {isChannel && msg.seenBy && msg.seenBy.length > 0
+                          ? msg.seenBy.length === 1
+                            ? `Seen by ${msg.seenBy[0].name}`
+                            : `Seen by ${msg.seenBy[0].name} +${msg.seenBy.length - 1}`
+                          : "Seen"}
+                      </span>
+                    ) : msg.status === "delivered" ? (
+                      <span className="text-slate-400">Delivered</span>
+                    ) : (
+                      <span className="text-slate-400">Sent</span>
+                    )}
+                  </div>
                 )}
               </div>
-            )}
-          </div>
+            );
+          })}
         </div>
       ))}
+
+      {/* Typing Indicator Bubble */}
+      {isOtherTyping && (
+        <div className="flex items-end gap-2 justify-start animate-in fade-in slide-in-from-bottom-2">
+          {!isChannel && activeConversation.peer && (
+            <Avatar
+              name={activeConversation.peer.fullName}
+              size="sm"
+              src={activeConversation.peer.avatarUrl || undefined}
+            />
+          )}
+          <div className="bg-white border border-slate-200 text-slate-500 rounded-2xl rounded-tl-xs px-3.5 py-2 shadow-2xs flex items-center gap-1.5">
+            <span className="text-[11px] font-medium mr-1">
+              {isChannel ? "Someone is typing" : `${activeConversation.name} is typing`}
+            </span>
+            <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:-0.3s]" />
+            <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:-0.15s]" />
+            <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-bounce" />
+          </div>
+        </div>
+      )}
+
       <div ref={bottomRef} />
+
+      {/* Floating Scroll to Bottom Button */}
+      {showScrollBottom && (
+        <button
+          onClick={() => scrollToBottom("smooth")}
+          className="fixed bottom-20 right-6 z-20 flex items-center gap-1 bg-white border border-slate-200 text-slate-700 shadow-md hover:bg-slate-50 px-3 py-1.5 rounded-full text-xs font-medium transition-all animate-in fade-in"
+        >
+          <span>Latest messages</span>
+          <ChevronDown className="h-3.5 w-3.5" />
+        </button>
+      )}
+
+      {/* Full-Screen Secure Image Lightbox */}
+      {lightboxImage && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-xs flex flex-col items-center justify-center p-4 animate-in fade-in"
+          onClick={() => setLightboxImage(null)}
+        >
+          <div
+            className="w-full max-w-4xl flex items-center justify-between mb-3 text-white"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2 text-xs font-medium truncate">
+              <Lock className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+              <span className="truncate">{lightboxImage.name}</span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <a
+                href={appendDownloadParam(lightboxImage.url)}
+                download={lightboxImage.name}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-medium transition-colors"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Download
+              </a>
+              <button
+                type="button"
+                onClick={() => setLightboxImage(null)}
+                className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+                aria-label="Close preview"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={lightboxImage.url}
+            alt={lightboxImage.name}
+            onClick={(e) => e.stopPropagation()}
+            className="max-h-[82vh] max-w-full object-contain rounded-xl shadow-2xl"
+          />
+        </div>
+      )}
     </div>
   );
 }

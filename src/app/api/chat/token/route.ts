@@ -1,18 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthenticatedUser } from "@/lib/supabase/auth-cache";
 import { prisma } from "@/lib/prisma";
 import { verifyWorkspaceAccess, WorkspaceAccessError } from "@/lib/workspace-guard";
-import { issueNexconnChatToken } from "@/lib/nexconn/server";
+import { issueNexconnChatToken, syncNexconnGroupChannel } from "@/lib/nexconn/server";
 
 export async function POST(req: NextRequest) {
   try {
-    const supabase = createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const user = await getAuthenticatedUser();
 
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json(
         { error: "Authentication required to generate chat token." },
         { status: 401 }
@@ -44,23 +40,46 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Verify workspace access and active membership status
-    const access = await verifyWorkspaceAccess(workspaceId);
-
-    // Retrieve caller's profile for display synchronization
-    const profile = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: { fullName: true, avatarUrl: true, email: true },
-    });
+    // Run workspace authorization, user profile lookup, and accessible channels query in parallel
+    const [access, profile] = await Promise.all([
+      verifyWorkspaceAccess(workspaceId),
+      prisma.user.findUnique({
+        where: { id: user.id },
+        select: { fullName: true, avatarUrl: true, email: true },
+      }),
+    ]);
 
     const displayName = profile?.fullName || user.email?.split("@")[0] || "SPARK User";
 
-    // Issue token via Nexconn Server API
+    // Issue token via Nexconn Server API (served from cache in <1ms if already minted)
     const nexconnResult = await issueNexconnChatToken({
       userId: user.id,
       name: displayName,
       avatarUrl: profile?.avatarUrl || null,
     });
+
+    // Synchronize user into workspace channels asynchronously (non-blocking for instant response)
+    prisma.workspaceChatChannel
+      .findMany({
+        where: {
+          workspaceId: access.workspace.id,
+          OR: [
+            { type: "PUBLIC" },
+            { members: { some: { userId: user.id } } },
+          ],
+        },
+        select: { nexconnChannelId: true, name: true },
+      })
+      .then((channels) =>
+        Promise.all(
+          channels.map((ch) =>
+            syncNexconnGroupChannel(ch.nexconnChannelId, ch.name, [user.id])
+          )
+        )
+      )
+      .catch(() => {
+        // Non-blocking background sync
+      });
 
     return NextResponse.json({
       success: true,
@@ -92,4 +111,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

@@ -13,18 +13,43 @@ import {
   getWorkspaceDashboardData,
   WorkspaceDashboardData,
 } from "@/lib/actions/dashboard";
+import { clientDashboardCache } from "@/lib/client-caches";
+import { subscribeBootstrap } from "@/lib/bootstrap-client";
 
 export default function InsightsPage() {
   const { activeWorkspace } = useWorkspace();
-  const [data, setData] = useState<WorkspaceDashboardData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [data, setData] = useState<WorkspaceDashboardData | null>(() => {
+    if (activeWorkspace?.id && clientDashboardCache.has(activeWorkspace.id)) {
+      return clientDashboardCache.get(activeWorkspace.id)!;
+    }
+    return null;
+  });
+  const [isLoading, setIsLoading] = useState<boolean>(() => {
+    return !activeWorkspace?.id || !clientDashboardCache.has(activeWorkspace.id);
+  });
 
   const loadData = useCallback(async () => {
-    if (!activeWorkspace?.id) return;
-    setIsLoading(true);
+    if (!activeWorkspace?.id || activeWorkspace.id === "personal-fallback") {
+      setIsLoading(false);
+      return;
+    }
+
+    // Hydrate immediately from cache if available (0ms render)
+    const cached = clientDashboardCache.get(activeWorkspace.id);
+    if (cached) {
+      setData(cached);
+      setIsLoading(false);
+      if (clientDashboardCache.isFresh(activeWorkspace.id)) {
+        return;
+      }
+    } else {
+      setIsLoading(true);
+    }
+
     try {
       const res = await getWorkspaceDashboardData(activeWorkspace.id);
       if (res.success && res.data) {
+        clientDashboardCache.set(activeWorkspace.id, res.data);
         setData(res.data);
       }
     } catch (err) {
@@ -37,6 +62,15 @@ export default function InsightsPage() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    return subscribeBootstrap((payload) => {
+      if (payload.dashboard && payload.activeWorkspace?.id === activeWorkspace?.id) {
+        setData(payload.dashboard);
+        setIsLoading(false);
+      }
+    });
+  }, [activeWorkspace?.id]);
 
   return (
     <ShellLayout>

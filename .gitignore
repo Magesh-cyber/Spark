@@ -33,3 +33,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# encrypted runtime chat media uploads
+/.spark_secure_media/
+
+

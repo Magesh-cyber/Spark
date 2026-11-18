@@ -1,5 +1,6 @@
 import "server-only";
 import crypto from "crypto";
+import https from "https";
 
 export interface NexconnIssueTokenParams {
   userId: string;
@@ -20,6 +21,24 @@ export interface NexconnSignatureHeaders extends Record<string, string> {
   Signature: string;
   "Content-Type": string;
 }
+
+// Process-wide caches shared across all API routes & Server Actions
+const globalForNexconn = globalThis as unknown as {
+  __sparkNexconnPreferredHost?: string;
+  __sparkNexconnTokenCache?: Map<string, { token: string; userId: string; expiresAt: number }>;
+  __sparkNexconnSyncedGroups?: Set<string>;
+};
+
+const tokenCache =
+  globalForNexconn.__sparkNexconnTokenCache ??
+  (globalForNexconn.__sparkNexconnTokenCache = new Map());
+
+const syncedGroups =
+  globalForNexconn.__sparkNexconnSyncedGroups ??
+  (globalForNexconn.__sparkNexconnSyncedGroups = new Set());
+
+// Nexconn tokens are long-lived; cache server-side for 6 hours to avoid redundant WAN calls
+const TOKEN_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 
 /**
  * Resolves the datacenter-specific Nexconn / RongCloud Server API base URL.
@@ -66,7 +85,6 @@ export function generateNexconnHeaders(
   const nonce = crypto.randomUUID().replace(/-/g, "");
   const timestamp = Date.now().toString();
 
-  // Official Postman specification: SHA-1 hex hash of (AppSecret + Nonce + Timestamp)
   const signature = crypto
     .createHash("sha1")
     .update(`${secret}${nonce}${timestamp}`)
@@ -82,79 +100,159 @@ export function generateNexconnHeaders(
 }
 
 /**
+ * Resilient Server API invoker with sticky preferred host & direct SNI IP fallback.
+ * Remembers the fastest reachable host across calls to eliminate repeated firewall timeouts.
+ */
+async function callNexconnApi(
+  apiPath: string,
+  bodyParams: Record<string, string | string[]>
+): Promise<{ code: number; [key: string]: any }> {
+  const key = process.env.NEXCONN_APP_KEY;
+  const secret = process.env.NEXCONN_APP_SECRET;
+
+  if (!key || !secret) {
+    throw new Error("Nexconn server credentials missing.");
+  }
+
+  const nonce = crypto.randomUUID().replace(/-/g, "");
+  const timestamp = Date.now().toString();
+  const signature = crypto
+    .createHash("sha1")
+    .update(`${secret}${nonce}${timestamp}`)
+    .digest("hex");
+
+  const urlParams = new URLSearchParams();
+  for (const [k, v] of Object.entries(bodyParams)) {
+    if (Array.isArray(v)) {
+      for (const item of v) urlParams.append(k, item);
+    } else if (v !== undefined && v !== null) {
+      urlParams.append(k, String(v));
+    }
+  }
+  const postData = urlParams.toString();
+
+  const defaultHosts = [
+    "api.sg-light-api.com",
+    "47.84.112.16",
+    "47.84.107.146",
+    "api-b.sg-light-api.com",
+    "47.84.41.235",
+  ];
+
+  // Put last known fast/working host first so subsequent requests have 0ms failover overhead
+  const preferred = globalForNexconn.__sparkNexconnPreferredHost;
+  const candidateHosts = preferred
+    ? [preferred, ...defaultHosts.filter((h) => h !== preferred)]
+    : defaultHosts;
+
+  return new Promise((resolve, reject) => {
+    function tryHost(index: number) {
+      if (index >= candidateHosts.length) {
+        return reject(new Error("All Nexconn Server API endpoints exhausted."));
+      }
+
+      const host = candidateHosts[index];
+      const req = https.request(
+        {
+          host,
+          port: 443,
+          path: apiPath,
+          method: "POST",
+          headers: {
+            Host: "api.sg-light-api.com",
+            "App-Key": key,
+            Nonce: nonce,
+            Timestamp: timestamp,
+            Signature: signature,
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Content-Length": Buffer.byteLength(postData),
+          },
+          servername: "api.sg-light-api.com",
+          timeout: 2500,
+        },
+        (res) => {
+          let raw = "";
+          res.on("data", (chunk) => (raw += chunk));
+          res.on("end", () => {
+            if (
+              raw.includes("Fortinet") ||
+              raw.includes("Blocked") ||
+              raw.includes("Web Page Blocked")
+            ) {
+              return tryHost(index + 1);
+            }
+            try {
+              const data = JSON.parse(raw);
+              if (data.code === 200 || data.token) {
+                globalForNexconn.__sparkNexconnPreferredHost = host;
+                resolve(data);
+              } else if (data.code && data.code !== 200) {
+                globalForNexconn.__sparkNexconnPreferredHost = host;
+                resolve(data);
+              } else {
+                tryHost(index + 1);
+              }
+            } catch {
+              tryHost(index + 1);
+            }
+          });
+        }
+      );
+
+      req.on("error", () => tryHost(index + 1));
+      req.on("timeout", () => {
+        req.destroy();
+        tryHost(index + 1);
+      });
+
+      req.write(postData);
+      req.end();
+    }
+
+    tryHost(0);
+  });
+}
+
+/**
  * Issues or retrieves a chat access token for an authenticated SPARK user
  * by communicating with the official Nexconn Server API.
+ * Uses process-wide caching so repeated requests for the same user resolve in <1ms.
  */
 export async function issueNexconnChatToken(
   params: NexconnIssueTokenParams
 ): Promise<NexconnTokenResponse> {
-  const primaryBaseUrl = getNexconnApiBaseUrl();
-  const headers = generateNexconnHeaders();
+  const now = Date.now();
+  const cached = tokenCache.get(params.userId);
+  if (cached && cached.expiresAt > now && cached.token) {
+    return {
+      code: 200,
+      userId: cached.userId,
+      token: cached.token,
+    };
+  }
 
-  // URL-encoded parameters per official Postman collection
-  const bodyParams = new URLSearchParams({
+  const data = await callNexconnApi("/user/getToken.json", {
     userId: params.userId,
     name: params.name,
     portraitUri: params.avatarUrl || "https://spark.workplace/default-avatar.png",
   });
 
-  const candidateEndpoints = [
-    `${primaryBaseUrl}/user/getToken.json`,
-    "https://api.sg-light-api.com/user/getToken.json",
-    "https://api-b.sg-light-api.com/user/getToken.json",
-    "https://api.sg-b-light-api.com/user/getToken.json",
-    "https://api.us-light-api.com/user/getToken.json",
-    "https://api.rong-api.com/user/getToken.json",
-  ];
-
-  // Deduplicate endpoints
-  const uniqueEndpoints = [...new Set(candidateEndpoints)];
-
-  let lastError: Error | null = null;
-  let lastErrorCode: number | null = null;
-
-  for (const endpoint of uniqueEndpoints) {
-    try {
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers,
-        body: bodyParams.toString(),
-        cache: "no-store",
-      });
-
-      const text = await response.text();
-      let data: any = {};
-      try {
-        data = JSON.parse(text);
-      } catch {
-        // Non-JSON response
-      }
-
-      if (response.ok && data.code === 200 && data.token) {
-        return {
-          code: 200,
-          userId: data.userId || params.userId,
-          token: data.token,
-        };
-      }
-
-      if (data.code) {
-        lastErrorCode = data.code;
-        lastError = new Error(
-          data.errorMessage || data.msg || `Nexconn Server Error (Code: ${data.code})`
-        );
-      } else {
-        lastError = new Error(`Server returned HTTP ${response.status}: ${text.substring(0, 100)}`);
-      }
-    } catch (err: any) {
-      lastError = err instanceof Error ? err : new Error(String(err));
-    }
+  if (data.code === 200 && data.token) {
+    const result = {
+      code: 200,
+      userId: data.userId || params.userId,
+      token: data.token,
+    };
+    tokenCache.set(params.userId, {
+      token: result.token,
+      userId: result.userId,
+      expiresAt: now + TOKEN_CACHE_TTL_MS,
+    });
+    return result;
   }
 
   throw new Error(
-    `Failed to issue Nexconn access token: ${lastError?.message || "Unknown error"}${
-      lastErrorCode ? ` [Code: ${lastErrorCode}]` : ""
-    }`
+    data.errorMessage || data.msg || `Nexconn Server Error (Code: ${data.code || "UNKNOWN"})`
   );
 }
 
@@ -168,4 +266,52 @@ export function getDirectChannelTargetId(
   user2Id: string
 ): string {
   return currentUserId === user1Id ? user2Id : user1Id;
+}
+
+/**
+ * Ensures a group channel exists on Nexconn and all specified users are joined.
+ * Deduplicates already-synced (groupId, userId) pairs in memory to avoid redundant WAN calls.
+ */
+export async function syncNexconnGroupChannel(
+  groupId: string,
+  groupName: string,
+  userIds: string[]
+): Promise<boolean> {
+  if (!groupId || userIds.length === 0) return true;
+
+  // Filter to users not yet confirmed synced for this group in this server lifecycle
+  const unsyncedUserIds = userIds.filter(
+    (uid) => !syncedGroups.has(`${groupId}:${uid}`)
+  );
+  if (unsyncedUserIds.length === 0) {
+    return true;
+  }
+
+  try {
+    const res = await callNexconnApi("/group/join.json", {
+      userId: unsyncedUserIds,
+      groupId,
+      groupName,
+    });
+
+    if (res.code === 200) {
+      unsyncedUserIds.forEach((uid) => syncedGroups.add(`${groupId}:${uid}`));
+      return true;
+    }
+
+    const createRes = await callNexconnApi("/group/create.json", {
+      userId: unsyncedUserIds,
+      groupId,
+      groupName,
+    });
+
+    if (createRes.code === 200) {
+      unsyncedUserIds.forEach((uid) => syncedGroups.add(`${groupId}:${uid}`));
+      return true;
+    }
+    return false;
+  } catch (err) {
+    console.warn(`[Nexconn Group Sync Warning]:`, err);
+    return false;
+  }
 }

@@ -11,6 +11,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { createClient } from "@/lib/supabase/client";
 import { loginSchema } from "@/lib/validations/auth";
 import { getSafeRedirectUrl } from "@/lib/utils";
+import {
+  prefetchWorkspaceBootstrap,
+  clearBootstrapMemory,
+} from "@/lib/bootstrap-client";
+import { clearAllClientCaches } from "@/lib/client-caches";
 
 function LoginForm() {
   const router = useRouter();
@@ -75,8 +80,28 @@ function LoginForm() {
       }
 
       if (data.session) {
+        // Clear any leftover state from a previous account on this browser
+        clearAllClientCaches();
+        clearBootstrapMemory();
+        if (typeof window !== "undefined") {
+          try {
+            localStorage.removeItem("spark_active_workspace_id");
+            localStorage.removeItem("spark_cached_workspaces");
+            localStorage.removeItem("spark_cached_user");
+          } catch {}
+        }
+
+        // Prefetch target route + chat bundle and preload ALL workspace/chat/team data in one round-trip
+        router.prefetch(returnTo);
+        router.prefetch("/chat");
+
+        // Wait up to 1.4s for bootstrap so dashboard & chat open instantaneously without delaying login
+        await Promise.race([
+          prefetchWorkspaceBootstrap(undefined, { force: true }),
+          new Promise((resolve) => setTimeout(resolve, 1400)),
+        ]);
+
         router.push(returnTo);
-        router.refresh();
       }
     } catch {
       setGeneralError("An unexpected error occurred while signing in. Please try again.");

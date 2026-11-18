@@ -12,6 +12,10 @@ import { WorkspaceRole, MembershipStatus, WorkspaceMemberItem } from "@/lib/type
 export async function getWorkspaceMembers(
   workspaceId: string
 ): Promise<{ members: WorkspaceMemberItem[]; error: string | null }> {
+  if (!workspaceId || workspaceId === "personal-fallback") {
+    return { members: [], error: null };
+  }
+
   try {
     const access = await verifyWorkspaceAccess(workspaceId);
 

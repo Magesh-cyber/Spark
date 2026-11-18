@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { verifyWorkspaceAccess, WorkspaceAccessError } from "@/lib/workspace-guard";
+import { syncNexconnGroupChannel } from "@/lib/nexconn/server";
 import { z } from "zod";
 
 export interface ChatChannelItem {
@@ -39,6 +40,10 @@ export async function getWorkspaceChannels(workspaceId: string): Promise<{
   channels: ChatChannelItem[];
   error: string | null;
 }> {
+  if (!workspaceId || workspaceId === "personal-fallback") {
+    return { channels: [], error: null };
+  }
+
   try {
     const access = await verifyWorkspaceAccess(workspaceId);
 
@@ -139,6 +144,25 @@ export async function createWorkspaceChannel(
           : {}),
       },
     });
+
+    // Synchronize Nexconn Group membership
+    try {
+      if (type === "PUBLIC") {
+        const allMembers = await prisma.workspaceMember.findMany({
+          where: { workspaceId: access.workspace.id, status: "ACTIVE" },
+          select: { userId: true },
+        });
+        await syncNexconnGroupChannel(
+          nexconnChannelId,
+          name,
+          allMembers.map((m) => m.userId)
+        );
+      } else {
+        await syncNexconnGroupChannel(nexconnChannelId, name, initialMemberIds);
+      }
+    } catch {
+      // Non-blocking sync
+    }
 
     revalidatePath("/chat");
 
