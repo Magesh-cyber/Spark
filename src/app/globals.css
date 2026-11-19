@@ -17,6 +17,8 @@
     --spark-accent: #6D28D9;
     --spark-accent-hover: #5B21B6;
     --spark-accent-fg: #FFFFFF;
+    --spark-primary: var(--spark-accent);
+    --spark-primary-hover: var(--spark-accent-hover);
     --spark-highlight: #EDE9FE;
     --spark-highlight-text: #5B21B6;
     --spark-emerald: #10B981;
@@ -45,6 +47,8 @@
     --spark-accent: #8B5CF6;
     --spark-accent-hover: #7C3AED;
     --spark-accent-fg: #FFFFFF;
+    --spark-primary: var(--spark-accent);
+    --spark-primary-hover: var(--spark-accent-hover);
     --spark-highlight: #2E1F47;
     --spark-highlight-text: #E9D5FF;
     --spark-emerald: #10B981;

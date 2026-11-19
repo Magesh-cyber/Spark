@@ -200,7 +200,7 @@ export default function ProjectsPage() {
             activeWorkspace?.name || "your organization"
           }.`}
           badge={
-            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-[var(--spark-primary)]/10 text-[var(--spark-primary)] border border-[var(--spark-primary)]/20">
+            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-[var(--spark-accent)]/10 text-[var(--spark-accent)] border border-[var(--spark-accent)]/20">
               {projects.length} Initiatives
             </span>
           }
@@ -210,9 +210,9 @@ export default function ProjectsPage() {
                 setErrorMsg(null);
                 setIsCreateOpen(true);
               }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-[var(--spark-primary)] text-white text-xs sm:text-sm font-medium shadow-sm hover:opacity-95 active:scale-[0.98] transition-all"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-[var(--spark-accent)] hover:bg-[var(--spark-accent-hover)] text-white text-xs sm:text-sm font-semibold shadow-sm active:scale-[0.98] transition-all cursor-pointer"
             >
-              <Plus className="h-4 w-4" />
+              <Plus className="h-4 w-4 text-white" />
               <span>Create Project</span>
             </button>
           }
@@ -225,7 +225,7 @@ export default function ProjectsPage() {
               <span className="text-xs font-medium text-[var(--spark-text-secondary)]">
                 Total Projects
               </span>
-              <div className="h-8 w-8 rounded-lg bg-[var(--spark-primary)]/10 flex items-center justify-center text-[var(--spark-primary)]">
+              <div className="h-8 w-8 rounded-lg bg-[var(--spark-accent)]/10 flex items-center justify-center text-[var(--spark-accent)]">
                 <FolderKanban className="h-4 w-4" />
               </div>
             </div>
@@ -301,7 +301,7 @@ export default function ProjectsPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search by project name or key (e.g. CORE)..."
-              className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm rounded-[8px] border border-[var(--spark-border)] bg-[var(--spark-surface)] text-[var(--spark-text-primary)] placeholder-[var(--spark-text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--spark-primary)] transition"
+              className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm rounded-[8px] border border-[var(--spark-border)] bg-[var(--spark-surface)] text-[var(--spark-text-primary)] placeholder-[var(--spark-text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--spark-accent)] transition"
             />
           </div>
 
@@ -341,7 +341,7 @@ export default function ProjectsPage() {
         ) : filteredProjects.length === 0 ? (
           <div className="rounded-[10px] border border-[var(--spark-border)] bg-[var(--spark-surface)] p-12">
             <EmptyState
-              icon={<FolderKanban className="h-6 w-6 text-[var(--spark-primary)]" />}
+              icon={<FolderKanban className="h-6 w-6 text-[var(--spark-accent)]" />}
               title={searchQuery ? "No matching projects" : "No projects created yet"}
               description={
                 searchQuery
@@ -464,7 +464,7 @@ export default function ProjectsPage() {
                       </div>
 
                       {/* Project Title & Description */}
-                      <h3 className="text-base font-semibold text-[var(--spark-text-primary)] line-clamp-1 group-hover:text-[var(--spark-primary)] transition-colors">
+                      <h3 className="text-base font-semibold text-[var(--spark-text-primary)] line-clamp-1 group-hover:text-[var(--spark-accent)] transition-colors">
                         {p.name}
                       </h3>
                       <p className="mt-1 text-xs text-[var(--spark-text-secondary)] line-clamp-2 min-h-[2rem]">
@@ -484,7 +484,7 @@ export default function ProjectsPage() {
                               className="h-4 w-4 rounded-full object-cover"
                             />
                           ) : (
-                            <div className="h-4 w-4 rounded-full bg-[var(--spark-primary)]/20 text-[var(--spark-primary)] flex items-center justify-center text-[9px] font-bold">
+                            <div className="h-4 w-4 rounded-full bg-[var(--spark-accent)]/20 text-[var(--spark-accent)] flex items-center justify-center text-[9px] font-bold">
                               {p.ownerName?.[0]?.toUpperCase() || "L"}
                             </div>
                           )}
@@ -547,7 +547,7 @@ export default function ProjectsPage() {
                     </span>
                     <Link
                       href={`/tasks?project=${p.id}`}
-                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--spark-primary)] hover:text-[var(--spark-primary-hover)] transition-colors"
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--spark-accent)] hover:text-[var(--spark-accent-hover)] transition-colors"
                     >
                       <span>Open Board</span>
                       <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
@@ -568,7 +568,7 @@ export default function ProjectsPage() {
             >
               <div className="flex items-center justify-between pb-4 border-b border-[var(--spark-border)]">
                 <div className="flex items-center gap-2">
-                  <div className="h-8 w-8 rounded-lg bg-[var(--spark-primary)]/10 text-[var(--spark-primary)] flex items-center justify-center">
+                  <div className="h-8 w-8 rounded-lg bg-[var(--spark-accent)]/10 text-[var(--spark-accent)] flex items-center justify-center">
                     <FolderKanban className="h-4 w-4" />
                   </div>
                   <div>
@@ -606,7 +606,7 @@ export default function ProjectsPage() {
                     value={name}
                     onChange={(e) => handleNameChange(e.target.value)}
                     placeholder="e.g. Core Infrastructure or Mobile App"
-                    className="w-full px-3 py-2 text-xs sm:text-sm rounded-[8px] border border-[var(--spark-border)] bg-[var(--spark-surface-elevated)] text-[var(--spark-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--spark-primary)]"
+                    className="w-full px-3 py-2 text-xs sm:text-sm rounded-[8px] border border-[var(--spark-border)] bg-[var(--spark-surface-elevated)] text-[var(--spark-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--spark-accent)]"
                   />
                 </div>
 
@@ -625,7 +625,7 @@ export default function ProjectsPage() {
                         setHasManuallyEditedKey(true);
                       }}
                       placeholder="e.g. CORE"
-                      className="w-full px-3 py-2 text-xs sm:text-sm font-mono uppercase font-bold rounded-[8px] border border-[var(--spark-border)] bg-[var(--spark-surface-elevated)] text-[var(--spark-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--spark-primary)]"
+                      className="w-full px-3 py-2 text-xs sm:text-sm font-mono uppercase font-bold rounded-[8px] border border-[var(--spark-border)] bg-[var(--spark-surface-elevated)] text-[var(--spark-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--spark-accent)]"
                     />
                     <span className="text-[10px] text-[var(--spark-text-muted)]">
                       Prefix for issues (e.g. {key || "KEY"}-1)
@@ -640,7 +640,7 @@ export default function ProjectsPage() {
                       type="date"
                       value={targetDate}
                       onChange={(e) => setTargetDate(e.target.value)}
-                      className="w-full px-3 py-2 text-xs sm:text-sm rounded-[8px] border border-[var(--spark-border)] bg-[var(--spark-surface-elevated)] text-[var(--spark-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--spark-primary)]"
+                      className="w-full px-3 py-2 text-xs sm:text-sm rounded-[8px] border border-[var(--spark-border)] bg-[var(--spark-surface-elevated)] text-[var(--spark-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--spark-accent)]"
                     />
                   </div>
                 </div>
@@ -654,7 +654,7 @@ export default function ProjectsPage() {
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="Briefly state the goal, scope, and objectives of this initiative..."
-                    className="w-full px-3 py-2 text-xs sm:text-sm rounded-[8px] border border-[var(--spark-border)] bg-[var(--spark-surface-elevated)] text-[var(--spark-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--spark-primary)] resize-none"
+                    className="w-full px-3 py-2 text-xs sm:text-sm rounded-[8px] border border-[var(--spark-border)] bg-[var(--spark-surface-elevated)] text-[var(--spark-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--spark-accent)] resize-none"
                   />
                 </div>
 
@@ -670,7 +670,7 @@ export default function ProjectsPage() {
                         type="button"
                         onClick={() => setSelectedColor(c.hex)}
                         className={`h-7 w-7 rounded-full transition-transform ${
-                          selectedColor === c.hex ? "scale-115 ring-2 ring-offset-2 ring-[var(--spark-primary)]" : "hover:scale-105"
+                          selectedColor === c.hex ? "scale-115 ring-2 ring-offset-2 ring-[var(--spark-accent)]" : "hover:scale-105"
                         }`}
                         style={{ backgroundColor: c.hex }}
                         title={c.name}
@@ -690,7 +690,7 @@ export default function ProjectsPage() {
                   <button
                     type="submit"
                     disabled={isSubmitting || !name.trim()}
-                    className="px-4 py-2 rounded-[8px] bg-[var(--spark-primary)] text-white text-xs font-semibold shadow-sm hover:opacity-95 disabled:opacity-50"
+                    className="px-4 py-2 rounded-[8px] bg-[var(--spark-accent)] hover:bg-[var(--spark-accent-hover)] text-white text-xs font-semibold shadow-sm active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer"
                   >
                     {isSubmitting ? "Creating..." : "Create Project"}
                   </button>
