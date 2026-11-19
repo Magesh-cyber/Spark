@@ -20,9 +20,11 @@ import {
   Hash,
   Send,
   Loader2,
+  Sparkles,
 } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { enhanceTaskDescription, generateTaskSubtasks } from "@/lib/ai/service";
 import {
   TaskRecordItem,
   WorkItemType,
@@ -106,6 +108,9 @@ export function TaskDetailsDrawer({
   const [newComment, setNewComment] = useState("");
   const [isPostingComment, setIsPostingComment] = useState(false);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
+
+  const [isEnhancingDescription, setIsEnhancingDescription] = useState(false);
+  const [isGeneratingSubtasks, setIsGeneratingSubtasks] = useState(false);
 
   const [copiedKey, setCopiedKey] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -241,6 +246,48 @@ export function TaskDetailsDrawer({
       await deleteTask(workspaceId, task.id);
       onTaskDeleted(task.id);
       onClose();
+    }
+  };
+
+  const handleAIEnhanceDescription = async () => {
+    if (!task) return;
+    setIsEnhancingDescription(true);
+    try {
+      const res = await enhanceTaskDescription(title || task.title, description || task.description);
+      if (res?.enhanced) {
+        setDescription(res.enhanced);
+        await handleSaveField({ description: res.enhanced });
+      }
+    } catch (err) {
+      console.error("AI description enhancement failed:", err);
+    } finally {
+      setIsEnhancingDescription(false);
+    }
+  };
+
+  const handleAIGenerateSubtasks = async () => {
+    if (!task) return;
+    setIsGeneratingSubtasks(true);
+    try {
+      const res = await generateTaskSubtasks(title || task.title, description || task.description);
+      if (res?.subtasks && res.subtasks.length > 0) {
+        for (const item of res.subtasks) {
+          await addTaskChecklistItem(workspaceId, task.id, item);
+        }
+        const updated = await getTaskChecklist(workspaceId, task.id);
+        if (updated.items) {
+          setChecklist(updated.items);
+          onTaskUpdated({
+            ...task,
+            checklistTotal: updated.items.length,
+            checklistDone: updated.items.filter((c) => c.isCompleted).length,
+          });
+        }
+      }
+    } catch (err) {
+      console.error("AI subtasks generation failed:", err);
+    } finally {
+      setIsGeneratingSubtasks(false);
     }
   };
 
@@ -517,9 +564,25 @@ export function TaskDetailsDrawer({
 
           {/* Description Section */}
           <div className="space-y-1.5">
-            <span className="text-xs font-semibold text-[var(--spark-text-primary)] block">
-              Description
-            </span>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-[var(--spark-text-primary)]">
+                Description
+              </span>
+              <button
+                type="button"
+                onClick={handleAIEnhanceDescription}
+                disabled={isEnhancingDescription}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[5px] text-[10px] font-semibold text-violet-600 dark:text-violet-400 bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/25 transition-all disabled:opacity-50"
+                title="Structure acceptance criteria & definition of done with AI"
+              >
+                {isEnhancingDescription ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Sparkles className="h-3 w-3 text-amber-500" />
+                )}
+                <span>{isEnhancingDescription ? "Enhancing..." : "✨ AI Enhance"}</span>
+              </button>
+            </div>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -530,7 +593,7 @@ export function TaskDetailsDrawer({
               }}
               rows={4}
               placeholder="Add issue description or acceptance criteria..."
-              className="w-full p-3 rounded-[8px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] text-xs text-[var(--spark-text-primary)] placeholder:text-[var(--spark-text-muted)] focus:outline-none focus:border-[var(--spark-accent)] leading-relaxed resize-y"
+              className="w-full p-3 rounded-[8px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] text-xs text-[var(--spark-text-primary)] placeholder:text-[var(--spark-text-muted)] focus:outline-none focus:border-[var(--spark-accent)] leading-relaxed resize-y font-sans"
             />
           </div>
 
@@ -546,11 +609,27 @@ export function TaskDetailsDrawer({
                   ({completedChecklistCount}/{checklist.length})
                 </span>
               </div>
-              {checklist.length > 0 && (
-                <span className="text-[10px] font-semibold text-[var(--spark-text-secondary)]">
-                  {checklistPercent}% done
-                </span>
-              )}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleAIGenerateSubtasks}
+                  disabled={isGeneratingSubtasks}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[5px] text-[10px] font-semibold text-violet-600 dark:text-violet-400 bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/25 transition-all disabled:opacity-50"
+                  title="Generate action checklist items with AI"
+                >
+                  {isGeneratingSubtasks ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3 w-3 text-amber-500" />
+                  )}
+                  <span>{isGeneratingSubtasks ? "Generating..." : "✨ AI Subtasks"}</span>
+                </button>
+                {checklist.length > 0 && (
+                  <span className="text-[10px] font-semibold text-[var(--spark-text-secondary)]">
+                    {checklistPercent}% done
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* Progress bar */}

@@ -18,10 +18,12 @@ import {
   Trash2,
   ClipboardCheck,
   CornerUpLeft,
+  Sparkles,
 } from "lucide-react";
 import { useNexconnChat } from "./NexconnChatProvider";
 import { getMediaKindFromMime } from "@/lib/chat-media-envelope";
 import { ShiftHandoverModal } from "./ShiftHandoverModal";
+import { generateSmartReplies } from "@/lib/ai/service";
 
 const QUICK_EMOJIS = ["👍", "❤️", "😊", "🎉", "🔥", "🚀", "👏", "✅"];
 const MAX_CLIENT_BYTES = 15 * 1024 * 1024; // 15 MB
@@ -109,11 +111,13 @@ export function MessageComposer() {
     sendTyping,
     replyingTo,
     setReplyingTo,
+    messages,
   } = useNexconnChat();
 
   const [text, setText] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [smartReplies, setSmartReplies] = useState<string[]>([]);
   const [isHandoverModalOpen, setIsHandoverModalOpen] = useState(false);
   const [stagedFile, setStagedFile] = useState<File | null>(null);
   const [stagedPreviewUrl, setStagedPreviewUrl] = useState<string | null>(null);
@@ -173,6 +177,40 @@ export function MessageComposer() {
       }
     };
   }, [stagedPreviewUrl]);
+
+  // Contextual Smart Replies based on recent incoming messages
+  useEffect(() => {
+    if (!messages || messages.length === 0) {
+      setSmartReplies([]);
+      return;
+    }
+
+    const latestIncoming = [...messages].reverse().find((m) => !m.isMe && m.text?.trim());
+    if (!latestIncoming) {
+      setSmartReplies([]);
+      return;
+    }
+
+    let isSubscribed = true;
+    generateSmartReplies({
+      recentMessages: messages.slice(-5).map((m) => ({
+        senderName: m.senderName,
+        text: m.text,
+        isMe: m.isMe,
+      })),
+      currentUserName: "Me",
+    })
+      .then((res) => {
+        if (isSubscribed && res?.replies && res.replies.length > 0) {
+          setSmartReplies(res.replies);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      isSubscribed = false;
+    };
+  }, [messages, activeConversation?.id]);
 
   // Clear staged file and cancel active recording when switching conversations
   useEffect(() => {
@@ -471,6 +509,28 @@ export function MessageComposer() {
 
   return (
     <div className="p-3 border-t border-[var(--spark-border)] bg-[var(--spark-surface)] relative space-y-2 transition-colors duration-150">
+      {/* Contextual Smart Reply Chips */}
+      {smartReplies.length > 0 && !stagedFile && !isRecording && (
+        <div className="flex items-center gap-1.5 overflow-x-auto py-1 px-0.5 no-scrollbar animate-in fade-in slide-in-from-bottom-1">
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-violet-600 dark:text-violet-400 shrink-0 select-none">
+            <Sparkles className="h-3 w-3" />
+            Quick Reply:
+          </span>
+          {smartReplies.map((reply, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => {
+                setText(reply);
+                inputRef.current?.focus();
+              }}
+              className="px-2.5 py-1 text-[11px] font-medium rounded-full border border-violet-500/25 bg-violet-500/5 hover:bg-violet-500/15 text-[var(--spark-text-primary)] hover:text-violet-700 dark:hover:text-violet-300 hover:border-violet-500/40 transition-all shrink-0 whitespace-nowrap shadow-2xs active:scale-95"
+            >
+              {reply}
+            </button>
+          ))}
+        </div>
+      )}
       {/* Glassmorphic Quick Emojis Popover */}
       {showEmojiPicker && (
         <div className="absolute bottom-16 left-3 spark-glass border rounded-[12px] shadow-elevated p-2 flex items-center gap-1 z-30 animate-in fade-in zoom-in-95">

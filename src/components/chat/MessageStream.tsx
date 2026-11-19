@@ -18,8 +18,12 @@ import {
   Mic,
   Reply,
   ClipboardCheck,
+  Sparkles,
 } from "lucide-react";
 import { useNexconnChat } from "./NexconnChatProvider";
+import { useWorkspace } from "@/lib/workspace-context";
+import { AIChatSummaryModal } from "./AIChatSummaryModal";
+import { summarizeConversationMessages, AIChatSummaryResult } from "@/lib/ai/service";
 import { ChatMessageItem } from "./types";
 import { cn } from "@/lib/utils";
 
@@ -73,6 +77,37 @@ export function MessageStream() {
     acknowledgeHandover,
     currentUserId,
   } = useNexconnChat();
+
+  const { currentUser } = useWorkspace();
+  const [isSummaryOpen, setIsSummaryOpen] = useState(false);
+  const [summaryData, setSummaryData] = useState<AIChatSummaryResult | null>(null);
+  const [isLoadingSummary, setIsLoadingSummary] = useState(false);
+
+  const handleOpenAISummary = async () => {
+    if (!activeConversation || messages.length === 0) return;
+    setIsSummaryOpen(true);
+    setIsLoadingSummary(true);
+
+    try {
+      const res = await summarizeConversationMessages({
+        messages: messages.map((m) => ({
+          senderName: m.senderName,
+          text: m.text,
+          time: m.time,
+          isMe: m.isMe,
+        })),
+        currentUserName: currentUser?.name || "Team Member",
+        conversationName: activeConversation.name,
+        conversationType: activeConversation.type,
+      });
+
+      setSummaryData(res);
+    } catch (err) {
+      console.error("Failed to generate AI summary:", err);
+    } finally {
+      setIsLoadingSummary(false);
+    }
+  };
 
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
@@ -195,6 +230,24 @@ export function MessageStream() {
           <span>Secured with TLS &amp; AES-256 encrypted workspace media</span>
         </div>
       </div>
+
+      {/* Catch Up with AI Banner (Instagram style) */}
+      {messages.length >= 2 && (
+        <div className="flex justify-center animate-in fade-in slide-in-from-top-1">
+          <button
+            type="button"
+            onClick={handleOpenAISummary}
+            className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-r from-violet-600/10 via-purple-600/10 to-indigo-600/10 hover:from-violet-600/20 hover:to-indigo-600/20 border border-violet-500/25 text-[11px] font-semibold text-violet-700 dark:text-violet-300 transition-all shadow-2xs group active:scale-95"
+            title="Catch up on recent conversation updates using AI"
+          >
+            <Sparkles className="h-3.5 w-3.5 text-amber-500 group-hover:rotate-12 transition-transform" />
+            <span>Catch up on recent updates with AI</span>
+            <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-violet-600 text-white font-mono font-bold">
+              {messages.length} msgs
+            </span>
+          </button>
+        </div>
+      )}
 
       {/* Empty State */}
       {messages.length === 0 && (
@@ -794,6 +847,17 @@ export function MessageStream() {
           />
         </div>
       )}
+
+      {/* AI Chat Summary Modal */}
+      <AIChatSummaryModal
+        isOpen={isSummaryOpen}
+        onClose={() => setIsSummaryOpen(false)}
+        summaryData={summaryData}
+        isLoading={isLoadingSummary}
+        conversationName={activeConversation?.name || "Chat"}
+        conversationType={activeConversation?.type || "channel"}
+        messageCount={messages.length}
+      />
     </div>
   );
 }
