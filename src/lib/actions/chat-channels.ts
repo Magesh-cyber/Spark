@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { verifyWorkspaceAccess, WorkspaceAccessError } from "@/lib/workspace-guard";
 import { syncNexconnGroupChannel } from "@/lib/nexconn/server";
+import { generateJoinCode } from "@/lib/utils/join-code";
 import { z } from "zod";
 
 export interface ChatChannelItem {
@@ -13,6 +14,7 @@ export interface ChatChannelItem {
   name: string;
   description: string | null;
   type: "PUBLIC" | "PRIVATE";
+  joinCode?: string | null;
   isDefault: boolean;
   createdById: string;
   createdAt: string;
@@ -68,6 +70,7 @@ export async function getWorkspaceChannels(workspaceId: string): Promise<{
       name: c.name,
       description: c.description,
       type: c.type as "PUBLIC" | "PRIVATE",
+      joinCode: c.joinCode,
       isDefault: c.isDefault,
       createdById: c.createdById,
       createdAt: c.createdAt.toISOString(),
@@ -119,6 +122,36 @@ export async function createWorkspaceChannel(
       };
     }
 
+    // Verify memberIds exist and are active members of the workspace
+    if (memberIds.length > 0) {
+      const activeMembers = await prisma.workspaceMember.findMany({
+        where: {
+          workspaceId: access.workspace.id,
+          userId: { in: memberIds },
+          status: "ACTIVE",
+        },
+        select: { userId: true },
+      });
+      const activeMemberIdSet = new Set(activeMembers.map((m) => m.userId));
+      const invalid = memberIds.filter((id) => !activeMemberIdSet.has(id));
+      if (invalid.length > 0) {
+        return {
+          success: false,
+          error: "One or more selected channel members are not active members of this workspace.",
+          channel: null,
+        };
+      }
+    }
+
+    // Generate unique 6-character alphanumeric channel join code
+    let channelJoinCode = generateJoinCode();
+    let isCodeUnique = false;
+    while (!isCodeUnique) {
+      const existingCode = await prisma.workspaceChatChannel.findUnique({ where: { joinCode: channelJoinCode } });
+      if (!existingCode) isCodeUnique = true;
+      else channelJoinCode = generateJoinCode();
+    }
+
     // Generate unique, deterministic Nexconn channel ID
     const shortWsId = access.workspace.id.replace(/-/g, "").substring(0, 8);
     const nexconnChannelId = `spark_chan_${shortWsId}_${name}`;
@@ -133,6 +166,7 @@ export async function createWorkspaceChannel(
         name,
         description: description || null,
         type,
+        joinCode: channelJoinCode,
         isDefault: false,
         createdById: access.user.id,
         ...(type === "PRIVATE"
@@ -214,6 +248,7 @@ export async function createWorkspaceChannel(
         name: channel.name,
         description: channel.description,
         type: channel.type as "PUBLIC" | "PRIVATE",
+        joinCode: channel.joinCode,
         isDefault: channel.isDefault,
         createdById: channel.createdById,
         createdAt: channel.createdAt.toISOString(),
@@ -274,6 +309,7 @@ export async function getChannelDetails(workspaceId: string, channelId: string) 
         name: channel.name,
         description: channel.description,
         type: channel.type,
+        joinCode: channel.joinCode,
         isDefault: channel.isDefault,
         creator: channel.creator,
         members: channel.members.map((m) => m.user),
@@ -355,6 +391,204 @@ export async function deleteWorkspaceChannel(workspaceId: string, channelId: str
     return { success: true, error: null };
   } catch (err: any) {
     return { success: false, error: err.message || "Failed to delete channel." };
+  }
+}
+
+/**
+ * Invites or adds a user to a channel by email.
+ * Checks that the user exists in the DB and is an active member of this workspace.
+ */
+export async function inviteMemberToChannel(
+  workspaceId: string,
+  channelId: string,
+  email: string
+) {
+  try {
+    const access = await verifyWorkspaceAccess(workspaceId);
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // 1. Check if user exists in SPARK database
+    const targetUser = await prisma.user.findUnique({
+      where: { email: normalizedEmail },
+      select: { id: true, fullName: true, email: true },
+    });
+
+    if (!targetUser) {
+      return {
+        success: false,
+        error: `No registered user found with email "${normalizedEmail}". Please ensure the user has created an account on SPARK first.`,
+      };
+    }
+
+    // 2. Check if user is an active member of this workspace
+    const workspaceMember = await prisma.workspaceMember.findUnique({
+      where: {
+        workspaceId_userId: {
+          workspaceId: access.workspace.id,
+          userId: targetUser.id,
+        },
+      },
+    });
+
+    if (!workspaceMember || workspaceMember.status !== "ACTIVE") {
+      return {
+        success: false,
+        error: `User "${normalizedEmail}" is not an active member of this workspace. Please invite them to the workspace first.`,
+      };
+    }
+
+    // 3. Check channel details and permissions
+    const channel = await prisma.workspaceChatChannel.findUnique({
+      where: { id: channelId },
+      include: { members: true },
+    });
+
+    if (!channel || channel.workspaceId !== access.workspace.id) {
+      return { success: false, error: "Channel not found in this workspace." };
+    }
+
+    const alreadyInChannel = channel.members.some((m) => m.userId === targetUser.id);
+    if (alreadyInChannel) {
+      return {
+        success: false,
+        error: `User "${targetUser.fullName || normalizedEmail}" is already in #${channel.name}.`,
+      };
+    }
+
+    // 4. Add member to channel
+    await prisma.chatChannelMember.create({
+      data: {
+        channelId,
+        userId: targetUser.id,
+      },
+    });
+
+    // 5. Synchronize Nexconn Group Channel membership
+    try {
+      const allMembers = await prisma.chatChannelMember.findMany({
+        where: { channelId },
+        select: { userId: true },
+      });
+      await syncNexconnGroupChannel(
+        channel.nexconnChannelId,
+        channel.name,
+        allMembers.map((m) => m.userId)
+      );
+    } catch {
+      // Non-blocking sync
+    }
+
+    // 6. Real notification to invited user
+    try {
+      const callerProfile = await prisma.user.findUnique({
+        where: { id: access.user.id },
+        select: { fullName: true },
+      });
+      const callerName = callerProfile?.fullName || access.user.email || "A team member";
+
+      await prisma.notification.create({
+        data: {
+          userId: targetUser.id,
+          workspaceId: access.workspace.id,
+          type: "CHAT_CHANNEL",
+          title: `Added to #${channel.name}`,
+          message: `${callerName} added you to #${channel.name} in ${access.workspace.name}.`,
+          link: "/chat",
+          metadata: {
+            channelId,
+            channelName: channel.name,
+            workspaceId: access.workspace.id,
+          },
+        },
+      });
+    } catch (notifErr) {
+      console.warn("[Channels] Failed to send channel invite notification:", notifErr);
+    }
+
+    revalidatePath("/chat");
+    return { success: true, error: null };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Failed to add member to channel." };
+  }
+}
+
+/**
+ * Joins a channel using a 6-character alphanumeric channel join code.
+ * User must be an active member of the workspace containing this channel.
+ */
+export async function joinChannelByCode(rawCode: string): Promise<{
+  success: boolean;
+  error?: string | null;
+  channelId?: string;
+  channelName?: string;
+  workspaceSlug?: string;
+  message?: string;
+}> {
+  try {
+    const code = (rawCode || "").trim().toUpperCase();
+    if (!code || code.length < 4) {
+      return { success: false, error: "Please enter a valid channel join code." };
+    }
+
+    const channel = await prisma.workspaceChatChannel.findUnique({
+      where: { joinCode: code },
+      include: { workspace: true, members: true },
+    });
+
+    if (!channel) {
+      return {
+        success: false,
+        error: `No channel found with join code "${code}".`,
+      };
+    }
+
+    const access = await verifyWorkspaceAccess(channel.workspaceId);
+
+    const isMember = channel.members.some((m) => m.userId === access.user.id);
+    if (isMember) {
+      return {
+        success: true,
+        channelId: channel.id,
+        channelName: channel.name,
+        workspaceSlug: channel.workspace.slug,
+        message: `You are already a member of #${channel.name}.`,
+      };
+    }
+
+    // Add to channel
+    await prisma.chatChannelMember.create({
+      data: {
+        channelId: channel.id,
+        userId: access.user.id,
+      },
+    });
+
+    // Synchronize Nexconn
+    try {
+      const allMembers = await prisma.chatChannelMember.findMany({
+        where: { channelId: channel.id },
+        select: { userId: true },
+      });
+      await syncNexconnGroupChannel(
+        channel.nexconnChannelId,
+        channel.name,
+        allMembers.map((m) => m.userId)
+      );
+    } catch {
+      // Non-blocking sync
+    }
+
+    revalidatePath("/chat");
+
+    return {
+      success: true,
+      channelId: channel.id,
+      channelName: channel.name,
+      workspaceSlug: channel.workspace.slug,
+      message: `You have successfully joined #${channel.name}!`,
+    };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Failed to join channel." };
   }
 }
 

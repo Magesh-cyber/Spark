@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { Avatar } from "@/components/ui/avatar";
-import { Pin, Trash2, Plus, ExternalLink } from "lucide-react";
+import { Pin, Trash2, Plus, ExternalLink, KeyRound, Copy, Check } from "lucide-react";
 import { useWorkspace } from "@/lib/workspace-context";
 import { useNexconnChat } from "./NexconnChatProvider";
 import { pinArtifactToChannel, deleteWorkspaceChannel } from "@/lib/actions/chat-channels";
@@ -17,6 +17,7 @@ export function ChannelDetailsDrawer() {
   const [pinUrl, setPinUrl] = useState("");
   const [isPinning, setIsPinning] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [copiedChannelCode, setCopiedChannelCode] = useState(false);
 
   if (!activeConversation) return null;
 
@@ -83,6 +84,38 @@ export function ChannelDetailsDrawer() {
             : `Private direct conversation with ${activeConversation.name}.`}
         </p>
       </div>
+
+      {/* 6-Character Channel Join Code */}
+      {isChannel && channelDetails?.joinCode && (
+        <div className="border-t border-[var(--spark-border)] pt-3.5 space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--spark-text-muted)]">
+              Channel Join Code
+            </span>
+            <button
+              onClick={() => {
+                if (channelDetails.joinCode) {
+                  navigator.clipboard.writeText(channelDetails.joinCode);
+                  setCopiedChannelCode(true);
+                  setTimeout(() => setCopiedChannelCode(false), 2000);
+                }
+              }}
+              className="text-[10px] font-medium text-[var(--spark-accent)] hover:underline flex items-center gap-1"
+            >
+              {copiedChannelCode ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+              <span>{copiedChannelCode ? "Copied" : "Copy"}</span>
+            </button>
+          </div>
+          <div className="flex items-center justify-between bg-[var(--spark-surface)] p-2 rounded-[8px] border border-[var(--spark-border)]">
+            <span className="font-mono text-xs font-bold tracking-widest text-[var(--spark-accent)]">
+              {channelDetails.joinCode}
+            </span>
+            <span className="text-[10px] text-[var(--spark-text-muted)]">
+              Share to join
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Members */}
       {isChannel && channelDetails && (

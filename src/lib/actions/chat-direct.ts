@@ -176,3 +176,47 @@ export async function getOrCreateDirectConversation(
   }
 }
 
+/**
+ * Initiates a direct conversation with a colleague by email address.
+ * Strictly verifies the email exists in the database and is an active member of this workspace.
+ */
+export async function startDirectConversationByEmail(
+  workspaceId: string,
+  email: string
+) {
+  try {
+    const access = await verifyWorkspaceAccess(workspaceId);
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // 1. Check if user exists in the database
+    const targetUser = await prisma.user.findUnique({
+      where: { email: normalizedEmail },
+      select: { id: true, fullName: true, email: true },
+    });
+
+    if (!targetUser) {
+      return {
+        success: false,
+        error: `No registered user found with email "${normalizedEmail}". Please ensure the user has created an account on SPARK first.`,
+        conversation: null,
+      };
+    }
+
+    if (targetUser.id === access.user.id) {
+      return {
+        success: false,
+        error: "Cannot start a direct message with yourself.",
+        conversation: null,
+      };
+    }
+
+    return await getOrCreateDirectConversation(workspaceId, targetUser.id);
+  } catch (err: any) {
+    return {
+      success: false,
+      error: err.message || "Failed to initialize conversation.",
+      conversation: null,
+    };
+  }
+}
+

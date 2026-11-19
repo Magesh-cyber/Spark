@@ -12,13 +12,21 @@ import {
   Trash2,
   Ban,
   RotateCcw,
+  KeyRound,
+  Copy,
+  Check,
+  ShieldCheck,
 } from "lucide-react";
 import { ShellLayout } from "@/components/layout/ShellLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
-import { getWorkspaceBySlug } from "@/lib/actions/workspaces";
+import {
+  getWorkspaceBySlug,
+  getWorkspaceJoinRequests,
+  reviewWorkspaceJoinRequest,
+} from "@/lib/actions/workspaces";
 import {
   getWorkspaceMembers,
   updateMemberRole,
@@ -26,7 +34,7 @@ import {
   removeMember,
 } from "@/lib/actions/workspace-members";
 import { inviteWorkspaceMember } from "@/lib/actions/workspace-invitations";
-import { WorkspaceMemberItem, WorkspaceRole } from "@/lib/types";
+import { WorkspaceMemberItem, WorkspaceRole, WorkspaceJoinRequestItem } from "@/lib/types";
 import { canManageMembers, canChangeMemberRoles, canInviteMembers } from "@/lib/permissions";
 
 export default function WorkspaceMembersPage() {
@@ -36,7 +44,10 @@ export default function WorkspaceMembersPage() {
   const [workspace, setWorkspace] = useState<any>(null);
   const [callerRole, setCallerRole] = useState<WorkspaceRole>("MEMBER");
   const [members, setMembers] = useState<WorkspaceMemberItem[]>([]);
+  const [joinRequests, setJoinRequests] = useState<WorkspaceJoinRequestItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [copiedCode, setCopiedCode] = useState(false);
+  const [reviewingId, setReviewingId] = useState<string | null>(null);
 
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -62,9 +73,36 @@ export default function WorkspaceMembersPage() {
       if (memRes.members) {
         setMembers(memRes.members);
       }
+
+      if (res.callerRole === "OWNER" || res.callerRole === "ADMIN") {
+        const reqRes = await getWorkspaceJoinRequests(res.workspace.id);
+        if (reqRes.requests) {
+          setJoinRequests(reqRes.requests);
+        }
+      }
     }
     setIsLoading(false);
   }, [slug]);
+
+  const handleReviewRequest = async (requestId: string, action: "APPROVE" | "REJECT") => {
+    if (!workspace?.id) return;
+    setReviewingId(requestId);
+    try {
+      const res = await reviewWorkspaceJoinRequest(workspace.id, requestId, action);
+      if (res.success) {
+        setJoinRequests((prev) => prev.filter((r) => r.id !== requestId));
+        if (action === "APPROVE") {
+          await loadData();
+        }
+      } else {
+        setActionError(res.error || "Failed to process join request.");
+      }
+    } catch {
+      setActionError("Failed to process join request.");
+    } finally {
+      setReviewingId(null);
+    }
+  };
 
   useEffect(() => {
     loadData();
@@ -203,6 +241,70 @@ export default function WorkspaceMembersPage() {
             </div>
           </div>
         </div>
+
+        {/* Pending Join Requests (Visible to Owner/Admin) */}
+        {joinRequests.length > 0 && (
+          <div className="rounded-[12px] border border-[var(--spark-accent)]/30 bg-[var(--spark-highlight)]/40 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-[var(--spark-accent)]" />
+                <h4 className="text-xs font-semibold text-[var(--spark-text-primary)]">
+                  Pending Join Requests ({joinRequests.length})
+                </h4>
+              </div>
+              <span className="text-[11px] text-[var(--spark-text-muted)]">
+                Review users requesting access via the 6-character join code
+              </span>
+            </div>
+
+            <div className="divide-y divide-[var(--spark-border)]/40 rounded-[8px] border border-[var(--spark-border)] bg-[var(--spark-surface)]">
+              {joinRequests.map((req) => (
+                <div
+                  key={req.id}
+                  className="p-3 flex items-center justify-between gap-4 text-xs"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Avatar
+                      name={req.user.fullName || req.user.email}
+                      src={req.user.avatarUrl || undefined}
+                      size="sm"
+                      className="border border-[var(--spark-border)]"
+                    />
+                    <div className="min-w-0">
+                      <p className="font-semibold text-[var(--spark-text-primary)] truncate">
+                        {req.user.fullName || "User"}
+                      </p>
+                      <p className="text-[11px] text-[var(--spark-text-muted)] truncate">
+                        {req.user.email}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs border-rose-500/30 text-rose-600 hover:bg-rose-500/10"
+                      isLoading={reviewingId === req.id}
+                      onClick={() => handleReviewRequest(req.id, "REJECT")}
+                    >
+                      Decline
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      className="h-7 text-xs"
+                      isLoading={reviewingId === req.id}
+                      onClick={() => handleReviewRequest(req.id, "APPROVE")}
+                    >
+                      Approve & Admit
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {actionError && (
           <div className="rounded-[8px] border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-700 dark:text-rose-300 flex items-center gap-2">
@@ -355,6 +457,53 @@ export default function WorkspaceMembersPage() {
                       </a>
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* 6-Character Quick Join Code Banner */}
+              {workspace?.joinCode && (
+                <div className="p-3 rounded-[10px] border border-[var(--spark-border)] bg-[var(--spark-surface-subtle)] flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <KeyRound className="h-3.5 w-3.5 text-[var(--spark-accent)]" />
+                      <span className="text-xs font-semibold text-[var(--spark-text-primary)]">
+                        Workspace Join Code
+                      </span>
+                      <span
+                        className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                          workspace.isPrivate
+                            ? "bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20"
+                            : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20"
+                        }`}
+                      >
+                        {workspace.isPrivate
+                          ? "Private · Requires Approval"
+                          : "Public · Instant Join"}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (workspace.joinCode) {
+                          navigator.clipboard.writeText(workspace.joinCode);
+                          setCopiedCode(true);
+                          setTimeout(() => setCopiedCode(false), 2000);
+                        }
+                      }}
+                      className="flex items-center gap-1 text-[11px] font-medium text-[var(--spark-accent)] hover:underline"
+                    >
+                      {copiedCode ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                      <span>{copiedCode ? "Copied!" : "Copy Code"}</span>
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-sm font-mono font-bold tracking-[0.25em] px-2.5 py-1 rounded bg-[var(--spark-surface)] border border-[var(--spark-border)] text-[var(--spark-accent)]">
+                      {workspace.joinCode}
+                    </span>
+                    <p className="text-[11px] text-[var(--spark-text-muted)] text-right flex-1">
+                      Share this code with teammates for 1-click joining without waiting for an email.
+                    </p>
+                  </div>
                 </div>
               )}
 

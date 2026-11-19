@@ -11,6 +11,12 @@ import {
   AlertCircle,
   Trash2,
   UserCheck,
+  KeyRound,
+  Copy,
+  Check,
+  RotateCw,
+  Globe,
+  Lock,
 } from "lucide-react";
 import { ShellLayout } from "@/components/layout/ShellLayout";
 import { Input } from "@/components/ui/input";
@@ -24,6 +30,8 @@ import {
   updateWorkspaceSettings,
   deleteWorkspace,
   transferWorkspaceOwnership,
+  toggleWorkspacePrivacy,
+  regenerateWorkspaceJoinCode,
 } from "@/lib/actions/workspaces";
 import { getWorkspaceMembers } from "@/lib/actions/workspace-members";
 import { WorkspaceMemberItem } from "@/lib/types";
@@ -57,6 +65,17 @@ export default function WorkspaceSettingsPage() {
     text: string;
   } | null>(null);
 
+  // Privacy & Join Code state
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [joinCode, setJoinCode] = useState("");
+  const [isTogglingPrivacy, setIsTogglingPrivacy] = useState(false);
+  const [isRegeneratingCode, setIsRegeneratingCode] = useState(false);
+  const [copiedJoinCode, setCopiedJoinCode] = useState(false);
+  const [privacyMessage, setPrivacyMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
+
   const [newOwnerId, setNewOwnerId] = useState("");
   const [transferConfirm, setTransferConfirm] = useState("");
   const [isTransferring, setIsTransferring] = useState(false);
@@ -77,6 +96,8 @@ export default function WorkspaceSettingsPage() {
         setName(res.workspace.name);
         setDescription(res.workspace.description || "");
         setAvatarUrl(res.workspace.avatarUrl || "");
+        setIsPrivate(Boolean(res.workspace.isPrivate));
+        setJoinCode(res.workspace.joinCode || "");
 
         if (res.settings) {
           setDefaultRole(res.settings.defaultMemberRole);
@@ -162,6 +183,75 @@ export default function WorkspaceSettingsPage() {
       setPolicyMessage({ type: "error", text: res.error || "Update failed." });
     }
     setIsUpdatingPolicy(false);
+  };
+
+  const handleTogglePrivacy = async (newPrivateState: boolean) => {
+    if (!workspace?.id) return;
+    setIsTogglingPrivacy(true);
+    setPrivacyMessage(null);
+    try {
+      const res = await toggleWorkspacePrivacy(workspace.id, newPrivateState);
+      if (res.success && res.isPrivate !== undefined) {
+        setIsPrivate(res.isPrivate);
+        setPrivacyMessage({
+          type: "success",
+          text: `Workspace privacy updated: ${
+            res.isPrivate
+              ? "Private (Approval required for users entering join code)"
+              : "Public (Instant admission for users entering join code)"
+          }.`,
+        });
+        await refreshWorkspaces();
+      } else {
+        setPrivacyMessage({
+          type: "error",
+          text: res.error || "Failed to update privacy mode.",
+        });
+      }
+    } catch {
+      setPrivacyMessage({
+        type: "error",
+        text: "Failed to update privacy mode.",
+      });
+    } finally {
+      setIsTogglingPrivacy(false);
+    }
+  };
+
+  const handleRegenerateCode = async () => {
+    if (!workspace?.id) return;
+    if (
+      !confirm(
+        "Are you sure you want to regenerate the join code? The previous 6-character code will immediately expire."
+      )
+    ) {
+      return;
+    }
+    setIsRegeneratingCode(true);
+    setPrivacyMessage(null);
+    try {
+      const res = await regenerateWorkspaceJoinCode(workspace.id);
+      if (res.success && res.joinCode) {
+        setJoinCode(res.joinCode);
+        setPrivacyMessage({
+          type: "success",
+          text: `Generated new 6-character join code: ${res.joinCode}`,
+        });
+        await refreshWorkspaces();
+      } else {
+        setPrivacyMessage({
+          type: "error",
+          text: res.error || "Failed to regenerate join code.",
+        });
+      }
+    } catch {
+      setPrivacyMessage({
+        type: "error",
+        text: "Failed to regenerate join code.",
+      });
+    } finally {
+      setIsRegeneratingCode(false);
+    }
   };
 
   const handleTransfer = async (e: React.FormEvent) => {
@@ -368,6 +458,140 @@ export default function WorkspaceSettingsPage() {
                 </Button>
               </div>
             </form>
+          </div>
+        )}
+
+        {/* Join Code & Access Privacy */}
+        {!isPersonal && (
+          <div className="rounded-[10px] border border-[var(--spark-border)] bg-[var(--spark-surface)] p-6 space-y-5">
+            <div className="flex items-center justify-between border-b border-[var(--spark-border)] pb-3">
+              <div className="flex items-center gap-2">
+                <KeyRound className="h-4 w-4 text-[var(--spark-accent)]" />
+                <h2 className="text-sm font-semibold text-[var(--spark-text-primary)]">
+                  6-Character Join Code &amp; Access Privacy
+                </h2>
+              </div>
+              <span
+                className={`text-[10px] px-2 py-0.5 rounded font-medium ${
+                  isPrivate
+                    ? "bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20"
+                    : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20"
+                }`}
+              >
+                {isPrivate ? "Private Workspace" : "Public Workspace"}
+              </span>
+            </div>
+
+            {privacyMessage && (
+              <div
+                className={`rounded-[8px] border p-3 text-xs flex items-center gap-2 ${
+                  privacyMessage.type === "success"
+                    ? "border-[#10B981]/30 bg-[#10B981]/10 text-emerald-700 dark:text-emerald-300"
+                    : "border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300"
+                }`}
+              >
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-[#10B981]" />
+                <span>{privacyMessage.text}</span>
+              </div>
+            )}
+
+            {/* Current Join Code Display */}
+            <div className="rounded-[8px] border border-[var(--spark-border)] bg-[var(--spark-surface-subtle)] p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold text-[var(--spark-text-primary)]">
+                  Active 6-Character Join Code
+                </p>
+                <p className="text-[11px] text-[var(--spark-text-muted)] mt-0.5">
+                  Teammates can use this code to join without receiving an individual email invitation.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="font-mono text-base font-bold tracking-[0.25em] px-3 py-1.5 rounded-[6px] bg-[var(--spark-surface)] border border-[var(--spark-border)] text-[var(--spark-accent)]">
+                  {joinCode || "—"}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  type="button"
+                  onClick={() => {
+                    if (joinCode) {
+                      navigator.clipboard.writeText(joinCode);
+                      setCopiedJoinCode(true);
+                      setTimeout(() => setCopiedJoinCode(false), 2000);
+                    }
+                  }}
+                  leftIcon={
+                    copiedJoinCode ? (
+                      <Check className="h-3.5 w-3.5 text-[#10B981]" />
+                    ) : (
+                      <Copy className="h-3.5 w-3.5" />
+                    )
+                  }
+                >
+                  {copiedJoinCode ? "Copied" : "Copy"}
+                </Button>
+                {isOwner && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    type="button"
+                    isLoading={isRegeneratingCode}
+                    onClick={handleRegenerateCode}
+                    title="Regenerate Join Code"
+                  >
+                    <RotateCw className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Privacy Mode Toggle */}
+            <div className="space-y-3 pt-1">
+              <label className="block text-xs font-medium text-[var(--spark-text-secondary)]">
+                Access Mode Configuration
+              </label>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  disabled={isTogglingPrivacy}
+                  onClick={() => handleTogglePrivacy(false)}
+                  className={`p-3 rounded-[8px] border text-left transition-all duration-150 flex items-start gap-2.5 ${
+                    !isPrivate
+                      ? "border-[var(--spark-accent)] bg-[var(--spark-highlight)] ring-1 ring-[var(--spark-accent)] text-[var(--spark-highlight-text)]"
+                      : "border-[var(--spark-border)] bg-[var(--spark-surface)] text-[var(--spark-text-secondary)] hover:bg-[var(--spark-surface-subtle)]"
+                  }`}
+                >
+                  <Globe className="h-4 w-4 mt-0.5 text-[var(--spark-accent)] shrink-0" />
+                  <div>
+                    <p className="text-xs font-semibold">Public Workspace</p>
+                    <p className="text-[11px] text-[var(--spark-text-muted)] mt-0.5 leading-snug">
+                      Any user with the 6-character code joins immediately with no approval needed.
+                    </p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isTogglingPrivacy}
+                  onClick={() => handleTogglePrivacy(true)}
+                  className={`p-3 rounded-[8px] border text-left transition-all duration-150 flex items-start gap-2.5 ${
+                    isPrivate
+                      ? "border-[var(--spark-accent)] bg-[var(--spark-highlight)] ring-1 ring-[var(--spark-accent)] text-[var(--spark-highlight-text)]"
+                      : "border-[var(--spark-border)] bg-[var(--spark-surface)] text-[var(--spark-text-secondary)] hover:bg-[var(--spark-surface-subtle)]"
+                  }`}
+                >
+                  <Lock className="h-4 w-4 mt-0.5 text-[#F59E0B] shrink-0" />
+                  <div>
+                    <p className="text-xs font-semibold">Private Workspace</p>
+                    <p className="text-[11px] text-[var(--spark-text-muted)] mt-0.5 leading-snug">
+                      Users entering the code create a join request requiring Owner or Admin approval.
+                    </p>
+                  </div>
+                </button>
+              </div>
+            </div>
           </div>
         )}
 

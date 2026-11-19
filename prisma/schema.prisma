@@ -47,6 +47,7 @@ model User {
   createdTasks    Task[]               @relation("TaskCreator")
   createdMeetings ScheduledMeeting[]   @relation("MeetingCreator")
   notifications   Notification[]       @relation("UserNotifications")
+  joinRequests    WorkspaceJoinRequest[]
 
   @@map("users")
 }
@@ -58,6 +59,8 @@ model Workspace {
   description String?
   type        WorkspaceType @default(ORGANIZATION)
   avatarUrl   String?       @map("avatar_url")
+  joinCode    String?       @unique @map("join_code")
+  isPrivate   Boolean       @default(false) @map("is_private")
   ownerId     String        @map("owner_id") @db.Uuid
   createdAt   DateTime      @default(now()) @map("created_at")
   updatedAt   DateTime      @updatedAt @map("updated_at")
@@ -72,6 +75,7 @@ model Workspace {
   tasks       Task[]
   meetings    ScheduledMeeting[]
   notifications Notification[]
+  joinRequests WorkspaceJoinRequest[]
 
   @@index([ownerId])
   @@index([type])
@@ -148,6 +152,7 @@ model WorkspaceChatChannel {
   name             String
   description      String?
   type             ChatChannelType      @default(PUBLIC)
+  joinCode         String?              @unique @map("join_code")
   isDefault        Boolean              @default(false) @map("is_default")
   createdById      String               @map("created_by_id") @db.Uuid
   createdAt        DateTime             @default(now()) @map("created_at")
@@ -221,6 +226,7 @@ enum NotificationType {
   CHAT_DM
   CHAT_CHANNEL
   WORKSPACE_INVITATION
+  WORKSPACE_JOIN_REQUEST
   MEMBER_JOINED
   MEETING_SCHEDULED
   TASK_ASSIGNED
@@ -310,3 +316,28 @@ model ScheduledMeeting {
   @@index([startTime])
   @@map("scheduled_meetings")
 }
+
+enum JoinRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model WorkspaceJoinRequest {
+  id          String            @id @default(uuid()) @db.Uuid
+  workspaceId String            @map("workspace_id") @db.Uuid
+  userId      String            @map("user_id") @db.Uuid
+  status      JoinRequestStatus @default(PENDING)
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+
+  // Relations
+  workspace   Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([workspaceId, status])
+  @@index([userId])
+  @@map("workspace_join_requests")
+}
+

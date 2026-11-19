@@ -15,6 +15,8 @@ function toPrismaNotificationType(type: NotificationType): PrismaNotificationTyp
       return "CHAT_CHANNEL";
     case "WORKSPACE_INVITATION":
       return "WORKSPACE_INVITATION";
+    case "WORKSPACE_JOIN_REQUEST":
+      return "WORKSPACE_JOIN_REQUEST";
     case "MEMBER_JOINED":
       return "MEMBER_JOINED";
     case "TASK_ASSIGNED":

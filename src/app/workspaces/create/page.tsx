@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Building2, ArrowLeft, AlertCircle } from "lucide-react";
+import { Building2, ArrowLeft, AlertCircle, KeyRound, Globe, Lock } from "lucide-react";
 import { ShellLayout } from "@/components/layout/ShellLayout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ export default function CreateWorkspacePage() {
   const [slug, setSlug] = useState("");
   const [description, setDescription] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
+  const [isPrivate, setIsPrivate] = useState(false);
   const [isSlugManual, setIsSlugManual] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -60,6 +61,7 @@ export default function CreateWorkspacePage() {
         slug: slug.trim(),
         description: description.trim() || undefined,
         avatarUrl: avatarUrl.trim() || undefined,
+        isPrivate,
       });
 
       if (!res.success || !res.workspace) {
@@ -152,6 +154,55 @@ export default function CreateWorkspacePage() {
               onChange={(e) => setAvatarUrl(e.target.value)}
               placeholder="https://example.com/logo.png"
             />
+
+            {/* Privacy & Join Code Mode */}
+            <div className="space-y-2">
+              <label className="block text-xs font-medium text-[var(--spark-text-secondary)]">
+                Workspace Access Mode
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsPrivate(false)}
+                  className={`p-3 rounded-[8px] border text-left transition-all duration-150 flex items-start gap-2.5 ${
+                    !isPrivate
+                      ? "border-[var(--spark-accent)] bg-[var(--spark-highlight)] ring-1 ring-[var(--spark-accent)] text-[var(--spark-highlight-text)]"
+                      : "border-[var(--spark-border)] bg-[var(--spark-surface)] text-[var(--spark-text-secondary)] hover:bg-[var(--spark-surface-subtle)]"
+                  }`}
+                >
+                  <Globe className="h-4 w-4 mt-0.5 text-[var(--spark-accent)] shrink-0" />
+                  <div>
+                    <p className="text-xs font-semibold">Public Workspace</p>
+                    <p className="text-[11px] text-[var(--spark-text-muted)] mt-0.5 leading-snug">
+                      Anyone with the 6-character join code can join instantly without approval.
+                    </p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsPrivate(true)}
+                  className={`p-3 rounded-[8px] border text-left transition-all duration-150 flex items-start gap-2.5 ${
+                    isPrivate
+                      ? "border-[var(--spark-accent)] bg-[var(--spark-highlight)] ring-1 ring-[var(--spark-accent)] text-[var(--spark-highlight-text)]"
+                      : "border-[var(--spark-border)] bg-[var(--spark-surface)] text-[var(--spark-text-secondary)] hover:bg-[var(--spark-surface-subtle)]"
+                  }`}
+                >
+                  <Lock className="h-4 w-4 mt-0.5 text-[#F59E0B] shrink-0" />
+                  <div>
+                    <p className="text-xs font-semibold">Private Workspace</p>
+                    <p className="text-[11px] text-[var(--spark-text-muted)] mt-0.5 leading-snug">
+                      Entering the 6-character code creates a join request requiring owner approval.
+                    </p>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            <div className="rounded-[8px] bg-[var(--spark-surface-subtle)] p-3 border border-[var(--spark-border)] flex items-center gap-2.5 text-xs text-[var(--spark-text-muted)]">
+              <KeyRound className="h-4 w-4 text-[var(--spark-accent)] shrink-0" />
+              <span>A random 6-character alphanumeric code will be automatically generated upon creation for quick sharing.</span>
+            </div>
 
             <div className="pt-3 border-t border-[var(--spark-border)] flex items-center justify-end gap-3">
               <Link href="/workspaces">

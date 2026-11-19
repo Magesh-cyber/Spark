@@ -14,6 +14,8 @@ export interface Workspace {
   avatarUrl?: string | null;
   description?: string | null;
   memberCount?: number;
+  joinCode?: string | null;
+  isPrivate?: boolean;
   ownerId?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -84,6 +86,7 @@ export type NotificationType =
   | "CHAT_DM"
   | "CHAT_CHANNEL"
   | "WORKSPACE_INVITATION"
+  | "WORKSPACE_JOIN_REQUEST"
   | "MEMBER_JOINED"
   | "MEETING_SCHEDULED"
   | "TASK_ASSIGNED"
@@ -106,4 +109,18 @@ export interface NotificationItem {
   type: NotificationType;
   link?: string;
   metadata?: Record<string, any> | null;
+}
+
+export interface WorkspaceJoinRequestItem {
+  id: string;
+  workspaceId: string;
+  userId: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  createdAt: string;
+  user: {
+    id: string;
+    email: string;
+    fullName: string;
+    avatarUrl?: string | null;
+  };
 }

@@ -55,6 +55,7 @@ export interface ChannelDetailsData {
   name: string;
   description: string | null;
   type: "PUBLIC" | "PRIVATE";
+  joinCode?: string | null;
   isDefault: boolean;
   creator: { id: string; fullName: string; avatarUrl: string | null };
   members: Array<{ id: string; fullName: string; avatarUrl: string | null; email: string }>;

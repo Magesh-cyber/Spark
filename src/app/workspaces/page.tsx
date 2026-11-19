@@ -1,15 +1,18 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
-import { Plus, Building2, User, Settings, ArrowRight, Users } from "lucide-react";
+import { Plus, Building2, User, Settings, ArrowRight, Users, KeyRound, Copy, Check } from "lucide-react";
 import { ShellLayout } from "@/components/layout/ShellLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useWorkspace } from "@/lib/workspace-context";
+import { JoinByCodeModal } from "@/components/workspace/JoinByCodeModal";
 
 export default function WorkspacesDirectoryPage() {
   const { workspaces, activeWorkspace, setActiveWorkspace } = useWorkspace();
+  const [joinCodeModalOpen, setJoinCodeModalOpen] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const personalWorkspaces = workspaces.filter(
     (w) => w.type === "personal" || w.type === "PERSONAL"
@@ -31,11 +34,20 @@ export default function WorkspacesDirectoryPage() {
               Manage your personal workspace and organizations you collaborate in.
             </p>
           </div>
-          <Link href="/workspaces/create">
-            <Button variant="primary" leftIcon={<Plus className="h-4 w-4" />}>
-              Create Organization
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              leftIcon={<KeyRound className="h-4 w-4" />}
+              onClick={() => setJoinCodeModalOpen(true)}
+            >
+              Join with Code
             </Button>
-          </Link>
+            <Link href="/workspaces/create">
+              <Button variant="primary" leftIcon={<Plus className="h-4 w-4" />}>
+                Create Organization
+              </Button>
+            </Link>
+          </div>
         </div>
 
         {/* Personal Workspace Section */}
@@ -188,6 +200,29 @@ export default function WorkspacesDirectoryPage() {
                       {ws.description || "Shared team workspace on SPARK."}
                     </p>
 
+                    {ws.joinCode && (
+                      <div className="mt-3 flex items-center justify-between px-2.5 py-1.5 rounded-[6px] bg-[var(--spark-surface-subtle)] border border-[var(--spark-border)] text-xs">
+                        <div className="flex items-center gap-1.5">
+                          <KeyRound className="h-3 w-3 text-[var(--spark-accent)]" />
+                          <span className="text-[11px] text-[var(--spark-text-muted)] font-mono">Join Code:</span>
+                          <span className="font-mono font-bold tracking-wider text-[var(--spark-accent)]">{ws.joinCode}</span>
+                          <span className="text-[10px] text-[var(--spark-text-muted)]">({ws.isPrivate ? "Private" : "Public"})</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(ws.joinCode!);
+                            setCopiedId(ws.id);
+                            setTimeout(() => setCopiedId(null), 2000);
+                          }}
+                          className="text-[11px] text-[var(--spark-text-secondary)] hover:text-[var(--spark-accent)] flex items-center gap-1"
+                        >
+                          {copiedId === ws.id ? <Check className="h-3 w-3 text-[#10B981]" /> : <Copy className="h-3 w-3" />}
+                          <span>{copiedId === ws.id ? "Copied" : "Copy"}</span>
+                        </button>
+                      </div>
+                    )}
+
                     <div className="mt-4 pt-4 border-t border-[var(--spark-border)] flex items-center justify-between">
                       <div className="flex items-center gap-1.5 text-xs text-[var(--spark-text-secondary)]">
                         <Users className="h-3.5 w-3.5" />
@@ -225,6 +260,12 @@ export default function WorkspacesDirectoryPage() {
             </div>
           )}
         </div>
+
+        {/* Global Join by Code Modal */}
+        <JoinByCodeModal
+          isOpen={joinCodeModalOpen}
+          onClose={() => setJoinCodeModalOpen(false)}
+        />
       </div>
     </ShellLayout>
   );

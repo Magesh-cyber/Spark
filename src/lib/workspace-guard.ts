@@ -16,6 +16,8 @@ export interface WorkspaceAccessResult {
     type: WorkspaceType;
     ownerId: string;
     avatarUrl: string | null;
+    joinCode?: string | null;
+    isPrivate?: boolean;
   };
   member: {
     id: string;
@@ -164,6 +166,8 @@ export async function verifyWorkspaceAccess(
       type: workspace.type as WorkspaceType,
       ownerId: workspace.ownerId,
       avatarUrl: workspace.avatarUrl,
+      joinCode: workspace.joinCode,
+      isPrivate: workspace.isPrivate,
     },
     member: {
       id: member.id,

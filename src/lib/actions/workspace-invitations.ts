@@ -46,22 +46,35 @@ export async function inviteWorkspaceMember(
     const { email, role } = validation.data;
     const normalizedEmail = email.trim().toLowerCase();
 
-    // Check if target is already an active member of this workspace
+    // 1. Strict database check: Ensure the user exists in SPARK
+    const targetUser = await prisma.user.findUnique({
+      where: { email: normalizedEmail },
+      select: { id: true, fullName: true, email: true },
+    });
+
+    if (!targetUser) {
+      return {
+        success: false,
+        error: `No registered user found with email "${normalizedEmail}". Please ensure the user has created an account on SPARK first.`,
+      };
+    }
+
+    // 2. Check if target is already an active member of this workspace
     const existingMember = await prisma.workspaceMember.findFirst({
       where: {
         workspaceId: access.workspace.id,
-        user: { email: normalizedEmail },
+        userId: targetUser.id,
       },
     });
 
     if (existingMember) {
       return {
         success: false,
-        error: `User with email ${normalizedEmail} is already a member of this workspace.`,
+        error: `User with email "${normalizedEmail}" is already a member of this workspace.`,
       };
     }
 
-    // Check if there is an active pending invitation
+    // 3. Check if there is an active pending invitation
     const existingInvite = await prisma.workspaceInvitation.findFirst({
       where: {
         workspaceId: access.workspace.id,
@@ -75,7 +88,7 @@ export async function inviteWorkspaceMember(
     if (existingInvite) {
       return {
         success: false,
-        error: `An active pending invitation for ${normalizedEmail} already exists.`,
+        error: `An active pending invitation for "${normalizedEmail}" already exists.`,
       };
     }
 
@@ -114,29 +127,23 @@ export async function inviteWorkspaceMember(
     revalidatePath(`/workspaces/${access.workspace.slug}/members`);
     revalidatePath(`/workspaces/${access.workspace.slug}/invitations`);
 
-    // Create real notification for target user if they already have an account
+    // Create real notification for target user in their notification tray
     try {
-      const targetUser = await prisma.user.findUnique({
-        where: { email: normalizedEmail },
-        select: { id: true },
-      });
-      if (targetUser) {
-        await prisma.notification.create({
-          data: {
-            userId: targetUser.id,
+      await prisma.notification.create({
+        data: {
+          userId: targetUser.id,
+          workspaceId: access.workspace.id,
+          type: "WORKSPACE_INVITATION",
+          title: "Workspace Invitation",
+          message: `${invitation.inviter?.fullName || "A team admin"} invited you to join ${access.workspace.name} as ${role}.`,
+          link: `/invitations/accept?token=${rawToken}`,
+          metadata: {
+            invitationId: invitation.id,
             workspaceId: access.workspace.id,
-            type: "WORKSPACE_INVITATION",
-            title: "Workspace Invitation",
-            message: `${invitation.inviter?.fullName || "A team admin"} invited you to join ${access.workspace.name} as ${role}.`,
-            link: `/invitations/accept?token=${rawToken}`,
-            metadata: {
-              invitationId: invitation.id,
-              workspaceId: access.workspace.id,
-              role,
-            },
+            role,
           },
-        });
-      }
+        },
+      });
     } catch (notifErr) {
       console.warn("[Invitations] Failed to write invitation notification:", notifErr);
     }

@@ -17,9 +17,11 @@ import { useNexconnChatOptional } from "@/components/chat/NexconnChatProvider";
 import { getWorkspaceMembers } from "@/lib/actions/workspace-members";
 import { inviteWorkspaceMember } from "@/lib/actions/workspace-invitations";
 import { getOrCreateDirectConversation } from "@/lib/actions/chat-direct";
+import { getWorkspaceJoinRequests, reviewWorkspaceJoinRequest } from "@/lib/actions/workspaces";
+import { JoinByCodeModal } from "@/components/workspace/JoinByCodeModal";
 import { clientMembersCache } from "@/lib/client-caches";
 import { subscribeBootstrap } from "@/lib/bootstrap-client";
-import { WorkspaceMemberItem, WorkspaceRole } from "@/lib/types";
+import { WorkspaceMemberItem, WorkspaceRole, WorkspaceJoinRequestItem } from "@/lib/types";
 import {
   UserPlus,
   Mail,
@@ -29,6 +31,11 @@ import {
   CheckCircle2,
   X,
   ExternalLink,
+  KeyRound,
+  Copy,
+  Check,
+  Clock,
+  ShieldCheck,
 } from "lucide-react";
 
 export default function TeamsPage() {
@@ -49,6 +56,8 @@ export default function TeamsPage() {
 
   // Invite modal state
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
+  const [joinCodeModalOpen, setJoinCodeModalOpen] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"ADMIN" | "MANAGER" | "MEMBER" | "GUEST">("MEMBER");
   const [isSubmittingInvite, setIsSubmittingInvite] = useState(false);
@@ -57,6 +66,48 @@ export default function TeamsPage() {
     text: string;
     devLink?: string;
   } | null>(null);
+
+  // Private workspace join requests
+  const [joinRequests, setJoinRequests] = useState<WorkspaceJoinRequestItem[]>([]);
+  const [isLoadingRequests, setIsLoadingRequests] = useState(false);
+  const [reviewingRequestId, setReviewingRequestId] = useState<string | null>(null);
+
+  const isPrivileged =
+    activeWorkspace?.role === "OWNER" || activeWorkspace?.role === "ADMIN";
+
+  const fetchJoinRequests = useCallback(async () => {
+    if (!activeWorkspace?.id || activeWorkspace.id === "personal-fallback") return;
+    if (activeWorkspace.role !== "OWNER" && activeWorkspace.role !== "ADMIN") return;
+    try {
+      setIsLoadingRequests(true);
+      const res = await getWorkspaceJoinRequests(activeWorkspace.id);
+      if (res.requests) {
+        setJoinRequests(res.requests);
+      }
+    } catch {
+      // Non-blocking
+    } finally {
+      setIsLoadingRequests(false);
+    }
+  }, [activeWorkspace?.id, activeWorkspace?.role]);
+
+  const handleReviewRequest = async (requestId: string, action: "APPROVE" | "REJECT") => {
+    if (!activeWorkspace?.id) return;
+    setReviewingRequestId(requestId);
+    try {
+      const res = await reviewWorkspaceJoinRequest(activeWorkspace.id, requestId, action);
+      if (res.success) {
+        setJoinRequests((prev) => prev.filter((r) => r.id !== requestId));
+        if (action === "APPROVE") {
+          await fetchMembers(true);
+        }
+      }
+    } catch {
+      // Non-blocking
+    } finally {
+      setReviewingRequestId(null);
+    }
+  };
 
   const fetchMembers = useCallback(
     async (force = false) => {
@@ -99,7 +150,8 @@ export default function TeamsPage() {
 
   useEffect(() => {
     fetchMembers(false);
-  }, [fetchMembers]);
+    fetchJoinRequests();
+  }, [fetchMembers, fetchJoinRequests]);
 
   useEffect(() => {
     return subscribeBootstrap((payload) => {
@@ -197,19 +249,93 @@ export default function TeamsPage() {
           title="People & Teams"
           description={`Verified members and role permissions for ${activeWorkspace?.name || "your workspace"}.`}
           actions={
-            <Button
-              size="sm"
-              variant="primary"
-              leftIcon={<UserPlus className="h-3.5 w-3.5" />}
-              onClick={() => {
-                setInviteFeedback(null);
-                setInviteModalOpen(true);
-              }}
-            >
-              Invite Member
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                leftIcon={<KeyRound className="h-3.5 w-3.5" />}
+                onClick={() => setJoinCodeModalOpen(true)}
+              >
+                Join with Code
+              </Button>
+              <Button
+                size="sm"
+                variant="primary"
+                leftIcon={<UserPlus className="h-3.5 w-3.5" />}
+                onClick={() => {
+                  setInviteFeedback(null);
+                  setInviteModalOpen(true);
+                }}
+              >
+                Invite Member
+              </Button>
+            </div>
           }
         />
+
+        {/* Pending Join Requests (Visible to Owner/Admin) */}
+        {isPrivileged && joinRequests.length > 0 && (
+          <div className="rounded-[12px] border border-[var(--spark-accent)]/30 bg-[var(--spark-highlight)]/40 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-[var(--spark-accent)]" />
+                <h4 className="text-xs font-semibold text-[var(--spark-text-primary)]">
+                  Pending Join Requests ({joinRequests.length})
+                </h4>
+              </div>
+              <span className="text-[11px] text-[var(--spark-text-muted)]">
+                Review users requesting access via the 6-character join code
+              </span>
+            </div>
+
+            <div className="divide-y divide-[var(--spark-border)]/40 rounded-[8px] border border-[var(--spark-border)] bg-[var(--spark-surface)]">
+              {joinRequests.map((req) => (
+                <div
+                  key={req.id}
+                  className="p-3 flex items-center justify-between gap-4 text-xs"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Avatar
+                      name={req.user.fullName || req.user.email}
+                      src={req.user.avatarUrl || undefined}
+                      size="sm"
+                      className="border border-[var(--spark-border)]"
+                    />
+                    <div className="min-w-0">
+                      <p className="font-semibold text-[var(--spark-text-primary)] truncate">
+                        {req.user.fullName || "User"}
+                      </p>
+                      <p className="text-[11px] text-[var(--spark-text-muted)] truncate">
+                        {req.user.email}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs border-rose-500/30 text-rose-600 hover:bg-rose-500/10"
+                      isLoading={reviewingRequestId === req.id}
+                      onClick={() => handleReviewRequest(req.id, "REJECT")}
+                    >
+                      Decline
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      className="h-7 text-xs"
+                      isLoading={reviewingRequestId === req.id}
+                      onClick={() => handleReviewRequest(req.id, "APPROVE")}
+                    >
+                      Approve & Admit
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <FilterBar
           searchQuery={searchQuery}
@@ -370,6 +496,53 @@ export default function TeamsPage() {
                 </div>
               )}
 
+              {/* 6-Character Quick Join Code Banner */}
+              {activeWorkspace?.joinCode && (
+                <div className="mt-4 p-3 rounded-[10px] border border-[var(--spark-border)] bg-[var(--spark-surface-subtle)] flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <KeyRound className="h-3.5 w-3.5 text-[var(--spark-accent)]" />
+                      <span className="text-xs font-semibold text-[var(--spark-text-primary)]">
+                        Workspace Join Code
+                      </span>
+                      <span
+                        className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                          activeWorkspace.isPrivate
+                            ? "bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20"
+                            : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20"
+                        }`}
+                      >
+                        {activeWorkspace.isPrivate
+                          ? "Private · Requires Approval"
+                          : "Public · Instant Join"}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (activeWorkspace.joinCode) {
+                          navigator.clipboard.writeText(activeWorkspace.joinCode);
+                          setCopiedCode(true);
+                          setTimeout(() => setCopiedCode(false), 2000);
+                        }
+                      }}
+                      className="flex items-center gap-1 text-[11px] font-medium text-[var(--spark-accent)] hover:underline"
+                    >
+                      {copiedCode ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                      <span>{copiedCode ? "Copied!" : "Copy Code"}</span>
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-sm font-mono font-bold tracking-[0.25em] px-2.5 py-1 rounded bg-[var(--spark-surface)] border border-[var(--spark-border)] text-[var(--spark-accent)]">
+                      {activeWorkspace.joinCode}
+                    </span>
+                    <p className="text-[11px] text-[var(--spark-text-muted)] text-right flex-1">
+                      Share this code with colleagues to join directly without waiting for email.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <form onSubmit={handleInviteSubmit} className="mt-4 space-y-4">
                 <Input
                   label="Colleague's Email Address"
@@ -430,6 +603,12 @@ export default function TeamsPage() {
             </div>
           </div>
         )}
+
+        {/* Global Join by Code Modal */}
+        <JoinByCodeModal
+          isOpen={joinCodeModalOpen}
+          onClose={() => setJoinCodeModalOpen(false)}
+        />
       </div>
     </ShellLayout>
   );

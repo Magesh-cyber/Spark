@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { X, Hash, Lock, AlertCircle } from "lucide-react";
+import { X, Hash, Lock, AlertCircle, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useWorkspace } from "@/lib/workspace-context";
@@ -183,6 +183,11 @@ export function CreateChannelModal({ isOpen, onClose }: CreateChannelModalProps)
                 </div>
               </button>
             </div>
+          </div>
+
+          <div className="rounded-[8px] bg-[var(--spark-surface-subtle)] p-2.5 border border-[var(--spark-border)] flex items-center gap-2 text-xs text-[var(--spark-text-muted)]">
+            <KeyRound className="h-4 w-4 text-[var(--spark-accent)] shrink-0" />
+            <span>A unique 6-character alphanumeric join code will be generated to share with team members.</span>
           </div>
 
           {type === "PRIVATE" && directPeers.length > 0 && (

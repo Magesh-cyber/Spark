@@ -22,6 +22,7 @@ export const createWorkspaceSchema = z.object({
     .optional()
     .or(z.literal("")),
   avatarUrl: z.string().url("Invalid avatar URL.").optional().or(z.literal("")),
+  isPrivate: z.boolean().optional(),
 });
 
 export const updateWorkspaceSchema = z.object({
@@ -37,6 +38,7 @@ export const updateWorkspaceSchema = z.object({
     .optional()
     .or(z.literal("")),
   avatarUrl: z.string().url("Invalid avatar URL.").optional().or(z.literal("")),
+  isPrivate: z.boolean().optional(),
 });
 
 export const updateWorkspaceSettingsSchema = z.object({
