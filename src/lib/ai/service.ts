@@ -55,37 +55,48 @@ async function callLLM(systemPrompt: string, userPrompt: string): Promise<string
 
   try {
     if (provider === "gemini") {
-      // Google Gemini 1.5 / 2.0 Flash REST API
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          systemInstruction: {
-            parts: [{ text: systemPrompt }],
-          },
-          contents: [
-            {
-              role: "user",
-              parts: [{ text: userPrompt }],
-            },
-          ],
-          generationConfig: {
-            temperature: 0.3,
-            maxOutputTokens: 1024,
-          },
-        }),
-        cache: "no-store",
-      });
+      // Google Gemini REST API with multi-model auto-negotiation
+      const geminiModels = ["gemini-3.5-flash-lite", "gemini-3.8-flash", "gemini-flash-latest"];
 
-      if (!res.ok) {
-        console.warn(`[SPARK AI] Gemini API returned status ${res.status}`);
-        return null;
+      for (const model of geminiModels) {
+        try {
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+          const res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              systemInstruction: {
+                parts: [{ text: systemPrompt }],
+              },
+              contents: [
+                {
+                  role: "user",
+                  parts: [{ text: userPrompt }],
+                },
+              ],
+              generationConfig: {
+                temperature: 0.3,
+                maxOutputTokens: 1024,
+              },
+            }),
+            cache: "no-store",
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (text && text.trim().length > 0) {
+              return text.trim();
+            }
+          } else {
+            console.warn(`[SPARK AI] Gemini model ${model} returned status ${res.status}`);
+          }
+        } catch (mErr) {
+          console.warn(`[SPARK AI] Error calling Gemini model ${model}:`, mErr);
+        }
       }
 
-      const data = await res.json();
-      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      return text ? text.trim() : null;
+      return null;
     }
 
     if (provider === "openai" || provider === "groq") {
@@ -480,7 +491,7 @@ export async function getAIStatus(): Promise<{
 }> {
   const { provider } = getActiveAIConfig();
   if (provider === "gemini") {
-    return { isConfigured: true, provider: "gemini", modelName: "Google Gemini 1.5 Flash" };
+    return { isConfigured: true, provider: "gemini", modelName: "Google Gemini 3.5 Flash" };
   }
   if (provider === "openai") {
     return { isConfigured: true, provider: "openai", modelName: "OpenAI GPT-4o mini" };
