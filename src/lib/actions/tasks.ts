@@ -6,7 +6,7 @@ import { verifyWorkspaceAccess } from "@/lib/workspace-guard";
 import { createNotification } from "@/lib/actions/notifications";
 import type { TaskStatus, TaskPriority } from "@prisma/client";
 
-export type JiraIssueType = "TASK" | "BUG" | "STORY" | "EPIC";
+export type WorkItemType = "TASK" | "BUG" | "STORY" | "EPIC";
 
 export interface TaskChecklistItemData {
   id: string;
@@ -34,7 +34,7 @@ export interface TaskRecordItem {
   projectName: string | null;
   projectKey: string | null;
   issueKey: string | null;
-  type: JiraIssueType;
+  type: WorkItemType;
   title: string;
   description: string | null;
   status: "BACKLOG" | "TODO" | "IN_PROGRESS" | "IN_REVIEW" | "DONE";
@@ -62,14 +62,25 @@ export async function getWorkspaceTasks(
 
   try {
     const access = await verifyWorkspaceAccess(workspaceId);
+    const isElevated = access.member.role === "OWNER" || access.member.role === "ADMIN";
 
     const rows = await prisma.task.findMany({
       where: {
         workspaceId: access.workspace.id,
+        ...(isElevated
+          ? {}
+          : {
+              OR: [
+                { projectId: null },
+                { project: { type: "PUBLIC" } },
+                { project: { ownerId: access.user.id } },
+                { project: { members: { some: { userId: access.user.id } } } },
+              ],
+            }),
       },
       include: {
         project: {
-          select: { id: true, name: true, key: true },
+          select: { id: true, name: true, key: true, type: true },
         },
         assignee: {
           select: { id: true, fullName: true, email: true, avatarUrl: true },
@@ -98,7 +109,7 @@ export async function getWorkspaceTasks(
         projectName: r.project?.name || null,
         projectKey: r.project?.key || null,
         issueKey: r.issueKey || null,
-        type: (r.type as JiraIssueType) || "TASK",
+        type: (r.type as WorkItemType) || "TASK",
         title: r.title,
         description: r.description,
         status: r.status,
@@ -130,7 +141,7 @@ export async function createWorkspaceTask(params: {
   description?: string;
   status?: "BACKLOG" | "TODO" | "IN_PROGRESS" | "IN_REVIEW" | "DONE";
   priority?: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
-  type?: JiraIssueType;
+  type?: WorkItemType;
   storyPoints?: number;
   projectId?: string;
   dueDate?: string;
@@ -160,7 +171,7 @@ export async function createWorkspaceTask(params: {
       }
     }
 
-    // Auto-derive Jira Issue Key (e.g. SPK-14 or CORE-7)
+    // Auto-derive Issue Key (e.g. SPK-14 or CORE-7)
     let issueKey: string | null = null;
     let projectKeyPrefix = "SPK";
     if (params.projectId) {
@@ -239,7 +250,7 @@ export async function createWorkspaceTask(params: {
         projectName: created.project?.name || null,
         projectKey: created.project?.key || null,
         issueKey: created.issueKey,
-        type: (created.type as JiraIssueType) || "TASK",
+        type: (created.type as WorkItemType) || "TASK",
         title: created.title,
         description: created.description,
         status: created.status,
@@ -300,7 +311,7 @@ export async function updateTaskDetails(
     description?: string | null;
     status?: "BACKLOG" | "TODO" | "IN_PROGRESS" | "IN_REVIEW" | "DONE";
     priority?: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
-    type?: JiraIssueType;
+    type?: WorkItemType;
     storyPoints?: number | null;
     dueDate?: string | null;
     assigneeId?: string | null;

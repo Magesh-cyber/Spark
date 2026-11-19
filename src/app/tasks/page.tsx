@@ -37,7 +37,7 @@ import {
   updateTaskStatus,
   deleteTask,
   TaskRecordItem,
-  JiraIssueType,
+  WorkItemType,
 } from "@/lib/actions/tasks";
 import { getWorkspaceMembers } from "@/lib/actions/workspace-members";
 import { getWorkspaceProjects, ProjectRecordItem } from "@/lib/actions/projects";
@@ -53,7 +53,7 @@ const BOARD_COLUMNS = [
 ];
 
 const ISSUE_TYPE_CONFIG: Record<
-  JiraIssueType,
+  WorkItemType,
   { label: string; icon: any; color: string; badge: string }
 > = {
   TASK: { label: "Task", icon: CheckSquare, color: "text-blue-500", badge: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30" },
@@ -76,7 +76,7 @@ function TasksContent() {
   const [viewMode, setViewMode] = useState<"list" | "board">("board");
   const [isLoading, setIsLoading] = useState(true);
 
-  // Jira Quick Filter Tab & Project Filter
+  // Quick Filter Tab & Project Filter
   const [quickFilter, setQuickFilter] = useState<QuickFilterType>("ALL");
   const [selectedProjectId, setSelectedProjectId] = useState<string>(initialProjectFilter);
 
@@ -88,7 +88,7 @@ function TasksContent() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [type, setType] = useState<JiraIssueType>("TASK");
+  const [type, setType] = useState<WorkItemType>("TASK");
   const [priority, setPriority] = useState<"LOW" | "MEDIUM" | "HIGH" | "URGENT">("MEDIUM");
   const [status, setStatus] = useState<"BACKLOG" | "TODO" | "IN_PROGRESS" | "IN_REVIEW" | "DONE">("TODO");
   const [assigneeId, setAssigneeId] = useState("");
@@ -208,7 +208,7 @@ function TasksContent() {
     setSelectedTask(null);
   };
 
-  // Filter tasks with Jira Quick Filters & Project Filters
+  // Filter tasks with Quick Filters & Project Filters
   const filteredTasks = useMemo(() => {
     return tasks.filter((t) => {
       // Search query
@@ -267,7 +267,7 @@ function TasksContent() {
       <div className="space-y-5">
         <PageHeader
           title="Issues & Tasks"
-          description={`Jira-style work management, sprints, and deliverable tracking for ${activeWorkspace?.name || "your workspace"}.`}
+          description={`Work management, sprint execution, and deliverable tracking for ${activeWorkspace?.name || "your workspace"}.`}
           actions={
             <Button
               variant="primary"
@@ -280,7 +280,7 @@ function TasksContent() {
           }
         />
 
-        {/* Jira Quick Filter Tabs & Project Selector */}
+        {/* Quick Filter Tabs & Project Selector */}
         <div className="flex flex-wrap items-center justify-between gap-3 pb-1 border-b border-[var(--spark-border)]">
           <div className="flex items-center gap-1.5 overflow-x-auto text-xs pb-1 sm:pb-0">
             <button
@@ -644,7 +644,7 @@ function TasksContent() {
         )}
       </div>
 
-      {/* Task Details Jira Drawer */}
+      {/* Task Details Drawer */}
       <TaskDetailsDrawer
         task={selectedTask}
         workspaceId={activeWorkspace?.id || ""}
@@ -667,7 +667,7 @@ function TasksContent() {
               <div className="flex items-center gap-2">
                 <CheckSquare className="h-5 w-5 text-[var(--spark-accent)]" />
                 <h3 className="text-sm font-bold text-[var(--spark-text-primary)]">
-                  Create Jira Issue
+                  Create Issue
                 </h3>
               </div>
               <button
@@ -695,7 +695,7 @@ function TasksContent() {
                   </label>
                   <select
                     value={type}
-                    onChange={(e) => setType(e.target.value as JiraIssueType)}
+                    onChange={(e) => setType(e.target.value as WorkItemType)}
                     className="w-full p-2 rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] text-xs text-[var(--spark-text-primary)] font-medium focus:outline-none focus:border-[var(--spark-accent)]"
                   >
                     <option value="TASK">Task (Standard)</option>

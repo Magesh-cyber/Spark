@@ -25,7 +25,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
   TaskRecordItem,
-  JiraIssueType,
+  WorkItemType,
   TaskChecklistItemData,
   TaskCommentData,
   updateTaskDetails,
@@ -52,7 +52,7 @@ interface TaskDetailsDrawerProps {
 }
 
 const ISSUE_TYPE_CONFIG: Record<
-  JiraIssueType,
+  WorkItemType,
   { label: string; icon: any; color: string; bg: string }
 > = {
   TASK: { label: "Task", icon: CheckSquare, color: "text-blue-500", bg: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30" },
@@ -90,7 +90,7 @@ export function TaskDetailsDrawer({
   const [description, setDescription] = useState(task?.description || "");
   const [status, setStatus] = useState<TaskRecordItem["status"]>(task?.status || "TODO");
   const [priority, setPriority] = useState<TaskRecordItem["priority"]>(task?.priority || "MEDIUM");
-  const [type, setType] = useState<JiraIssueType>(task?.type || "TASK");
+  const [type, setType] = useState<WorkItemType>(task?.type || "TASK");
   const [assigneeId, setAssigneeId] = useState(task?.assigneeId || "");
   const [projectId, setProjectId] = useState(task?.projectId || "");
   const [storyPoints, setStoryPoints] = useState<number | "">(task?.storyPoints || "");
@@ -273,7 +273,7 @@ export function TaskDetailsDrawer({
               <select
                 value={type}
                 onChange={(e) => {
-                  const newType = e.target.value as JiraIssueType;
+                  const newType = e.target.value as WorkItemType;
                   setType(newType);
                   handleSaveField({ type: newType });
                 }}
@@ -286,7 +286,7 @@ export function TaskDetailsDrawer({
               </select>
             </div>
 
-            {/* Jira Issue Key */}
+            {/* Issue Key */}
             {task.issueKey && (
               <button
                 type="button"
@@ -349,7 +349,7 @@ export function TaskDetailsDrawer({
             />
           </div>
 
-          {/* Quick Properties Grid (Jira Sidebar in Drawer) */}
+          {/* Quick Properties Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3.5 rounded-[10px] bg-[var(--spark-surface-subtle)]/70 border border-[var(--spark-border)] text-xs">
             {/* Status */}
             <div>
