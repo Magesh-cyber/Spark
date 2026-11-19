@@ -49,6 +49,8 @@ model User {
   notifications   Notification[]       @relation("UserNotifications")
   joinRequests    WorkspaceJoinRequest[]
   handoverAcknowledgments ChatHandoverAcknowledgment[]
+  ownedProjects   Project[]            @relation("ProjectOwner")
+  taskComments    TaskComment[]
 
   @@map("users")
 }
@@ -73,6 +75,7 @@ model Workspace {
   settings    WorkspaceSettings?
   channels    WorkspaceChatChannel[]
   directConversations ChatDirectConversation[]
+  projects    Project[]
   tasks       Task[]
   meetings    ScheduledMeeting[]
   notifications Notification[]
@@ -300,10 +303,14 @@ enum TaskPriority {
 model Task {
   id          String       @id @default(uuid()) @db.Uuid
   workspaceId String       @map("workspace_id") @db.Uuid
+  projectId   String?      @map("project_id") @db.Uuid
+  issueKey    String?      @map("issue_key")
+  type        String       @default("TASK")
   title       String
   description String?
   status      TaskStatus   @default(TODO)
   priority    TaskPriority @default(MEDIUM)
+  storyPoints Int?         @map("story_points")
   dueDate     DateTime?    @map("due_date")
   assigneeId  String?      @map("assignee_id") @db.Uuid
   createdById String       @map("created_by_id") @db.Uuid
@@ -311,14 +318,74 @@ model Task {
   updatedAt   DateTime     @updatedAt @map("updated_at")
 
   // Relations
-  workspace   Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  assignee    User?        @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
-  creator     User         @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  workspace   Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project     Project?            @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  assignee    User?               @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  creator     User                @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  comments    TaskComment[]
+  checklists  TaskChecklistItem[]
 
   @@index([workspaceId])
+  @@index([projectId])
   @@index([assigneeId])
   @@index([status])
   @@map("tasks")
+}
+
+model Project {
+  id          String      @id @default(uuid()) @db.Uuid
+  workspaceId String      @map("workspace_id") @db.Uuid
+  name        String
+  key         String
+  description String?
+  status      String      @default("ACTIVE")
+  color       String      @default("#7C3AED")
+  ownerId     String      @map("owner_id") @db.Uuid
+  startDate   DateTime?   @map("start_date")
+  targetDate  DateTime?   @map("target_date")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  // Relations
+  workspace   Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  owner       User        @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  tasks       Task[]
+
+  @@unique([workspaceId, key])
+  @@index([workspaceId])
+  @@map("projects")
+}
+
+model TaskComment {
+  id        String   @id @default(uuid()) @db.Uuid
+  taskId    String   @map("task_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  content   String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@index([userId])
+  @@map("task_comments")
+}
+
+model TaskChecklistItem {
+  id          String   @id @default(uuid()) @db.Uuid
+  taskId      String   @map("task_id") @db.Uuid
+  title       String
+  isCompleted Boolean  @default(false) @map("is_completed")
+  position    Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@map("task_checklist_items")
 }
 
 model ScheduledMeeting {

@@ -831,7 +831,7 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
         return;
       }
 
-      if (isConnectingRef.current) return;
+      if (isConnectingRef.current && !forceReconnect) return;
       isConnectingRef.current = true;
 
       try {
@@ -913,6 +913,24 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
               if (statusStr === "CONNECTED") {
                 setIsReady(true);
                 setConnectionError(null);
+                reconnectAttemptsRef.current = 0;
+              } else {
+                setIsReady(false);
+                const currentWs = activeWorkspaceIdRef.current;
+                if (
+                  currentWs &&
+                  currentWs !== "personal-fallback" &&
+                  !isAuthPage &&
+                  currentUserIdRef.current
+                ) {
+                  if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+                  reconnectAttemptsRef.current = Math.min(reconnectAttemptsRef.current + 1, 10);
+                  const delay = Math.min(1200 * Math.pow(1.3, reconnectAttemptsRef.current), 10000);
+                  reconnectTimerRef.current = setTimeout(() => {
+                    isConnectingRef.current = false;
+                    connectNexconn(true);
+                  }, delay);
+                }
               }
             },
           })
@@ -1107,6 +1125,9 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
 
         const connectResult = await NCEngine.connect({ token: tokenData.token });
         if (connectResult && !connectResult.isOk) {
+          if (wsId) {
+            clientChatCache.setToken(wsId, null as any);
+          }
           throw new Error(connectResult.msg || "Failed to connect to Nexconn.");
         }
 
@@ -2009,16 +2030,31 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
     [activeWorkspace?.id, sendMessage]
   );
 
-  // Auto-reconnect on network restoration
+  // Auto-reconnect on network restoration, window focus, or tab visibility change
   useEffect(() => {
-    const handleOnline = () => {
-      if (activeWorkspace?.id && currentUser?.id && connectionStatus !== "CONNECTED") {
+    const handleRecheck = () => {
+      const wsId = activeWorkspace?.id;
+      const userId = currentUser?.id;
+      if (isAuthPage || !userId || !wsId || wsId === "personal-fallback") return;
+      if (
+        (typeof document === "undefined" || document.visibilityState === "visible") &&
+        connectionStatus !== "CONNECTED"
+      ) {
+        isConnectingRef.current = false;
         connectNexconn(true);
       }
     };
-    window.addEventListener("online", handleOnline);
-    return () => window.removeEventListener("online", handleOnline);
-  }, [activeWorkspace?.id, currentUser?.id, connectionStatus, connectNexconn]);
+
+    window.addEventListener("online", handleRecheck);
+    window.addEventListener("focus", handleRecheck);
+    document.addEventListener("visibilitychange", handleRecheck);
+
+    return () => {
+      window.removeEventListener("online", handleRecheck);
+      window.removeEventListener("focus", handleRecheck);
+      document.removeEventListener("visibilitychange", handleRecheck);
+    };
+  }, [activeWorkspace?.id, currentUser?.id, connectionStatus, connectNexconn, isAuthPage]);
 
   // Dynamically enrich active conversation messages with live Pending / Sent / Delivered / Seen receipts
   const messages = useMemo<ChatMessageItem[]>(() => {
@@ -2120,6 +2156,7 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
       clearTimeout(reconnectTimerRef.current);
       reconnectTimerRef.current = null;
     }
+    isConnectingRef.current = false;
     await Promise.allSettled([
       refreshChannels(true),
       refreshDirectPeers(true),
