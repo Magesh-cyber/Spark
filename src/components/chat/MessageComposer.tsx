@@ -16,9 +16,12 @@ import {
   Mic,
   Square,
   Trash2,
+  ClipboardCheck,
+  CornerUpLeft,
 } from "lucide-react";
 import { useNexconnChat } from "./NexconnChatProvider";
 import { getMediaKindFromMime } from "@/lib/chat-media-envelope";
+import { ShiftHandoverModal } from "./ShiftHandoverModal";
 
 const QUICK_EMOJIS = ["👍", "❤️", "😊", "🎉", "🔥", "🚀", "👏", "✅"];
 const MAX_CLIENT_BYTES = 15 * 1024 * 1024; // 15 MB
@@ -104,11 +107,14 @@ export function MessageComposer() {
     sendMedia,
     isReady,
     sendTyping,
+    replyingTo,
+    setReplyingTo,
   } = useNexconnChat();
 
   const [text, setText] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [isHandoverModalOpen, setIsHandoverModalOpen] = useState(false);
   const [stagedFile, setStagedFile] = useState<File | null>(null);
   const [stagedPreviewUrl, setStagedPreviewUrl] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -559,6 +565,30 @@ export function MessageComposer() {
         </div>
       )}
 
+      {/* Threaded Reply Context Banner */}
+      {replyingTo && (
+        <div className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-[8px] border border-[var(--spark-accent)]/30 bg-[var(--spark-highlight)]/40 text-xs animate-in fade-in slide-in-from-bottom-1">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <CornerUpLeft className="h-3.5 w-3.5 text-[var(--spark-accent)] shrink-0" />
+            <span className="font-semibold text-[var(--spark-text-primary)] shrink-0">
+              Replying to @{replyingTo.senderName}:
+            </span>
+            <span className="truncate italic text-[var(--spark-text-secondary)]">
+              &quot;{replyingTo.text}&quot;
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setReplyingTo(null)}
+            className="p-1 rounded-[4px] text-[var(--spark-text-muted)] hover:text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface)] transition-colors shrink-0"
+            title="Cancel reply"
+            aria-label="Cancel reply"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* Main Composer Box: Switches smoothly to Live Recording Studio Bar when recording */}
       {isRecording ? (
         <div className="flex items-center justify-between rounded-[10px] border border-[var(--spark-accent)]/45 bg-[var(--spark-highlight)]/45 px-3 py-2 text-xs transition-all duration-150 shadow-2xs">
@@ -705,6 +735,21 @@ export function MessageComposer() {
               <Smile className="h-4 w-4" />
             </button>
 
+            {/* Shift Handover Report Button (visible in Channels) */}
+            {activeConversation.type === "channel" && (
+              <button
+                type="button"
+                onClick={() => setIsHandoverModalOpen(true)}
+                disabled={isSending || !isReady}
+                className="p-1.5 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-[6px] transition-colors duration-150 flex items-center gap-1 shrink-0 mr-1"
+                title="Submit Shift Handover Report"
+                aria-label="Shift Handover Report"
+              >
+                <ClipboardCheck className="h-4 w-4" />
+                <span className="hidden md:inline text-[11px] font-medium">Handover</span>
+              </button>
+            )}
+
             {/* Text / Caption Input */}
             <input
               ref={inputRef}
@@ -734,6 +779,11 @@ export function MessageComposer() {
           </div>
         </form>
       )}
+
+      <ShiftHandoverModal
+        isOpen={isHandoverModalOpen}
+        onClose={() => setIsHandoverModalOpen(false)}
+      />
     </div>
   );
 }

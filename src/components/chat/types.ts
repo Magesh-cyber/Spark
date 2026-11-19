@@ -17,6 +17,31 @@ export interface MessageSeenEntry {
   name: string;
 }
 
+export interface MessageReplyInfo {
+  messageId: string;
+  senderName: string;
+  senderId?: string;
+  text: string;
+}
+
+export interface HandoverReportData {
+  shiftPeriod: string;
+  completed: string;
+  inProgress: string;
+  blockers: string;
+  nextSteps: string;
+}
+
+export interface HandoverSignOff {
+  id?: string;
+  messageId?: string;
+  shiftPeriod?: string;
+  userId: string;
+  userName: string;
+  createdAt?: string;
+  timestamp: number;
+}
+
 export interface ChatMessageItem {
   id: string;
   senderId: string;
@@ -38,6 +63,10 @@ export interface ChatMessageItem {
     type: "image" | "video" | "audio" | "file";
     encrypted?: boolean;
   };
+  replyTo?: MessageReplyInfo;
+  isHandover?: boolean;
+  handoverData?: HandoverReportData;
+  acknowledgments?: HandoverSignOff[];
 }
 
 export interface ConversationSummary {

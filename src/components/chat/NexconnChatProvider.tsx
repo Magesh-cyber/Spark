@@ -28,10 +28,17 @@ import { createClient } from "@/lib/supabase/client";
 import {
   decodeMediaMessage,
   encodeMediaMessage,
+  encodeRichMessage,
   getMediaKindFromMime,
   getMediaSummaryLabel,
+  getHandoverSummaryLabel,
   type SparkMediaEnvelope,
 } from "@/lib/chat-media-envelope";
+import {
+  acknowledgeShiftHandover,
+  getChannelHandoverAcknowledgments,
+  notifyNewShiftHandover,
+} from "@/lib/actions/chat-handover";
 import type { ReadCursorEntry } from "@/app/api/chat/read-receipts/route";
 import {
   ActiveConversation,
@@ -39,6 +46,9 @@ import {
   ChannelDetailsData,
   ConversationSummary,
   MessageSeenEntry,
+  MessageReplyInfo,
+  HandoverReportData,
+  HandoverSignOff,
 } from "./types";
 
 export interface NexconnChatContextValue {
@@ -54,8 +64,13 @@ export interface NexconnChatContextValue {
   messages: ChatMessageItem[];
   isLoadingMessages: boolean;
   channelDetails: ChannelDetailsData | null;
-  sendMessage: (text: string) => Promise<boolean>;
+  sendMessage: (text: string, replyTo?: MessageReplyInfo, handoverData?: HandoverReportData) => Promise<boolean>;
   sendMedia: (file: File, caption?: string) => Promise<{ success: boolean; error?: string }>;
+  replyingTo: MessageReplyInfo | null;
+  setReplyingTo: (reply: MessageReplyInfo | null) => void;
+  handoverAcks: Record<string, HandoverSignOff[]>;
+  acknowledgeHandover: (messageId: string, shiftPeriod: string, handoverAuthorId?: string) => Promise<boolean>;
+  sendHandoverReport: (data: HandoverReportData) => Promise<boolean>;
   refreshChannels: () => Promise<void>;
   refreshDirectPeers: () => Promise<void>;
   reconnect: () => Promise<void>;
@@ -144,6 +159,9 @@ function parseIncomingContent(msg: any): {
   text: string;
   fileInfo?: ChatMessageItem["fileInfo"];
   summaryText: string;
+  replyTo?: MessageReplyInfo;
+  isHandover?: boolean;
+  handoverData?: HandoverReportData;
 } {
   const rawText = (msg?.content as any)?.text || "";
   const decoded = decodeMediaMessage(rawText);
@@ -160,6 +178,20 @@ function parseIncomingContent(msg: any): {
         encrypted: true,
       },
       summaryText: getMediaSummaryLabel(decoded.media.kind, decoded.text),
+      replyTo: decoded.replyTo,
+      isHandover: Boolean(decoded.handover),
+      handoverData: decoded.handover,
+    };
+  }
+
+  if (decoded.handover) {
+    return {
+      text: decoded.text,
+      fileInfo: undefined,
+      summaryText: getHandoverSummaryLabel(decoded.handover.shiftPeriod),
+      replyTo: decoded.replyTo,
+      isHandover: true,
+      handoverData: decoded.handover,
     };
   }
 
@@ -175,13 +207,19 @@ function parseIncomingContent(msg: any): {
         type,
       },
       summaryText: getMediaSummaryLabel(type, rawText),
+      replyTo: decoded.replyTo,
     };
   }
 
   return {
-    text: rawText,
+    text: decoded.text || rawText,
     fileInfo: undefined,
-    summaryText: rawText,
+    summaryText: decoded.replyTo
+      ? `↩️ Replying to @${decoded.replyTo.senderName}: ${decoded.text || rawText}`
+      : decoded.text || rawText,
+    replyTo: decoded.replyTo,
+    isHandover: Boolean(decoded.handover),
+    handoverData: decoded.handover,
   };
 }
 
@@ -302,6 +340,9 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
   const loadedHistoryKeysRef = useRef<Set<string>>(new Set());
   const channelDetailsCacheRef = useRef<Map<string, ChannelDetailsData>>(new Map());
   const lastTypingSentRef = useRef<number>(0);
+
+  const [replyingTo, setReplyingTo] = useState<MessageReplyInfo | null>(null);
+  const [handoverAcks, setHandoverAcks] = useState<Record<string, HandoverSignOff[]>>({});
 
   const getStoreKey = useCallback(
     (wsId: string, type: "channel" | "direct", targetId: string) => {
@@ -985,6 +1026,9 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
                   channelType: channelType || (convType === "channel" ? 3 : 1),
                   status: isMe ? "sent" : "delivered",
                   fileInfo: parsed.fileInfo,
+                  replyTo: parsed.replyTo,
+                  isHandover: parsed.isHandover,
+                  handoverData: parsed.handoverData,
                 };
 
                 const storeKey = `${msgWsId}:${convKey}`;
@@ -1071,6 +1115,9 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
         syncConversationSummaries();
       } catch (err: any) {
         console.error("[Nexconn Client Connection Error]:", err?.message || err);
+        if (wsId) {
+          clientChatCache.setToken(wsId, null as any);
+        }
         setConnectionError(err.message || "Connection failed.");
         setConnectionStatus("DISCONNECTED");
         setIsReady(false);
@@ -1229,6 +1276,16 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
           return { ...prev, [canonicalKey]: ts };
         });
       })
+      .on("broadcast", { event: "handover_ack" }, ({ payload }: { payload: any }) => {
+        if (!payload?.messageId || !payload?.ack) return;
+        const msgId = String(payload.messageId);
+        const ack = payload.ack as HandoverSignOff;
+        setHandoverAcks((prev) => {
+          const list = prev[msgId] || [];
+          if (list.some((a) => a.userId === ack.userId)) return prev;
+          return { ...prev, [msgId]: [...list, ack] };
+        });
+      })
       .subscribe(async (status) => {
         if (status === "SUBSCRIBED") {
           try {
@@ -1345,6 +1402,21 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
       }));
     }
 
+    setReplyingTo(null);
+
+    if (activeConversation.type === "channel" && activeConversation.id) {
+      getChannelHandoverAcknowledgments(wsId, activeConversation.id)
+        .then((res) => {
+          if (res.acknowledgments) {
+            setHandoverAcks((prev) => ({
+              ...prev,
+              ...res.acknowledgments,
+            }));
+          }
+        })
+        .catch(() => {});
+    }
+
     const cached = conversationsStoreRef.current[storeKey];
     if (cached && cached.length > 0) {
       setRawMessages(cached);
@@ -1433,6 +1505,9 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
               channelType: activeConversation?.type === "channel" ? 3 : 1,
               status: "sent",
               fileInfo: parsed.fileInfo,
+              replyTo: parsed.replyTo,
+              isHandover: parsed.isHandover,
+              handoverData: parsed.handoverData,
             });
           }
 
@@ -1528,7 +1603,11 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
 
   // 8. Send Text Message (tagged with workspaceId for strict multi-org isolation)
   const sendMessage = useCallback(
-    async (text: string): Promise<boolean> => {
+    async (
+      text: string,
+      replyToParam?: MessageReplyInfo,
+      handoverDataParam?: HandoverReportData
+    ): Promise<boolean> => {
       const active = activeConversation;
       const wsId = activeWorkspace?.id;
       if (!active || !wsId || wsId === "personal-fallback" || !text.trim()) return false;
@@ -1544,6 +1623,21 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
         minute: "2-digit",
       });
 
+      const effectiveReplyTo = replyToParam || replyingTo;
+      const effectiveHandover = handoverDataParam;
+
+      let payloadText = trimmedText;
+      if (effectiveReplyTo || effectiveHandover) {
+        payloadText = encodeRichMessage({
+          v: 1,
+          text: trimmedText,
+          replyTo: effectiveReplyTo || undefined,
+          handover: effectiveHandover || undefined,
+        });
+      }
+
+      setReplyingTo(null);
+
       const optimisticMsg: ChatMessageItem = {
         id: optimisticId,
         senderId: myId || "me",
@@ -1555,6 +1649,10 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
         messageType: "RC:TxtMsg",
         channelType: active.type === "channel" ? 3 : 1,
         status: "sending",
+        replyTo: effectiveReplyTo || undefined,
+        isHandover: Boolean(effectiveHandover),
+        handoverData: effectiveHandover || undefined,
+        acknowledgments: [],
       };
 
       setRawMessages((prev) => [...prev, optimisticMsg]);
@@ -1563,9 +1661,15 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
         [storeKey]: [...(prev[storeKey] || []), optimisticMsg],
       }));
 
+      const summaryLabel = effectiveHandover
+        ? getHandoverSummaryLabel(effectiveHandover.shiftPeriod)
+        : effectiveReplyTo
+        ? `↩️ Replying to @${effectiveReplyTo.senderName}: ${trimmedText}`
+        : trimmedText;
+
       updateWorkspaceSummary(wsId, convKey, (prev) => ({
         ...(prev || { unreadCount: 0 }),
-        lastMessageText: trimmedText,
+        lastMessageText: summaryLabel,
         lastMessageTime: timeStr,
         lastMessageTimestamp: now,
         lastSenderId: myId || "me",
@@ -1580,7 +1684,7 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
         } = await import("@nexconn/chat");
 
         const params = new SendTextMessageParams({
-          text: trimmedText,
+          text: payloadText,
           extra: JSON.stringify({ workspaceId: wsId }),
         });
         let sentResult: any = null;
@@ -1639,7 +1743,14 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
         return false;
       }
     },
-    [activeConversation, activeWorkspace?.id, currentUser?.name, getStoreKey, updateWorkspaceSummary]
+    [
+      activeConversation,
+      activeWorkspace?.id,
+      currentUser?.name,
+      getStoreKey,
+      replyingTo,
+      updateWorkspaceSummary,
+    ]
   );
 
   // 9. Send Secure Encrypted Media (bound to exact workspace AND conversation participant/channel!)
@@ -1812,6 +1923,79 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
     [activeConversation, activeWorkspace?.id, currentUser?.name, getStoreKey, updateWorkspaceSummary]
   );
 
+  // 10. Acknowledge Shift Handover
+  const acknowledgeHandover = useCallback(
+    async (messageId: string, shiftPeriod: string, handoverAuthorId?: string): Promise<boolean> => {
+      const wsId = activeWorkspace?.id;
+      const active = activeConvRef.current;
+      if (!wsId || !active || active.type !== "channel" || !messageId) return false;
+
+      const res = await acknowledgeShiftHandover(
+        wsId,
+        active.id,
+        messageId,
+        shiftPeriod,
+        handoverAuthorId
+      );
+
+      if (res.success && res.acknowledgment) {
+        const newAck = res.acknowledgment;
+        setHandoverAcks((prev) => {
+          const list = prev[messageId] || [];
+          if (list.some((a) => a.userId === newAck.userId)) return prev;
+          return { ...prev, [messageId]: [...list, newAck] };
+        });
+
+        if (realtimeChannelRef.current) {
+          try {
+            realtimeChannelRef.current.send({
+              type: "broadcast",
+              event: "handover_ack",
+              payload: { messageId, ack: newAck },
+            });
+          } catch {}
+        }
+        return true;
+      }
+      return false;
+    },
+    [activeWorkspace?.id]
+  );
+
+  // 11. Send Structured Shift Handover Report
+  const sendHandoverReport = useCallback(
+    async (data: HandoverReportData): Promise<boolean> => {
+      const active = activeConvRef.current;
+      const wsId = activeWorkspace?.id;
+      if (!active || active.type !== "channel" || !wsId) return false;
+
+      const summaryText = `📋 Shift Handover Report: ${data.shiftPeriod}`;
+      const sent = await sendMessage(summaryText, undefined, data);
+
+      if (sent) {
+        notifyNewShiftHandover(
+          wsId,
+          active.id,
+          active.name || "Channel",
+          data.shiftPeriod
+        ).catch(() => {});
+      }
+      return sent;
+    },
+    [activeWorkspace?.id, sendMessage]
+  );
+
+  // Auto-reconnect on network restoration
+  useEffect(() => {
+    const handleOnline = () => {
+      if (activeWorkspace?.id && currentUser?.id && connectionStatus !== "CONNECTED") {
+        connectNexconn(true);
+      }
+    };
+    window.addEventListener("online", handleOnline);
+    return () => window.removeEventListener("online", handleOnline);
+  }, [activeWorkspace?.id, currentUser?.id, connectionStatus, connectNexconn]);
+
   // Dynamically enrich active conversation messages with live Pending / Sent / Delivered / Seen receipts
   const messages = useMemo<ChatMessageItem[]>(() => {
     if (!activeConversation) return rawMessages;
@@ -1837,8 +2021,13 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
     );
 
     return rawMessages.map((msg) => {
+      const acksForMsg = handoverAcks[msg.id] || msg.acknowledgments || [];
+
       if (!msg.isMe || msg.status === "sending" || msg.status === "error") {
-        return msg;
+        return {
+          ...msg,
+          acknowledgments: acksForMsg,
+        };
       }
 
       const seenBy: MessageSeenEntry[] = [];
@@ -1852,7 +2041,7 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
       }
 
       if (seenBy.length > 0) {
-        return { ...msg, status: "read", seenBy };
+        return { ...msg, status: "read", seenBy, acknowledgments: acksForMsg };
       }
 
       if (
@@ -1860,10 +2049,10 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
         isDirectPeerOnline ||
         hasOtherOnlineChannelMember
       ) {
-        return { ...msg, status: "delivered", seenBy: [] };
+        return { ...msg, status: "delivered", seenBy: [], acknowledgments: acksForMsg };
       }
 
-      return { ...msg, status: "sent", seenBy: [] };
+      return { ...msg, status: "sent", seenBy: [], acknowledgments: acksForMsg };
     });
   }, [
     activeConversation,
@@ -1874,6 +2063,7 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
     deliveredCursors,
     onlineUserIds,
     resolveSenderName,
+    handoverAcks,
   ]);
 
   const summaries = useMemo<Record<string, ConversationSummary>>(() => {
@@ -1918,6 +2108,11 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
       channelDetails,
       sendMessage,
       sendMedia,
+      replyingTo,
+      setReplyingTo,
+      handoverAcks,
+      acknowledgeHandover,
+      sendHandoverReport,
       refreshChannels: forceRefreshChannels,
       refreshDirectPeers: forceRefreshDirectPeers,
       reconnect: forceReconnect,
@@ -1942,6 +2137,10 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
       channelDetails,
       sendMessage,
       sendMedia,
+      replyingTo,
+      handoverAcks,
+      acknowledgeHandover,
+      sendHandoverReport,
       forceRefreshChannels,
       forceRefreshDirectPeers,
       forceReconnect,

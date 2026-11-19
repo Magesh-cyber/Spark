@@ -592,3 +592,70 @@ export async function joinChannelByCode(rawCode: string): Promise<{
   }
 }
 
+/**
+ * Removes a member from a channel.
+ * Permitted for the channel creator, workspace ADMIN, or workspace OWNER.
+ * Channel creator cannot be removed from their own channel.
+ */
+export async function removeMemberFromChannel(
+  workspaceId: string,
+  channelId: string,
+  targetUserId: string
+): Promise<{ success: boolean; error?: string | null }> {
+  try {
+    const access = await verifyWorkspaceAccess(workspaceId);
+
+    const channel = await prisma.workspaceChatChannel.findUnique({
+      where: { id: channelId },
+      include: { members: true },
+    });
+
+    if (!channel || channel.workspaceId !== access.workspace.id) {
+      return { success: false, error: "Channel not found in this workspace." };
+    }
+
+    if (targetUserId === channel.createdById) {
+      return { success: false, error: "The channel creator cannot be removed from the channel." };
+    }
+
+    const isCreator = channel.createdById === access.user.id;
+    const isWorkspaceAdmin = access.member.role === "ADMIN" || access.member.role === "OWNER";
+    const isSelfLeaving = access.user.id === targetUserId;
+
+    if (!isCreator && !isWorkspaceAdmin && !isSelfLeaving) {
+      return {
+        success: false,
+        error: "You do not have permission to remove members from this channel.",
+      };
+    }
+
+    // Delete channel membership record
+    await prisma.chatChannelMember.deleteMany({
+      where: {
+        channelId,
+        userId: targetUserId,
+      },
+    });
+
+    // Synchronize Nexconn Group
+    try {
+      const remainingMembers = await prisma.chatChannelMember.findMany({
+        where: { channelId },
+        select: { userId: true },
+      });
+      await syncNexconnGroupChannel(
+        channel.nexconnChannelId,
+        channel.name,
+        remainingMembers.map((m) => m.userId)
+      );
+    } catch {
+      // Non-blocking sync
+    }
+
+    revalidatePath("/chat");
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Failed to remove member from channel." };
+  }
+}
+

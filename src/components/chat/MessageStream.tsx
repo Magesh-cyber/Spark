@@ -16,6 +16,8 @@ import {
   ZoomIn,
   Copy,
   Mic,
+  Reply,
+  ClipboardCheck,
 } from "lucide-react";
 import { useNexconnChat } from "./NexconnChatProvider";
 import { ChatMessageItem } from "./types";
@@ -67,6 +69,9 @@ export function MessageStream() {
     isLoadingMessages,
     activeConversation,
     isOtherTyping,
+    setReplyingTo,
+    acknowledgeHandover,
+    currentUserId,
   } = useNexconnChat();
 
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
@@ -270,21 +275,39 @@ export function MessageStream() {
                   )}
 
                   {/* Subtle Hover Action Toolbar (left side for outgoing) */}
-                  {isMe && msg.text && (
-                    <div className="opacity-0 group-hover/msg:opacity-100 transition-opacity duration-150 flex items-center mb-1">
+                  {isMe && (
+                    <div className="opacity-0 group-hover/msg:opacity-100 transition-opacity duration-150 flex items-center gap-1 mb-1">
                       <button
                         type="button"
-                        onClick={() => handleCopyText(msg.id, msg.text)}
+                        onClick={() =>
+                          setReplyingTo({
+                            messageId: msg.id,
+                            senderName: "You",
+                            senderId: msg.senderId,
+                            text: msg.text || (msg.fileInfo ? `[${msg.fileInfo.type}]` : ""),
+                          })
+                        }
                         className="p-1 rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-surface)] text-[var(--spark-text-muted)] hover:text-[var(--spark-accent)] hover:border-[var(--spark-border-strong)] transition-colors duration-150"
-                        title="Copy message"
-                        aria-label="Copy message"
+                        title="Reply in thread"
+                        aria-label="Reply in thread"
                       >
-                        {copiedId === msg.id ? (
-                          <Check className="h-3 w-3 text-[#10B981]" />
-                        ) : (
-                          <Copy className="h-3 w-3" />
-                        )}
+                        <Reply className="h-3 w-3" />
                       </button>
+                      {msg.text && (
+                        <button
+                          type="button"
+                          onClick={() => handleCopyText(msg.id, msg.text)}
+                          className="p-1 rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-surface)] text-[var(--spark-text-muted)] hover:text-[var(--spark-accent)] hover:border-[var(--spark-border-strong)] transition-colors duration-150"
+                          title="Copy message"
+                          aria-label="Copy message"
+                        >
+                          {copiedId === msg.id ? (
+                            <Check className="h-3 w-3 text-[#10B981]" />
+                          ) : (
+                            <Copy className="h-3 w-3" />
+                          )}
+                        </button>
+                      )}
                     </div>
                   )}
 
@@ -301,6 +324,135 @@ export function MessageStream() {
                     {!isMe && isChannel && !isGroupedWithPrev && (
                       <div className="text-[11px] font-semibold text-[var(--spark-accent)] mb-0.5 select-none">
                         {msg.senderName}
+                      </div>
+                    )}
+
+                    {/* Threaded Quoted Parent Message */}
+                    {msg.replyTo && (
+                      <div
+                        className={cn(
+                          "mb-2 px-2.5 py-1.5 rounded-[8px] border-l-2 text-xs select-none transition-colors",
+                          isMe
+                            ? "bg-white/12 border-white/80 text-white"
+                            : "bg-[var(--spark-canvas)] border-[var(--spark-accent)] text-[var(--spark-text-secondary)]"
+                        )}
+                      >
+                        <div className="flex items-center gap-1 font-semibold text-[11px]">
+                          <Reply className="h-3 w-3 shrink-0" />
+                          <span>@{msg.replyTo.senderName}</span>
+                        </div>
+                        <p className="truncate italic text-[11px] opacity-90 mt-0.5">
+                          &quot;{msg.replyTo.text}&quot;
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Shift Handover Report Card */}
+                    {msg.isHandover && msg.handoverData && (
+                      <div
+                        className={cn(
+                          "rounded-[10px] p-3 space-y-2.5 mb-2 border",
+                          isMe
+                            ? "bg-white/10 border-white/20 text-white"
+                            : "bg-[var(--spark-canvas)] border-emerald-500/40 text-[var(--spark-text-primary)]"
+                        )}
+                      >
+                        {/* Header */}
+                        <div className="flex items-center justify-between gap-2 border-b pb-2 border-current/15">
+                          <div className="flex items-center gap-1.5">
+                            <ClipboardCheck className="h-4 w-4 text-emerald-400 shrink-0" />
+                            <span className="font-bold text-[11px] uppercase tracking-wider">
+                              Shift Handover Report
+                            </span>
+                          </div>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                            {msg.handoverData.shiftPeriod}
+                          </span>
+                        </div>
+
+                        {/* Content */}
+                        <div className="space-y-1.5 text-xs">
+                          <div>
+                            <span className="font-semibold block text-[10px] opacity-80 uppercase tracking-wide">
+                              ✅ Completed Work
+                            </span>
+                            <p className="mt-0.5 whitespace-pre-wrap leading-relaxed">
+                              {msg.handoverData.completed}
+                            </p>
+                          </div>
+
+                          {msg.handoverData.inProgress && msg.handoverData.inProgress !== "None" && (
+                            <div>
+                              <span className="font-semibold block text-[10px] opacity-80 uppercase tracking-wide">
+                                🔄 Ongoing / In-Progress
+                              </span>
+                              <p className="mt-0.5 whitespace-pre-wrap leading-relaxed">
+                                {msg.handoverData.inProgress}
+                              </p>
+                            </div>
+                          )}
+
+                          {msg.handoverData.blockers && msg.handoverData.blockers !== "None reported" && (
+                            <div>
+                              <span className="font-semibold block text-[10px] text-amber-300 uppercase tracking-wide">
+                                ⚠️ Blockers / Critical Incidents
+                              </span>
+                              <p className="mt-0.5 whitespace-pre-wrap text-amber-200 leading-relaxed">
+                                {msg.handoverData.blockers}
+                              </p>
+                            </div>
+                          )}
+
+                          <div>
+                            <span className="font-semibold block text-[10px] opacity-80 uppercase tracking-wide">
+                              📋 Instructions for Incoming Shift
+                            </span>
+                            <p className="mt-0.5 whitespace-pre-wrap leading-relaxed">
+                              {msg.handoverData.nextSteps}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Sign-off / Acknowledgment Footer */}
+                        <div className="pt-2 border-t border-current/15">
+                          {msg.acknowledgments && msg.acknowledgments.length > 0 ? (
+                            <div className="space-y-1">
+                              {msg.acknowledgments.map((ack, i) => (
+                                <div
+                                  key={ack.id || `${ack.userId}-${i}`}
+                                  className="flex items-center gap-1.5 text-[11px] text-emerald-400 font-medium"
+                                >
+                                  <CheckCheck className="h-3.5 w-3.5 shrink-0" />
+                                  <span>
+                                    ✓ Handover Acknowledged by <strong>{ack.userName}</strong>
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-between gap-2 pt-0.5">
+                              <span className="text-[10px] opacity-70 italic">
+                                Pending acknowledgment
+                              </span>
+                              {!isMe && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    acknowledgeHandover(
+                                      msg.id,
+                                      msg.handoverData!.shiftPeriod,
+                                      msg.senderId
+                                    )
+                                  }
+                                  className="px-2.5 py-1 rounded-[6px] text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs transition-colors flex items-center gap-1 cursor-pointer"
+                                >
+                                  <Check className="h-3 w-3" />
+                                  Acknowledge Handover
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
 
@@ -444,7 +596,7 @@ export function MessageStream() {
                     )}
 
                     {/* Message Text / Caption */}
-                    {msg.text && (
+                    {msg.text && !msg.isHandover && (
                       <p
                         className={cn(
                           "text-xs sm:text-[13px] leading-relaxed whitespace-pre-wrap break-words",
@@ -501,21 +653,39 @@ export function MessageStream() {
                   </div>
 
                   {/* Subtle Hover Action Toolbar (right side for incoming) */}
-                  {!isMe && msg.text && (
-                    <div className="opacity-0 group-hover/msg:opacity-100 transition-opacity duration-150 flex items-center mb-1">
+                  {!isMe && (
+                    <div className="opacity-0 group-hover/msg:opacity-100 transition-opacity duration-150 flex items-center gap-1 mb-1">
                       <button
                         type="button"
-                        onClick={() => handleCopyText(msg.id, msg.text)}
+                        onClick={() =>
+                          setReplyingTo({
+                            messageId: msg.id,
+                            senderName: msg.senderName,
+                            senderId: msg.senderId,
+                            text: msg.text || (msg.fileInfo ? `[${msg.fileInfo.type}]` : ""),
+                          })
+                        }
                         className="p-1 rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-surface)] text-[var(--spark-text-muted)] hover:text-[var(--spark-accent)] hover:border-[var(--spark-border-strong)] transition-colors duration-150"
-                        title="Copy message"
-                        aria-label="Copy message"
+                        title="Reply in thread"
+                        aria-label="Reply in thread"
                       >
-                        {copiedId === msg.id ? (
-                          <Check className="h-3 w-3 text-[#10B981]" />
-                        ) : (
-                          <Copy className="h-3 w-3" />
-                        )}
+                        <Reply className="h-3 w-3" />
                       </button>
+                      {msg.text && (
+                        <button
+                          type="button"
+                          onClick={() => handleCopyText(msg.id, msg.text)}
+                          className="p-1 rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-surface)] text-[var(--spark-text-muted)] hover:text-[var(--spark-accent)] hover:border-[var(--spark-border-strong)] transition-colors duration-150"
+                          title="Copy message"
+                          aria-label="Copy message"
+                        >
+                          {copiedId === msg.id ? (
+                            <Check className="h-3 w-3 text-[#10B981]" />
+                          ) : (
+                            <Copy className="h-3 w-3" />
+                          )}
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>

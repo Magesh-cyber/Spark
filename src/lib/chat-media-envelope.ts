@@ -1,3 +1,5 @@
+import { MessageReplyInfo, HandoverReportData } from "@/components/chat/types";
+
 export type ChatMediaKind = "image" | "video" | "audio" | "file";
 
 export interface SparkMediaEnvelope {
@@ -12,32 +14,71 @@ export interface SparkMediaEnvelope {
   caption?: string;
 }
 
-const PREFIX = "__SPARK_SECURE_MEDIA_V1__:";
+export interface SparkRichEnvelope {
+  v: 1;
+  text: string;
+  media?: SparkMediaEnvelope;
+  replyTo?: MessageReplyInfo;
+  handover?: HandoverReportData;
+}
+
+const MEDIA_PREFIX = "__SPARK_SECURE_MEDIA_V1__:";
+const ENVELOPE_PREFIX = "__SPARK_ENVELOPE_V1__:";
 
 export function encodeMediaMessage(envelope: SparkMediaEnvelope): string {
-  return `${PREFIX}${JSON.stringify(envelope)}`;
+  return `${MEDIA_PREFIX}${JSON.stringify(envelope)}`;
+}
+
+export function encodeRichMessage(envelope: SparkRichEnvelope): string {
+  return `${ENVELOPE_PREFIX}${JSON.stringify(envelope)}`;
+}
+
+export interface DecodedChatContent {
+  text: string;
+  media: SparkMediaEnvelope | null;
+  replyTo?: MessageReplyInfo;
+  handover?: HandoverReportData;
 }
 
 export function decodeMediaMessage(
   rawText: string | undefined | null
-): { text: string; media: SparkMediaEnvelope | null } {
+): DecodedChatContent {
   if (!rawText || typeof rawText !== "string") {
     return { text: "", media: null };
   }
-  if (!rawText.startsWith(PREFIX)) {
-    return { text: rawText, media: null };
-  }
-  try {
-    const parsed = JSON.parse(rawText.slice(PREFIX.length)) as SparkMediaEnvelope;
-    if (parsed && parsed.v === 1 && parsed.url && parsed.name) {
-      return {
-        text: parsed.caption || "",
-        media: parsed,
-      };
+
+  // 1. Check for modern unified envelope
+  if (rawText.startsWith(ENVELOPE_PREFIX)) {
+    try {
+      const parsed = JSON.parse(rawText.slice(ENVELOPE_PREFIX.length)) as SparkRichEnvelope;
+      if (parsed && parsed.v === 1) {
+        return {
+          text: parsed.text || "",
+          media: parsed.media || null,
+          replyTo: parsed.replyTo,
+          handover: parsed.handover,
+        };
+      }
+    } catch {
+      // Fall back
     }
-  } catch {
-    // Fall back to plain text if malformed
   }
+
+  // 2. Check for legacy media envelope
+  if (rawText.startsWith(MEDIA_PREFIX)) {
+    try {
+      const parsed = JSON.parse(rawText.slice(MEDIA_PREFIX.length)) as SparkMediaEnvelope;
+      if (parsed && parsed.v === 1 && parsed.url && parsed.name) {
+        return {
+          text: parsed.caption || "",
+          media: parsed,
+        };
+      }
+    } catch {
+      // Fall back
+    }
+  }
+
   return { text: rawText, media: null };
 }
 
@@ -59,4 +100,8 @@ export function getMediaSummaryLabel(kind: ChatMediaKind, caption?: string): str
       ? "🎵 Audio"
       : "📎 File";
   return caption ? `${tag}: ${caption}` : tag;
+}
+
+export function getHandoverSummaryLabel(shiftPeriod: string): string {
+  return `📋 Shift Handover: ${shiftPeriod}`;
 }

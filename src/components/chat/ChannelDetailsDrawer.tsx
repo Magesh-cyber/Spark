@@ -2,10 +2,14 @@
 
 import React, { useState } from "react";
 import { Avatar } from "@/components/ui/avatar";
-import { Pin, Trash2, Plus, ExternalLink, KeyRound, Copy, Check } from "lucide-react";
+import { Pin, Trash2, Plus, ExternalLink, KeyRound, Copy, Check, UserMinus } from "lucide-react";
 import { useWorkspace } from "@/lib/workspace-context";
 import { useNexconnChat } from "./NexconnChatProvider";
-import { pinArtifactToChannel, deleteWorkspaceChannel } from "@/lib/actions/chat-channels";
+import {
+  pinArtifactToChannel,
+  deleteWorkspaceChannel,
+  removeMemberFromChannel,
+} from "@/lib/actions/chat-channels";
 
 export function ChannelDetailsDrawer() {
   const { activeWorkspace } = useWorkspace();
@@ -18,10 +22,28 @@ export function ChannelDetailsDrawer() {
   const [isPinning, setIsPinning] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [copiedChannelCode, setCopiedChannelCode] = useState(false);
+  const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
 
   if (!activeConversation) return null;
 
   const isChannel = activeConversation.type === "channel";
+
+  const handleRemoveMember = async (memberId: string, memberName: string) => {
+    if (!activeWorkspace?.id || !channelDetails?.id) return;
+    if (!confirm(`Are you sure you want to remove ${memberName} from #${channelDetails.name}?`)) return;
+
+    try {
+      setRemovingMemberId(memberId);
+      const res = await removeMemberFromChannel(activeWorkspace.id, channelDetails.id, memberId);
+      if (res.success) {
+        await refreshChannels();
+      } else {
+        alert(res.error || "Failed to remove member.");
+      }
+    } finally {
+      setRemovingMemberId(null);
+    }
+  };
 
   const handleAddPin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -144,20 +166,33 @@ export function ChannelDetailsDrawer() {
 
             {/* Other Members */}
             {channelDetails.members.map((member) => (
-              <div key={member.id} className="flex items-center gap-2.5">
-                <Avatar
-                  name={member.fullName}
-                  size="sm"
-                  src={member.avatarUrl || undefined}
-                />
-                <div className="truncate">
-                  <div className="text-xs font-medium text-[var(--spark-text-primary)] truncate">
-                    {member.fullName}
-                  </div>
-                  <div className="text-[10px] text-[var(--spark-text-muted)] truncate">
-                    {member.email}
+              <div key={member.id} className="flex items-center justify-between gap-2 group">
+                <div className="flex items-center gap-2.5 truncate">
+                  <Avatar
+                    name={member.fullName}
+                    size="sm"
+                    src={member.avatarUrl || undefined}
+                  />
+                  <div className="truncate">
+                    <div className="text-xs font-medium text-[var(--spark-text-primary)] truncate">
+                      {member.fullName}
+                    </div>
+                    <div className="text-[10px] text-[var(--spark-text-muted)] truncate">
+                      {member.email}
+                    </div>
                   </div>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleRemoveMember(member.id, member.fullName)}
+                  disabled={removingMemberId === member.id}
+                  className="opacity-0 group-hover:opacity-100 p-1 rounded-[4px] text-[var(--spark-text-muted)] hover:text-rose-600 hover:bg-rose-500/10 transition-all shrink-0 cursor-pointer disabled:opacity-50"
+                  title={`Remove ${member.fullName} from channel`}
+                  aria-label={`Remove ${member.fullName}`}
+                >
+                  <UserMinus className="h-3.5 w-3.5" />
+                </button>
               </div>
             ))}
           </div>
