@@ -22,6 +22,7 @@ export function ChannelSidebar({
     activeConversation,
     setActiveConversation,
     connectionStatus,
+    connectionError,
     isConnecting,
     reconnect,
     summaries,
@@ -307,7 +308,10 @@ export function ChannelSidebar({
 
       {/* Footer Connection Status */}
       <div className="px-3.5 py-2.5 border-t border-[var(--spark-border)] bg-[var(--spark-surface)] flex items-center justify-between text-[11px]">
-        <div className="flex items-center gap-2">
+        <div
+          className="flex items-center gap-2"
+          title={connectionError || undefined}
+        >
           {connectionStatus === "CONNECTED" ? (
             <>
               <span className="h-2 w-2 rounded-full bg-[#10B981] shadow-[0_0_6px_rgba(16,185,129,0.65)]" />

@@ -340,6 +340,8 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
   const loadedHistoryKeysRef = useRef<Set<string>>(new Set());
   const channelDetailsCacheRef = useRef<Map<string, ChannelDetailsData>>(new Map());
   const lastTypingSentRef = useRef<number>(0);
+  const reconnectAttemptsRef = useRef<number>(0);
+  const reconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const [replyingTo, setReplyingTo] = useState<MessageReplyInfo | null>(null);
   const [handoverAcks, setHandoverAcks] = useState<Record<string, HandoverSignOff[]>>({});
@@ -1109,6 +1111,11 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
         }
 
         connectedUserIdRef.current = tokenData.userId;
+        reconnectAttemptsRef.current = 0;
+        if (reconnectTimerRef.current) {
+          clearTimeout(reconnectTimerRef.current);
+          reconnectTimerRef.current = null;
+        }
         setIsReady(true);
         setConnectionStatus("CONNECTED");
 
@@ -1121,6 +1128,23 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
         setConnectionError(err.message || "Connection failed.");
         setConnectionStatus("DISCONNECTED");
         setIsReady(false);
+
+        // Auto-retry with backoff up to 8 times if user is still in this workspace
+        if (
+          reconnectAttemptsRef.current < 8 &&
+          !isAuthPage &&
+          activeWorkspaceIdRef.current === wsId
+        ) {
+          reconnectAttemptsRef.current += 1;
+          const delay = Math.min(
+            1500 * Math.pow(1.4, reconnectAttemptsRef.current),
+            10000
+          );
+          if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+          reconnectTimerRef.current = setTimeout(() => {
+            connectNexconn(true);
+          }, delay);
+        }
       } finally {
         isConnectingRef.current = false;
         setIsConnecting(false);
@@ -2090,7 +2114,18 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
     () => refreshDirectPeers(true),
     [refreshDirectPeers]
   );
-  const forceReconnect = useCallback(() => connectNexconn(true), [connectNexconn]);
+  const forceReconnect = useCallback(async () => {
+    reconnectAttemptsRef.current = 0;
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
+    await Promise.allSettled([
+      refreshChannels(true),
+      refreshDirectPeers(true),
+      connectNexconn(true),
+    ]);
+  }, [refreshChannels, refreshDirectPeers, connectNexconn]);
 
   const contextValue = useMemo<NexconnChatContextValue>(
     () => ({
