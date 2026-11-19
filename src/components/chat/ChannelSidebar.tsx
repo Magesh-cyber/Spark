@@ -315,11 +315,18 @@ export function ChannelSidebar({
                 Nexconn Connected
               </span>
             </>
-          ) : isConnecting ? (
+          ) : connectionStatus === "CONNECTING" || isConnecting ? (
             <>
               <span className="h-2 w-2 rounded-full bg-[#F59E0B] animate-ping" />
               <span className="font-medium text-amber-600 dark:text-amber-400">
                 Connecting...
+              </span>
+            </>
+          ) : connectionStatus === "SUSPENDED" ? (
+            <>
+              <span className="h-2 w-2 rounded-full bg-amber-500" />
+              <span className="font-medium text-amber-600 dark:text-amber-400">
+                Reconnecting...
               </span>
             </>
           ) : (
@@ -332,13 +339,14 @@ export function ChannelSidebar({
           )}
         </div>
 
-        {connectionStatus !== "CONNECTED" && !isConnecting && (
+        {connectionStatus !== "CONNECTED" && (
           <button
             onClick={() => reconnect()}
-            className="p-1 rounded-[6px] text-[var(--spark-text-secondary)] hover:text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface-subtle)] transition-colors duration-150"
+            disabled={isConnecting || connectionStatus === "CONNECTING"}
+            className="p-1 rounded-[6px] text-[var(--spark-text-secondary)] hover:text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface-subtle)] transition-colors duration-150 disabled:opacity-50"
             title="Reconnect"
           >
-            <RefreshCw className="h-3 w-3" />
+            <RefreshCw className={`h-3 w-3 ${isConnecting || connectionStatus === "CONNECTING" ? "animate-spin" : ""}`} />
           </button>
         )}
       </div>

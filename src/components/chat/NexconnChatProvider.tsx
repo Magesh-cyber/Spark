@@ -855,8 +855,22 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
           "spark-connection-handler",
           new ConnectionStatusHandler({
             onConnectionStatusChanged({ status }: { status: any }) {
-              const statusStr = String(status);
-              setConnectionStatus(statusStr === "0" ? "CONNECTED" : statusStr);
+              const code = Number(status);
+              let statusStr = "DISCONNECTED";
+              if (code === 0 || status === "CONNECTED") {
+                statusStr = "CONNECTED";
+              } else if (code === 1 || status === "CONNECTING") {
+                statusStr = "CONNECTING";
+              } else if (code === 3 || status === "SUSPENDED") {
+                statusStr = "SUSPENDED";
+              } else {
+                statusStr = "DISCONNECTED";
+              }
+              setConnectionStatus(statusStr);
+              if (statusStr === "CONNECTED") {
+                setIsReady(true);
+                setConnectionError(null);
+              }
             },
           })
         );
