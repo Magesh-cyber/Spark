@@ -12,6 +12,7 @@ import type {
   WorkspaceMemberItem,
   MembershipStatus,
   User,
+  NotificationItem,
 } from "@/lib/types";
 import type { WorkspaceDashboardData } from "@/lib/actions/dashboard";
 import type { ChatChannelItem } from "@/lib/actions/chat-channels";
@@ -25,6 +26,7 @@ export interface BootstrapPayload {
   members: WorkspaceMemberItem[];
   channels: ChatChannelItem[];
   directPeers: DirectMessagePeerItem[];
+  notifications: NotificationItem[];
   chatToken: {
     token: string;
     userId: string;
@@ -315,6 +317,30 @@ export async function GET(req: NextRequest) {
       avatarUrl: profile?.avatarUrl || authUser.user_metadata?.avatar_url || undefined,
     };
 
+    // Fetch genuine, database-backed notifications for the authenticated user
+    let userNotifications: NotificationItem[] = [];
+    try {
+      const notifRows = await prisma.notification.findMany({
+        where: { userId: authUser.id },
+        orderBy: { createdAt: "desc" },
+        take: 30,
+      });
+      userNotifications = notifRows.map((n) => ({
+        id: n.id,
+        userId: n.userId,
+        workspaceId: n.workspaceId,
+        title: n.title,
+        message: n.message,
+        timestamp: n.createdAt.toISOString(),
+        read: n.isRead,
+        type: n.type as any,
+        link: n.link || undefined,
+        metadata: (n.metadata as Record<string, any>) || null,
+      }));
+    } catch (notifErr) {
+      console.warn("[Bootstrap] Failed to query notifications:", notifErr);
+    }
+
     const payload: BootstrapPayload = {
       user,
       workspaces,
@@ -323,6 +349,7 @@ export async function GET(req: NextRequest) {
       members,
       channels,
       directPeers,
+      notifications: userNotifications,
       chatToken: nexconnTokenResult
         ? {
             token: nexconnTokenResult.token,

@@ -80,12 +80,30 @@ export interface NavItem {
   badgeVariant?: "default" | "subtle" | "warning";
 }
 
+export type NotificationType =
+  | "CHAT_DM"
+  | "CHAT_CHANNEL"
+  | "WORKSPACE_INVITATION"
+  | "MEMBER_JOINED"
+  | "MEETING_SCHEDULED"
+  | "TASK_ASSIGNED"
+  | "TASK_DEADLINE"
+  | "CALENDAR_EVENT"
+  | "SYSTEM"
+  | "mention"
+  | "task"
+  | "meeting"
+  | "system";
+
 export interface NotificationItem {
   id: string;
+  userId?: string;
+  workspaceId?: string | null;
   title: string;
   message: string;
   timestamp: string;
   read: boolean;
-  type: "mention" | "task" | "meeting" | "system";
+  type: NotificationType;
   link?: string;
+  metadata?: Record<string, any> | null;
 }

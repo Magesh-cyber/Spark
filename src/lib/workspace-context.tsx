@@ -14,6 +14,11 @@ import { Workspace, User, NotificationItem } from "./types";
 import { createClient } from "@/lib/supabase/client";
 import { getUserWorkspaces } from "@/lib/actions/workspaces";
 import {
+  getUserNotifications,
+  markNotificationAsRead as markNotificationAsReadServer,
+  markAllNotificationsAsRead as markAllNotificationsAsReadServer,
+} from "@/lib/actions/notifications";
+import {
   prefetchWorkspaceBootstrap,
   subscribeBootstrap,
   getLastBootstrapPayload,
@@ -32,6 +37,8 @@ interface WorkspaceContextType {
   unreadNotificationCount: number;
   markNotificationAsRead: (id: string) => void;
   markAllNotificationsAsRead: () => void;
+  refreshNotifications: () => Promise<void>;
+  addNotification: (item: NotificationItem) => void;
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
   searchModalOpen: boolean;
@@ -130,6 +137,9 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       }
       if (payload.activeWorkspace?.id) {
         setActiveWorkspace(payload.activeWorkspace);
+      }
+      if (Array.isArray(payload.notifications)) {
+        setNotifications(payload.notifications);
       }
     });
   }, []);
@@ -326,15 +336,42 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
   const unreadNotificationCount = notifications.filter((n) => !n.read).length;
 
+  const refreshNotifications = useCallback(async () => {
+    try {
+      const res = await getUserNotifications();
+      if (res.success && res.notifications) {
+        setNotifications(res.notifications);
+      }
+    } catch (err) {
+      console.warn("Failed to refresh notifications:", err);
+    }
+  }, []);
+
+  const addNotification = useCallback((item: NotificationItem) => {
+    setNotifications((prev) => {
+      if (prev.some((n) => n.id === item.id)) return prev;
+      return [item, ...prev];
+    });
+  }, []);
+
   const markNotificationAsRead = useCallback((id: string) => {
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n))
     );
+    markNotificationAsReadServer(id).catch(() => {});
   }, []);
 
   const markAllNotificationsAsRead = useCallback(() => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    markAllNotificationsAsReadServer().catch(() => {});
   }, []);
+
+  // Fetch real notifications whenever active user changes
+  useEffect(() => {
+    if (currentUser?.id) {
+      refreshNotifications();
+    }
+  }, [currentUser?.id, refreshNotifications]);
 
   // Keyboard shortcut listener for Global Search (Cmd+K / Ctrl+K)
   useEffect(() => {
@@ -360,6 +397,8 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       unreadNotificationCount,
       markNotificationAsRead,
       markAllNotificationsAsRead,
+      refreshNotifications,
+      addNotification,
       sidebarOpen,
       setSidebarOpen,
       searchModalOpen,
@@ -378,6 +417,8 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       unreadNotificationCount,
       markNotificationAsRead,
       markAllNotificationsAsRead,
+      refreshNotifications,
+      addNotification,
       sidebarOpen,
       searchModalOpen,
       signOut,

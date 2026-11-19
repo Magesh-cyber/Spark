@@ -114,6 +114,33 @@ export async function inviteWorkspaceMember(
     revalidatePath(`/workspaces/${access.workspace.slug}/members`);
     revalidatePath(`/workspaces/${access.workspace.slug}/invitations`);
 
+    // Create real notification for target user if they already have an account
+    try {
+      const targetUser = await prisma.user.findUnique({
+        where: { email: normalizedEmail },
+        select: { id: true },
+      });
+      if (targetUser) {
+        await prisma.notification.create({
+          data: {
+            userId: targetUser.id,
+            workspaceId: access.workspace.id,
+            type: "WORKSPACE_INVITATION",
+            title: "Workspace Invitation",
+            message: `${invitation.inviter?.fullName || "A team admin"} invited you to join ${access.workspace.name} as ${role}.`,
+            link: `/invitations/accept?token=${rawToken}`,
+            metadata: {
+              invitationId: invitation.id,
+              workspaceId: access.workspace.id,
+              role,
+            },
+          },
+        });
+      }
+    } catch (notifErr) {
+      console.warn("[Invitations] Failed to write invitation notification:", notifErr);
+    }
+
     return {
       success: true,
       error: null,
@@ -386,6 +413,32 @@ export async function acceptWorkspaceInvitation(rawToken: string) {
       await tx.workspaceInvitation.update({
         where: { id: invite.id },
         data: { acceptedAt: new Date() },
+      });
+
+      // Mark the invitation notification as read
+      await tx.notification.updateMany({
+        where: {
+          userId: user.id,
+          workspaceId: invite.workspaceId,
+          type: "WORKSPACE_INVITATION",
+        },
+        data: { isRead: true },
+      });
+
+      // Notify the inviter that the user has joined
+      await tx.notification.create({
+        data: {
+          userId: invite.invitedBy,
+          workspaceId: invite.workspaceId,
+          type: "MEMBER_JOINED",
+          title: "New Team Member",
+          message: `${user.user_metadata?.full_name || user.email} joined ${invite.workspace.name}.`,
+          link: "/teams",
+          metadata: {
+            memberUserId: user.id,
+            workspaceId: invite.workspaceId,
+          },
+        },
       });
     });
 

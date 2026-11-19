@@ -21,6 +21,7 @@ import {
   getWorkspaceDirectMessagePeers,
   getOrCreateDirectConversation,
 } from "@/lib/actions/chat-direct";
+import { recordChatNotification } from "@/lib/actions/notifications";
 import { clientChatCache, clientMembersCache } from "@/lib/client-caches";
 import { subscribeBootstrap } from "@/lib/bootstrap-client";
 import { createClient } from "@/lib/supabase/client";
@@ -216,8 +217,10 @@ function mergeMessages(
 }
 
 export function NexconnChatProvider({ children }: { children: React.ReactNode }) {
-  const { activeWorkspace, currentUser } = useWorkspace();
+  const { activeWorkspace, currentUser, addNotification } = useWorkspace();
   const pathname = usePathname();
+  const addNotificationRef = useRef(addNotification);
+  addNotificationRef.current = addNotification;
 
   const isAuthPage =
     pathname?.startsWith("/auth") || pathname?.startsWith("/invitations/accept");
@@ -1017,6 +1020,21 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
                   emitDeliveryAck(convType, targetId, timestamp);
                   if (isCurrentlyViewing) {
                     emitReadReceipt(convType, targetId, timestamp);
+                  } else {
+                    // Trigger real-time notification in header bell menu
+                    try {
+                      addNotificationRef.current?.({
+                        id: `notif_chat_${formattedMsg.id}`,
+                        userId: myId || undefined,
+                        workspaceId: msgWsId,
+                        title: convType === "direct" ? `Message from ${senderName}` : `#${channelId || "channel"}`,
+                        message: parsed.summaryText || "Sent a message",
+                        timestamp: new Date(timestamp).toISOString(),
+                        read: false,
+                        type: convType === "direct" ? "CHAT_DM" : "CHAT_CHANNEL",
+                        link: "/chat",
+                      });
+                    } catch {}
                   }
                 }
               }
@@ -1575,6 +1593,13 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
           sentResult = res;
 
           getOrCreateDirectConversation(wsId, active.nexconnTargetId).catch(() => {});
+          recordChatNotification({
+            recipientUserId: active.nexconnTargetId,
+            senderName: currentUser.name,
+            workspaceId: wsId,
+            conversationType: "direct",
+            messageText: trimmedText,
+          }).catch(() => {});
         }
 
         const realId = sentResult?.data?.messageId || optimisticId;
@@ -1600,7 +1625,7 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
         return false;
       }
     },
-    [activeConversation, activeWorkspace?.id, getStoreKey, updateWorkspaceSummary]
+    [activeConversation, activeWorkspace?.id, currentUser?.name, getStoreKey, updateWorkspaceSummary]
   );
 
   // 9. Send Secure Encrypted Media (bound to exact workspace AND conversation participant/channel!)
@@ -1712,6 +1737,13 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
           sentResult = res;
 
           getOrCreateDirectConversation(wsId, active.nexconnTargetId).catch(() => {});
+          recordChatNotification({
+            recipientUserId: active.nexconnTargetId,
+            senderName: currentUser.name,
+            workspaceId: wsId,
+            conversationType: "direct",
+            messageText: caption?.trim() || "Sent an encrypted attachment",
+          }).catch(() => {});
         }
 
         const realId = sentResult?.data?.messageId || optimisticId;
@@ -1763,7 +1795,7 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
         };
       }
     },
-    [activeConversation, activeWorkspace?.id, getStoreKey, updateWorkspaceSummary]
+    [activeConversation, activeWorkspace?.id, currentUser?.name, getStoreKey, updateWorkspaceSummary]
   );
 
   // Dynamically enrich active conversation messages with live Pending / Sent / Delivered / Seen receipts

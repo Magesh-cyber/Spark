@@ -164,6 +164,44 @@ export async function createWorkspaceChannel(
       // Non-blocking sync
     }
 
+    // Notify other workspace members about the new channel
+    try {
+      const targetUserIds = type === "PUBLIC"
+        ? (
+            await prisma.workspaceMember.findMany({
+              where: {
+                workspaceId: access.workspace.id,
+                status: "ACTIVE",
+                userId: { not: access.user.id },
+              },
+              select: { userId: true },
+            })
+          ).map((m) => m.userId)
+        : initialMemberIds.filter((uid) => uid !== access.user.id);
+
+      if (targetUserIds.length > 0) {
+        const creatorProfile = await prisma.user.findUnique({
+          where: { id: access.user.id },
+          select: { fullName: true },
+        });
+        const creatorName = creatorProfile?.fullName || access.user.email;
+
+        await prisma.notification.createMany({
+          data: targetUserIds.map((uid) => ({
+            userId: uid,
+            workspaceId: access.workspace.id,
+            type: "CHAT_CHANNEL",
+            title: `#${name} channel created`,
+            message: `${creatorName} created new channel #${name} in ${access.workspace.name}.`,
+            link: "/chat",
+            metadata: { channelId: channel.id, channelName: name, workspaceId: access.workspace.id },
+          })),
+        });
+      }
+    } catch (notifErr) {
+      console.warn("[Channels] Failed to write channel creation notifications:", notifErr);
+    }
+
     revalidatePath("/chat");
 
     return {
