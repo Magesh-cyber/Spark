@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -30,6 +30,8 @@ import {
   RotateCcw,
   Tag,
   AlertTriangle,
+  ArrowUpDown,
+  ChevronDown,
 } from "lucide-react";
 import { ShellLayout } from "@/components/layout/ShellLayout";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -71,6 +73,38 @@ const CATEGORY_PRESETS = [
   "Security & Compliance",
 ];
 
+const SORT_OPTIONS: {
+  key: "NEWEST" | "DUE_DATE" | "PROGRESS" | "NAME";
+  label: string;
+  description: string;
+  icon: any;
+}[] = [
+  {
+    key: "NEWEST",
+    label: "Newest",
+    description: "Recently created initiatives first",
+    icon: Clock,
+  },
+  {
+    key: "DUE_DATE",
+    label: "Target Date",
+    description: "Closest deadlines first",
+    icon: Calendar,
+  },
+  {
+    key: "PROGRESS",
+    label: "Progress %",
+    description: "Highest completion percentage first",
+    icon: TrendingUp,
+  },
+  {
+    key: "NAME",
+    label: "Name (A–Z)",
+    description: "Alphabetical order by name",
+    icon: ArrowUpDown,
+  },
+];
+
 export default function ProjectsPage() {
   const router = useRouter();
   const { activeWorkspace, currentUser } = useWorkspace();
@@ -87,6 +121,23 @@ export default function ProjectsPage() {
   >("ALL");
   const [visibilityFilter, setVisibilityFilter] = useState<"ALL" | "PUBLIC" | "PRIVATE">("ALL");
   const [sortBy, setSortBy] = useState<"NEWEST" | "DUE_DATE" | "PROGRESS" | "NAME">("NEWEST");
+  const [isSortOpen, setIsSortOpen] = useState(false);
+  const sortMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close sort dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (sortMenuRef.current && !sortMenuRef.current.contains(e.target as Node)) {
+        setIsSortOpen(false);
+      }
+    };
+    if (isSortOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isSortOpen]);
 
   // Create Modal State
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -560,17 +611,76 @@ export default function ProjectsPage() {
               ))}
             </div>
 
-            {/* Sort Selector */}
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
-              className="px-2.5 py-1.5 rounded-[7px] border border-[var(--spark-border)] bg-[var(--spark-surface)] text-xs text-[var(--spark-text-secondary)] font-medium focus:outline-none"
-            >
-              <option value="NEWEST">Sort: Newest</option>
-              <option value="DUE_DATE">Sort: Target Date</option>
-              <option value="PROGRESS">Sort: Progress %</option>
-              <option value="NAME">Sort: Name (A-Z)</option>
-            </select>
+            {/* Minimal & Intuitive Sort Dropdown */}
+            <div className="relative" ref={sortMenuRef}>
+              <button
+                type="button"
+                onClick={() => setIsSortOpen((prev) => !prev)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] text-xs font-medium border transition-colors shadow-2xs select-none cursor-pointer ${
+                  sortBy !== "NEWEST"
+                    ? "border-[var(--spark-accent)] bg-[var(--spark-accent)]/10 text-[var(--spark-accent)] font-semibold"
+                    : "border-[var(--spark-border)] bg-[var(--spark-surface)] text-[var(--spark-text-secondary)] hover:text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface-subtle)]"
+                }`}
+                title="Sort projects"
+                aria-expanded={isSortOpen}
+              >
+                <ArrowUpDown className="h-3.5 w-3.5" />
+                <span>Sort: {SORT_OPTIONS.find((s) => s.key === sortBy)?.label}</span>
+                <ChevronDown
+                  className={`h-3 w-3 opacity-60 transition-transform duration-150 ${
+                    isSortOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+
+              {isSortOpen && (
+                <div className="absolute right-0 top-full mt-1.5 w-52 rounded-[10px] border border-[var(--spark-border)] bg-[var(--spark-surface-elevated)] shadow-xl py-1.5 z-40 animate-in fade-in zoom-in-95 text-xs">
+                  <div className="px-3 py-1 text-[10px] font-bold text-[var(--spark-text-muted)] uppercase tracking-wider">
+                    Sort Projects By
+                  </div>
+                  <div className="my-1 border-t border-[var(--spark-border-subtle)]" />
+                  {SORT_OPTIONS.map((opt) => {
+                    const isSelected = sortBy === opt.key;
+                    const Icon = opt.icon;
+
+                    return (
+                      <button
+                        key={opt.key}
+                        type="button"
+                        onClick={() => {
+                          setSortBy(opt.key);
+                          setIsSortOpen(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 flex items-center justify-between transition-colors cursor-pointer ${
+                          isSelected
+                            ? "bg-[var(--spark-accent)]/10 text-[var(--spark-accent)] font-semibold"
+                            : "text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface-subtle)]"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Icon
+                            className={`h-3.5 w-3.5 ${
+                              isSelected
+                                ? "text-[var(--spark-accent)]"
+                                : "text-[var(--spark-text-muted)]"
+                            }`}
+                          />
+                          <div>
+                            <div className="text-xs">{opt.label}</div>
+                            <div className="text-[10px] text-[var(--spark-text-muted)] font-normal">
+                              {opt.description}
+                            </div>
+                          </div>
+                        </div>
+                        {isSelected && (
+                          <Check className="h-3.5 w-3.5 text-[var(--spark-accent)] shrink-0 ml-2" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
