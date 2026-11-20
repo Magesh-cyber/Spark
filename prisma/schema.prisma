@@ -54,6 +54,9 @@ model User {
   projectMemberships ProjectMember[]
   taskActivities  TaskActivity[]
   taskAttachments TaskAttachment[]
+  createdMeetingLinks WorkspaceMeetingLink[] @relation("MeetingLinkCreator")
+  outgoingCalls   WorkspaceCallLog[]    @relation("CallCaller")
+  incomingCalls   WorkspaceCallLog[]    @relation("CallReceiver")
 
   @@map("users")
 }
@@ -86,6 +89,8 @@ model Workspace {
   taskDependencies TaskDependency[]
   milestones  ProjectMilestone[]
   meetings    ScheduledMeeting[]
+  meetingLinks WorkspaceMeetingLink[]
+  callLogs    WorkspaceCallLog[]
   notifications Notification[]
   joinRequests WorkspaceJoinRequest[]
   handoverAcknowledgments ChatHandoverAcknowledgment[]
@@ -539,6 +544,7 @@ model ScheduledMeeting {
   description String?
   startTime   DateTime  @map("start_time")
   endTime     DateTime? @map("end_time")
+  roomCode    String?   @map("room_code")
   createdById String    @map("created_by_id") @db.Uuid
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
@@ -574,5 +580,47 @@ model WorkspaceJoinRequest {
   @@index([workspaceId, status])
   @@index([userId])
   @@map("workspace_join_requests")
+}
+
+model WorkspaceMeetingLink {
+  id          String    @id @default(uuid()) @db.Uuid
+  workspaceId String    @map("workspace_id") @db.Uuid
+  title       String
+  roomCode    String    @map("room_code")
+  createdById String    @map("created_by_id") @db.Uuid
+  isInstant   Boolean   @default(true) @map("is_instant")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  creator     User      @relation("MeetingLinkCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([roomCode])
+  @@map("workspace_meeting_links")
+}
+
+model WorkspaceCallLog {
+  id          String    @id @default(uuid()) @db.Uuid
+  workspaceId String    @map("workspace_id") @db.Uuid
+  callerId    String    @map("caller_id") @db.Uuid
+  receiverId  String?   @map("receiver_id") @db.Uuid
+  roomCode    String    @map("room_code")
+  type        String    @default("VIDEO") // "VOICE" | "VIDEO"
+  status      String    @default("COMPLETED") // "COMPLETED" | "MISSED" | "REJECTED"
+  duration    Int       @default(0) // Duration in seconds
+  startedAt   DateTime  @default(now()) @map("started_at")
+  endedAt     DateTime? @map("ended_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  caller      User      @relation("CallCaller", fields: [callerId], references: [id], onDelete: Cascade)
+  receiver    User?     @relation("CallReceiver", fields: [receiverId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId])
+  @@index([callerId])
+  @@index([receiverId])
+  @@map("workspace_call_logs")
 }
 
