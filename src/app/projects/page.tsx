@@ -76,33 +76,11 @@ const CATEGORY_PRESETS = [
 const SORT_OPTIONS: {
   key: "NEWEST" | "DUE_DATE" | "PROGRESS" | "NAME";
   label: string;
-  description: string;
-  icon: any;
 }[] = [
-  {
-    key: "NEWEST",
-    label: "Newest",
-    description: "Recently created initiatives first",
-    icon: Clock,
-  },
-  {
-    key: "DUE_DATE",
-    label: "Target Date",
-    description: "Closest deadlines first",
-    icon: Calendar,
-  },
-  {
-    key: "PROGRESS",
-    label: "Progress %",
-    description: "Highest completion percentage first",
-    icon: TrendingUp,
-  },
-  {
-    key: "NAME",
-    label: "Name (A–Z)",
-    description: "Alphabetical order by name",
-    icon: ArrowUpDown,
-  },
+  { key: "NEWEST", label: "Newest" },
+  { key: "DUE_DATE", label: "Target Date" },
+  { key: "PROGRESS", label: "Progress %" },
+  { key: "NAME", label: "Name (A–Z)" },
 ];
 
 export default function ProjectsPage() {
@@ -124,8 +102,11 @@ export default function ProjectsPage() {
   const [isSortOpen, setIsSortOpen] = useState(false);
   const sortMenuRef = useRef<HTMLDivElement>(null);
 
-  // Close sort dropdown when clicking outside
+  // Close sort dropdown when clicking outside or pressing Escape
   useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsSortOpen(false);
+    };
     const handleClickOutside = (e: MouseEvent) => {
       if (sortMenuRef.current && !sortMenuRef.current.contains(e.target as Node)) {
         setIsSortOpen(false);
@@ -133,9 +114,11 @@ export default function ProjectsPage() {
     };
     if (isSortOpen) {
       document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("keydown", handleKeyDown);
     }
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
     };
   }, [isSortOpen]);
 
@@ -626,12 +609,12 @@ export default function ProjectsPage() {
               ))}
             </div>
 
-            {/* Minimal & Intuitive Sort Dropdown */}
+            {/* Simplified & Lightweight Sort Dropdown */}
             <div className="relative" ref={sortMenuRef}>
               <button
                 type="button"
                 onClick={() => setIsSortOpen((prev) => !prev)}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] text-xs font-medium border transition-colors shadow-2xs select-none cursor-pointer ${
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[8px] text-xs font-medium border transition-colors shadow-2xs select-none cursor-pointer ${
                   sortBy !== "NEWEST"
                     ? "border-[var(--spark-accent)] bg-[var(--spark-accent)]/10 text-[var(--spark-accent)] font-semibold"
                     : "border-[var(--spark-border)] bg-[var(--spark-surface)] text-[var(--spark-text-secondary)] hover:text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface-subtle)]"
@@ -639,7 +622,7 @@ export default function ProjectsPage() {
                 title="Sort projects"
                 aria-expanded={isSortOpen}
               >
-                <ArrowUpDown className="h-3.5 w-3.5" />
+                <ArrowUpDown className="h-3.5 w-3.5 opacity-70" />
                 <span>Sort: {SORT_OPTIONS.find((s) => s.key === sortBy)?.label}</span>
                 <ChevronDown
                   className={`h-3 w-3 opacity-60 transition-transform duration-150 ${
@@ -649,14 +632,9 @@ export default function ProjectsPage() {
               </button>
 
               {isSortOpen && (
-                <div className="absolute right-0 top-full mt-1.5 w-52 rounded-[10px] border border-[var(--spark-border)] bg-[var(--spark-surface-elevated)] shadow-xl py-1.5 z-40 animate-in fade-in zoom-in-95 text-xs">
-                  <div className="px-3 py-1 text-[10px] font-bold text-[var(--spark-text-muted)] uppercase tracking-wider">
-                    Sort Projects By
-                  </div>
-                  <div className="my-1 border-t border-[var(--spark-border-subtle)]" />
+                <div className="absolute right-0 top-full mt-1 w-36 rounded-[8px] border border-[var(--spark-border)] bg-[var(--spark-surface-elevated)] shadow-lg py-1 z-40 animate-in fade-in zoom-in-95 text-xs">
                   {SORT_OPTIONS.map((opt) => {
                     const isSelected = sortBy === opt.key;
-                    const Icon = opt.icon;
 
                     return (
                       <button
@@ -666,29 +644,15 @@ export default function ProjectsPage() {
                           setSortBy(opt.key);
                           setIsSortOpen(false);
                         }}
-                        className={`w-full text-left px-3 py-2 flex items-center justify-between transition-colors cursor-pointer ${
+                        className={`w-full text-left px-3 py-1.5 flex items-center justify-between transition-colors cursor-pointer ${
                           isSelected
                             ? "bg-[var(--spark-accent)]/10 text-[var(--spark-accent)] font-semibold"
                             : "text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface-subtle)]"
                         }`}
                       >
-                        <div className="flex items-center gap-2">
-                          <Icon
-                            className={`h-3.5 w-3.5 ${
-                              isSelected
-                                ? "text-[var(--spark-accent)]"
-                                : "text-[var(--spark-text-muted)]"
-                            }`}
-                          />
-                          <div>
-                            <div className="text-xs">{opt.label}</div>
-                            <div className="text-[10px] text-[var(--spark-text-muted)] font-normal">
-                              {opt.description}
-                            </div>
-                          </div>
-                        </div>
+                        <span>{opt.label}</span>
                         {isSelected && (
-                          <Check className="h-3.5 w-3.5 text-[var(--spark-accent)] shrink-0 ml-2" />
+                          <Check className="h-3.5 w-3.5 text-[var(--spark-accent)] shrink-0 ml-1.5" />
                         )}
                       </button>
                     );
