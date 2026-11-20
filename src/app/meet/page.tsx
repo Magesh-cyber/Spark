@@ -472,11 +472,11 @@ function MeetPageContent() {
                 <span>Start Instant Meeting</span>
               </button>
 
-              {/* Nexconn SDK Status Card */}
+              {/* Supabase Realtime WebRTC Status Card */}
               <div className="rounded-[8px] bg-[var(--spark-canvas)] p-2.5 border border-[var(--spark-border)] flex items-center justify-between text-[11px]">
                 <div className="flex items-center gap-2">
                   <ShieldCheck className="h-3.5 w-3.5 text-purple-500" />
-                  <span className="text-[var(--spark-text-secondary)]">Nexconn VoIP Engine</span>
+                  <span className="text-[var(--spark-text-secondary)]">Supabase WebRTC P2P</span>
                 </div>
                 <span className="text-emerald-500 font-medium">Active</span>
               </div>
