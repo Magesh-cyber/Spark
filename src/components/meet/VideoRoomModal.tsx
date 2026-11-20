@@ -771,25 +771,23 @@ export function VideoRoomModal({
           </p>
 
           <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              size="md"
+            <button
+              type="button"
               onClick={handleRejoin}
-              className="border-[#5f6368] text-white hover:bg-[#303134] rounded-full px-6 text-sm h-11"
+              className="border border-[#5f6368] text-[#8ab4f8] hover:bg-[#8ab4f8]/10 bg-transparent rounded-full px-6 text-sm h-11 font-medium flex items-center justify-center transition-colors"
             >
-              <RotateCcw className="h-4 w-4 mr-2" />
-              Rejoin
-            </Button>
+              <RotateCcw className="h-4 w-4 mr-2 text-[#8ab4f8]" />
+              <span>Rejoin</span>
+            </button>
 
-            <Button
-              variant="primary"
-              size="md"
+            <button
+              type="button"
               onClick={handleReturnHome}
-              className="bg-[#1a73e8] hover:bg-[#1557b0] text-white rounded-full px-6 text-sm h-11"
+              className="bg-[#1a73e8] hover:bg-[#1557b0] text-white rounded-full px-6 text-sm h-11 font-medium flex items-center justify-center transition-colors shadow-sm"
             >
-              <Home className="h-4 w-4 mr-2" />
-              Return to home screen
-            </Button>
+              <Home className="h-4 w-4 mr-2 text-white" />
+              <span>Return to home screen</span>
+            </button>
           </div>
         </div>
       </div>

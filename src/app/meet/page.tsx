@@ -153,17 +153,12 @@ function MeetPageContent() {
     setTimeout(() => setCopiedKey(null), 2000);
   };
 
-  // Launch direct 1-on-1 call (3-4-3 room code)
+  // Launch direct 1-on-1 call: redirect immediately to direct messages with the user
   const startDirectCall = (
     targetUser: { id: string; fullName: string; email?: string; avatarUrl?: string | null },
     type: "VOICE" | "VIDEO"
   ) => {
-    const code = generateRoomCode();
-    setCurrentRoomCode(code);
-    setCurrentRoomTitle(`Call with ${targetUser.fullName}`);
-    setCurrentCallType(type);
-    setCurrentReceiver(targetUser);
-    setIsRoomOpen(true);
+    router.push(`/chat?dm=${encodeURIComponent(targetUser.id)}&call=${type.toLowerCase()}`);
   };
 
   // Launch instant meeting (3-4-3 room code)
@@ -654,10 +649,15 @@ function MeetPageContent() {
                                 size="sm"
                                 className="h-7 px-2 text-xs"
                                 onClick={() => {
-                                  setCurrentRoomCode(log.roomCode);
-                                  setCurrentRoomTitle(`Call | ${log.roomCode}`);
-                                  setCurrentCallType(log.type);
-                                  setIsRoomOpen(true);
+                                  const targetPeerId = isCaller ? log.receiverId : log.callerId;
+                                  if (targetPeerId) {
+                                    router.push(`/chat?dm=${encodeURIComponent(targetPeerId)}&call=${log.type.toLowerCase()}`);
+                                  } else {
+                                    setCurrentRoomCode(log.roomCode);
+                                    setCurrentRoomTitle(`Call | ${log.roomCode}`);
+                                    setCurrentCallType(log.type);
+                                    setIsRoomOpen(true);
+                                  }
                                 }}
                               >
                                 Call back

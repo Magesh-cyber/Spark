@@ -6,6 +6,7 @@ import { AppSidebar } from "./AppSidebar";
 import { AppHeader } from "./AppHeader";
 import { GlobalSearchModal } from "./GlobalSearchModal";
 import { TopProgressBar } from "./TopProgressBar";
+import { IncomingCallDialog } from "@/components/chat/IncomingCallDialog";
 import { cn } from "@/lib/utils";
 
 export const ShellLayoutContext = createContext<boolean>(false);
@@ -59,6 +60,9 @@ export const ShellLayout: React.FC<ShellLayoutProps> = ({ children }) => {
 
         {/* Global Quick Search Modal (Cmd+K / Ctrl+K) */}
         <GlobalSearchModal />
+
+        {/* Global 1-on-1 Incoming Call Dialog */}
+        <IncomingCallDialog />
       </div>
     </ShellLayoutContext.Provider>
   );

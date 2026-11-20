@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Hash, Lock, Info, Users, ArrowLeft, Sparkles } from "lucide-react";
+import { Hash, Lock, Info, Users, ArrowLeft, Sparkles, Phone, Video } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { useNexconnChat } from "./NexconnChatProvider";
 import { useWorkspace } from "@/lib/workspace-context";
@@ -13,12 +13,14 @@ interface ConversationHeaderProps {
   showRightPanel: boolean;
   onToggleRightPanel: () => void;
   onBackToList?: () => void;
+  onStartCall?: (type: "VOICE" | "VIDEO") => void;
 }
 
 export function ConversationHeader({
   showRightPanel,
   onToggleRightPanel,
   onBackToList,
+  onStartCall,
 }: ConversationHeaderProps) {
   const { activeConversation, channelDetails, onlineUserIds, messages, summaries } = useNexconnChat();
   const { currentUser } = useWorkspace();
@@ -160,6 +162,30 @@ export function ConversationHeader({
             <div className="hidden sm:flex items-center gap-1.5 rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] px-2.5 py-1 text-[11px] text-[var(--spark-text-secondary)] font-medium">
               <Users className="h-3.5 w-3.5 text-[var(--spark-accent)]" />
               <span>{channelDetails.members.length + 1} members</span>
+            </div>
+          )}
+
+          {/* 1-on-1 Direct Call Action Buttons */}
+          {!isChannel && onStartCall && (
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => onStartCall("VOICE")}
+                className="p-1.5 rounded-[6px] text-[var(--spark-text-secondary)] hover:bg-[var(--spark-surface-subtle)] hover:text-[var(--spark-text-primary)] transition-colors duration-150"
+                title="Start Voice Call"
+                aria-label="Start Voice Call"
+              >
+                <Phone className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => onStartCall("VIDEO")}
+                className="p-1.5 rounded-[6px] text-[var(--spark-text-secondary)] hover:bg-[var(--spark-surface-subtle)] hover:text-[var(--spark-text-primary)] transition-colors duration-150"
+                title="Start Video Call"
+                aria-label="Start Video Call"
+              >
+                <Video className="h-4 w-4" />
+              </button>
             </div>
           )}
 
