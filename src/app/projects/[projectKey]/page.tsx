@@ -36,6 +36,7 @@ import {
   Edit,
   Tag,
   Share2,
+  X,
 } from "lucide-react";
 import { ShellLayout } from "@/components/layout/ShellLayout";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -121,11 +122,17 @@ function ProjectDetailsContent() {
   // Modals
   const [isCreateIssueOpen, setIsCreateIssueOpen] = useState(false);
   const [newIssueTitle, setNewIssueTitle] = useState("");
+  const [newIssueDescription, setNewIssueDescription] = useState("");
   const [newIssueType, setNewIssueType] = useState<WorkItemType>("TASK");
   const [newIssuePriority, setNewIssuePriority] = useState<TaskRecordItem["priority"]>("MEDIUM");
+  const [newIssueStatus, setNewIssueStatus] = useState<TaskRecordItem["status"]>("TODO");
+  const [newIssueStoryPoints, setNewIssueStoryPoints] = useState<number | "">("");
   const [newIssueAssigneeId, setNewIssueAssigneeId] = useState("");
+  const [newIssueStartDate, setNewIssueStartDate] = useState("");
   const [newIssueDueDate, setNewIssueDueDate] = useState("");
   const [newIssueSprintId, setNewIssueSprintId] = useState("");
+  const [newIssueLabels, setNewIssueLabels] = useState("");
+  const [issueFormError, setIssueFormError] = useState("");
   const [isSubmittingIssue, setIsSubmittingIssue] = useState(false);
 
   // Milestone creation
@@ -221,32 +228,58 @@ function ProjectDetailsContent() {
 
   const handleCreateIssue = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newIssueTitle.trim() || !project) return;
+    if (!newIssueTitle.trim() || !project) {
+      setIssueFormError("Issue summary is required.");
+      return;
+    }
     setIsSubmittingIssue(true);
+    setIssueFormError("");
+
+    const labels = newIssueLabels
+      .split(",")
+      .map((l) => l.trim())
+      .filter(Boolean);
 
     try {
       const res = await createWorkspaceTask({
         workspaceId: project.workspaceId,
         projectId: project.id,
         title: newIssueTitle.trim(),
+        description: newIssueDescription.trim() || undefined,
         type: newIssueType,
+        status: newIssueStatus,
         priority: newIssuePriority,
-        assigneeId: newIssueAssigneeId || undefined,
+        storyPoints: newIssueStoryPoints === "" ? undefined : Number(newIssueStoryPoints),
+        startDate: newIssueStartDate || undefined,
         dueDate: newIssueDueDate || undefined,
+        assigneeId: newIssueAssigneeId || undefined,
         sprintId: newIssueSprintId || undefined,
+        labels: labels.length > 0 ? labels : undefined,
       });
 
-      if (res.success && res.task) {
+      if (!res.success) {
+        setIssueFormError(res.error || "Failed to create issue.");
+      } else if (res.task) {
         setTasks((prev) => [res.task!, ...prev]);
         setIsCreateIssueOpen(false);
         setNewIssueTitle("");
-        setNewIssueAssigneeId("");
+        setNewIssueDescription("");
+        setNewIssueType("TASK");
+        setNewIssueStatus("TODO");
+        setNewIssuePriority("MEDIUM");
+        setNewIssueStoryPoints("");
+        setNewIssueStartDate("");
         setNewIssueDueDate("");
+        setNewIssueAssigneeId("");
         setNewIssueSprintId("");
+        setNewIssueLabels("");
+        setIssueFormError("");
 
         const refreshed = await getProjectByKey(project.workspaceId, project.key);
         if (refreshed.project) setProject(refreshed.project);
       }
+    } catch {
+      setIssueFormError("An unexpected error occurred while creating issue.");
     } finally {
       setIsSubmittingIssue(false);
     }
@@ -1243,43 +1276,93 @@ function ProjectDetailsContent() {
 
       {/* Create Issue Modal */}
       {isCreateIssueOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
-          <div className="w-full max-w-lg rounded-[12px] bg-[var(--spark-surface)] border border-[var(--spark-border)] shadow-xl p-5 space-y-4 text-xs">
-            <h3 className="text-sm font-bold text-[var(--spark-text-primary)]">Add Issue to [{project.key}]</h3>
-            <form onSubmit={handleCreateIssue} className="space-y-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-[12px] bg-[var(--spark-surface)] border border-[var(--spark-border)] shadow-2xl p-6 space-y-4 text-xs animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-[var(--spark-border)] pb-3">
+              <div className="flex items-center gap-2">
+                <span
+                  className="px-2 py-0.5 rounded text-[10px] font-mono font-bold text-white uppercase shadow-2xs"
+                  style={{ backgroundColor: project.color || "#7C3AED" }}
+                >
+                  {project.key}
+                </span>
+                <h3 className="text-sm font-bold text-[var(--spark-text-primary)]">
+                  Add Issue to [{project.key}]
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCreateIssueOpen(false)}
+                className="text-[var(--spark-text-muted)] hover:text-[var(--spark-text-primary)] transition cursor-pointer p-1 rounded"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {issueFormError && (
+              <div className="p-3 rounded-[8px] bg-rose-500/10 border border-rose-500/20 text-xs text-rose-600 dark:text-rose-400 flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>{issueFormError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleCreateIssue} className="space-y-3.5">
+              {/* Summary */}
               <div>
-                <label className="block font-semibold mb-1">Summary *</label>
+                <label className="block text-[11px] font-semibold text-[var(--spark-text-secondary)] mb-1">
+                  Summary / Title <span className="text-rose-500">*</span>
+                </label>
                 <input
                   type="text"
                   required
-                  placeholder="Issue title"
+                  placeholder="e.g. Implement OAuth2 Session Refresh Strategy"
                   value={newIssueTitle}
                   onChange={(e) => setNewIssueTitle(e.target.value)}
-                  className="w-full px-3 py-1.5 rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] focus:outline-none"
+                  className="w-full px-3 py-2 rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] text-xs text-[var(--spark-text-primary)] focus:outline-none focus:border-[var(--spark-accent)] font-medium"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              {/* Description */}
+              <div>
+                <label className="block text-[11px] font-semibold text-[var(--spark-text-secondary)] mb-1">
+                  Description / Acceptance Criteria
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="User story narrative, technical specs, or reproduction steps..."
+                  value={newIssueDescription}
+                  onChange={(e) => setNewIssueDescription(e.target.value)}
+                  className="w-full px-3 py-2 rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] text-xs text-[var(--spark-text-primary)] focus:outline-none focus:border-[var(--spark-accent)] resize-y"
+                />
+              </div>
+
+              {/* Type, Priority, Status */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">Type</label>
+                  <label className="block text-[11px] font-semibold text-[var(--spark-text-secondary)] mb-1">
+                    Issue Type
+                  </label>
                   <select
                     value={newIssueType}
                     onChange={(e) => setNewIssueType(e.target.value as any)}
-                    className="w-full px-3 py-1.5 rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] focus:outline-none"
+                    className="w-full px-2.5 py-1.5 rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] text-xs text-[var(--spark-text-primary)] font-medium focus:outline-none focus:border-[var(--spark-accent)]"
                   >
-                    <option value="TASK">Task</option>
-                    <option value="BUG">Bug</option>
-                    <option value="STORY">Story</option>
-                    <option value="EPIC">Epic</option>
-                    <option value="SUBTASK">Subtask</option>
+                    <option value="TASK">Task (Deliverable)</option>
+                    <option value="BUG">Bug (Defect)</option>
+                    <option value="STORY">Story (User Feature)</option>
+                    <option value="EPIC">Epic (Initiative)</option>
+                    <option value="SUBTASK">Subtask (Step)</option>
                   </select>
                 </div>
+
                 <div>
-                  <label className="block font-semibold mb-1">Priority</label>
+                  <label className="block text-[11px] font-semibold text-[var(--spark-text-secondary)] mb-1">
+                    Priority
+                  </label>
                   <select
                     value={newIssuePriority}
                     onChange={(e) => setNewIssuePriority(e.target.value as any)}
-                    className="w-full px-3 py-1.5 rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] focus:outline-none"
+                    className="w-full px-2.5 py-1.5 rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] text-xs text-[var(--spark-text-primary)] font-medium focus:outline-none focus:border-[var(--spark-accent)]"
                   >
                     <option value="LOW">Low</option>
                     <option value="MEDIUM">Medium</option>
@@ -1287,15 +1370,35 @@ function ProjectDetailsContent() {
                     <option value="URGENT">Urgent / Critical</option>
                   </select>
                 </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-[var(--spark-text-secondary)] mb-1">
+                    Initial Status
+                  </label>
+                  <select
+                    value={newIssueStatus}
+                    onChange={(e) => setNewIssueStatus(e.target.value as any)}
+                    className="w-full px-2.5 py-1.5 rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] text-xs text-[var(--spark-text-primary)] font-medium focus:outline-none focus:border-[var(--spark-accent)]"
+                  >
+                    <option value="BACKLOG">Backlog</option>
+                    <option value="TODO">To Do</option>
+                    <option value="IN_PROGRESS">In Progress</option>
+                    <option value="IN_REVIEW">In Review</option>
+                    <option value="DONE">Done</option>
+                  </select>
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              {/* Assignee, Sprint, Story Points */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">Assignee</label>
+                  <label className="block text-[11px] font-semibold text-[var(--spark-text-secondary)] mb-1">
+                    Assignee
+                  </label>
                   <select
                     value={newIssueAssigneeId}
                     onChange={(e) => setNewIssueAssigneeId(e.target.value)}
-                    className="w-full px-3 py-1.5 rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] focus:outline-none"
+                    className="w-full px-2.5 py-1.5 rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] text-xs text-[var(--spark-text-primary)] focus:outline-none focus:border-[var(--spark-accent)]"
                   >
                     <option value="">Unassigned</option>
                     {eligibleAssignees.map((m) => (
@@ -1312,20 +1415,105 @@ function ProjectDetailsContent() {
                     </span>
                   )}
                 </div>
+
                 <div>
-                  <label className="block font-semibold mb-1">Due Date</label>
+                  <label className="block text-[11px] font-semibold text-[var(--spark-text-secondary)] mb-1">
+                    Sprint
+                  </label>
+                  <select
+                    value={newIssueSprintId}
+                    onChange={(e) => setNewIssueSprintId(e.target.value)}
+                    className="w-full px-2.5 py-1.5 rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] text-xs text-[var(--spark-text-primary)] focus:outline-none focus:border-[var(--spark-accent)]"
+                  >
+                    <option value="">No Sprint (Backlog)</option>
+                    {project.sprints?.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} ({s.status})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-[var(--spark-text-secondary)] mb-1">
+                    Story Points (Fibonacci)
+                  </label>
+                  <select
+                    value={newIssueStoryPoints}
+                    onChange={(e) =>
+                      setNewIssueStoryPoints(e.target.value === "" ? "" : Number(e.target.value))
+                    }
+                    className="w-full px-2.5 py-1.5 rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] text-xs text-[var(--spark-text-primary)] focus:outline-none focus:border-[var(--spark-accent)]"
+                  >
+                    <option value="">None (Unestimated)</option>
+                    <option value="1">1 pt</option>
+                    <option value="2">2 pts</option>
+                    <option value="3">3 pts</option>
+                    <option value="5">5 pts</option>
+                    <option value="8">8 pts</option>
+                    <option value="13">13 pts</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Start Date & Due Date */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-[var(--spark-text-secondary)] mb-1">
+                    Start Date
+                  </label>
+                  <input
+                    type="date"
+                    value={newIssueStartDate}
+                    onChange={(e) => setNewIssueStartDate(e.target.value)}
+                    className="w-full px-2.5 py-1.5 rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] text-xs text-[var(--spark-text-primary)] focus:outline-none focus:border-[var(--spark-accent)]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-[var(--spark-text-secondary)] mb-1">
+                    Target / Due Date
+                  </label>
                   <input
                     type="date"
                     value={newIssueDueDate}
                     onChange={(e) => setNewIssueDueDate(e.target.value)}
-                    className="w-full px-3 py-1.5 rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] focus:outline-none"
+                    className="w-full px-2.5 py-1.5 rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] text-xs text-[var(--spark-text-primary)] focus:outline-none focus:border-[var(--spark-accent)]"
                   />
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-2 border-t border-[var(--spark-border)]">
-                <Button type="button" variant="outline" size="sm" onClick={() => setIsCreateIssueOpen(false)}>Cancel</Button>
-                <Button type="submit" variant="primary" size="sm" disabled={isSubmittingIssue}>Create</Button>
+              {/* Labels */}
+              <div>
+                <label className="block text-[11px] font-semibold text-[var(--spark-text-secondary)] mb-1">
+                  Labels (Comma separated)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. backend, security, api"
+                  value={newIssueLabels}
+                  onChange={(e) => setNewIssueLabels(e.target.value)}
+                  className="w-full px-2.5 py-1.5 rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] text-xs text-[var(--spark-text-primary)] focus:outline-none focus:border-[var(--spark-accent)]"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-[var(--spark-border)]">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsCreateIssueOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="sm"
+                  disabled={isSubmittingIssue || !newIssueTitle.trim()}
+                >
+                  {isSubmittingIssue ? "Creating..." : "Create Work Item"}
+                </Button>
               </div>
             </form>
           </div>

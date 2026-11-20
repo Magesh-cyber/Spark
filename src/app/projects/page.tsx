@@ -707,7 +707,8 @@ export default function ProjectsPage() {
               return (
                 <div
                   key={p.id}
-                  className={`group relative rounded-[12px] border border-[var(--spark-border)] bg-[var(--spark-surface)] hover:border-[var(--spark-accent)]/60 hover:shadow-md transition-all duration-200 flex flex-col justify-between ${
+                  onClick={() => router.push(`/projects/${p.key}`)}
+                  className={`group relative rounded-[12px] border border-[var(--spark-border)] bg-[var(--spark-surface)] hover:border-[var(--spark-accent)] hover:shadow-lg transition-all duration-200 flex flex-col justify-between cursor-pointer ${
                     activeMenuId === p.id ? "z-30" : "z-10"
                   }`}
                 >
@@ -788,12 +789,13 @@ export default function ProjectsPage() {
                         </div>
 
                         {/* Dropdown menu */}
-                        <div className="relative" data-project-menu>
+                        <div className="relative" data-project-menu onClick={(e) => e.stopPropagation()}>
                           <button
                             type="button"
-                            onClick={() =>
-                              setActiveMenuId((prev) => (prev === p.id ? null : p.id))
-                            }
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveMenuId((prev) => (prev === p.id ? null : p.id));
+                            }}
                             className="p-1 rounded-[6px] text-[var(--spark-text-muted)] hover:text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface-subtle)] transition cursor-pointer"
                           >
                             <MoreVertical className="h-4 w-4" />
@@ -872,12 +874,10 @@ export default function ProjectsPage() {
                         </div>
                       </div>
 
-                      {/* Project Title & Link to dedicated Project Hub */}
-                      <Link href={`/projects/${p.key}`}>
-                        <h3 className="text-base font-bold text-[var(--spark-text-primary)] hover:text-[var(--spark-accent)] transition-colors line-clamp-1 cursor-pointer">
-                          {p.name}
-                        </h3>
-                      </Link>
+                      {/* Project Title */}
+                      <h3 className="text-base font-bold text-[var(--spark-text-primary)] group-hover:text-[var(--spark-accent)] transition-colors line-clamp-1">
+                        {p.name}
+                      </h3>
                       <p className="mt-1 text-xs text-[var(--spark-text-secondary)] line-clamp-2 min-h-[2rem]">
                         {p.description || "No description provided for this initiative."}
                       </p>
@@ -955,20 +955,14 @@ export default function ProjectsPage() {
 
                   {/* Card Footer Actions */}
                   <div className="px-5 py-3 bg-[var(--spark-surface-subtle)] border-t border-[var(--spark-border)] rounded-b-[12px] flex items-center justify-between">
-                    <Link
-                      href={`/projects/${p.key}`}
-                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--spark-accent)] hover:text-[var(--spark-accent-hover)] transition-colors"
-                    >
+                    <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--spark-accent)] group-hover:text-[var(--spark-accent-hover)] transition-colors">
                       <span>Project Hub</span>
-                      <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
-                    </Link>
+                      <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-1 transition-transform" />
+                    </div>
 
-                    <Link
-                      href={`/projects/${p.key}?tab=work-items`}
-                      className="text-xs text-[var(--spark-text-secondary)] hover:text-[var(--spark-text-primary)] font-medium"
-                    >
-                      Kanban Board
-                    </Link>
+                    <span className="text-[11px] text-[var(--spark-text-muted)] font-medium">
+                      {p.taskStats.total} {p.taskStats.total === 1 ? "work item" : "work items"}
+                    </span>
                   </div>
                 </div>
               );
