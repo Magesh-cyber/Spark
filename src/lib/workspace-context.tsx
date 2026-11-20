@@ -174,10 +174,10 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
           if (found) {
             setActiveWorkspace(found);
           } else {
-            const personal = res.workspaces.find(
-              (w) => w.type === "personal" || w.type === "PERSONAL"
+            const team = res.workspaces.find(
+              (w) => w.type !== "personal" && w.type !== "PERSONAL"
             );
-            setActiveWorkspace(personal || res.workspaces[0]);
+            setActiveWorkspace(team || res.workspaces[0]);
           }
         }
       } catch (err) {

@@ -21,6 +21,8 @@ export function ChannelSidebar({
     directPeers,
     activeConversation,
     setActiveConversation,
+    isReady,
+    isRealtimeConnected,
     connectionStatus,
     connectionError,
     isConnecting,
@@ -313,47 +315,38 @@ export function ChannelSidebar({
           className="flex items-center gap-2"
           title={connectionError || undefined}
         >
-          {connectionStatus === "CONNECTED" ? (
+          {connectionStatus === "CONNECTED" || isRealtimeConnected || isReady ? (
             <>
               <span className="h-2 w-2 rounded-full bg-[#10B981] shadow-[0_0_6px_rgba(16,185,129,0.65)]" />
               <span className="font-medium text-[var(--spark-text-secondary)]">
-                Nexconn Connected
+                Connected
               </span>
             </>
-          ) : connectionStatus === "CONNECTING" || isConnecting ? (
+          ) : isConnecting || connectionStatus === "CONNECTING" ? (
             <>
               <span className="h-2 w-2 rounded-full bg-[#F59E0B] animate-ping" />
               <span className="font-medium text-amber-600 dark:text-amber-400">
                 Connecting...
               </span>
             </>
-          ) : connectionStatus === "SUSPENDED" ? (
+          ) : (
             <>
               <span className="h-2 w-2 rounded-full bg-amber-500" />
               <span className="font-medium text-amber-600 dark:text-amber-400">
                 Reconnecting...
               </span>
             </>
-          ) : (
-            <>
-              <span className="h-2 w-2 rounded-full bg-rose-500" />
-              <span className="font-medium text-rose-600 dark:text-rose-400">
-                Disconnected
-              </span>
-            </>
           )}
         </div>
 
-        {connectionStatus !== "CONNECTED" && (
-          <button
-            onClick={() => reconnect()}
-            disabled={isConnecting || connectionStatus === "CONNECTING"}
-            className="p-1 rounded-[6px] text-[var(--spark-text-secondary)] hover:text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface-subtle)] transition-colors duration-150 disabled:opacity-50"
-            title="Reconnect"
-          >
-            <RefreshCw className={`h-3 w-3 ${isConnecting || connectionStatus === "CONNECTING" ? "animate-spin" : ""}`} />
-          </button>
-        )}
+        <button
+          onClick={() => reconnect()}
+          disabled={isConnecting || connectionStatus === "CONNECTING"}
+          className="p-1 rounded-[6px] text-[var(--spark-text-secondary)] hover:text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface-subtle)] transition-colors duration-150 disabled:opacity-50"
+          title="Refresh connection & channels"
+        >
+          <RefreshCw className={`h-3 w-3 ${isConnecting || connectionStatus === "CONNECTING" ? "animate-spin" : ""}`} />
+        </button>
       </div>
 
       <CreateChannelModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />

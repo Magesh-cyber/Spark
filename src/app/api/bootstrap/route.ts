@@ -125,6 +125,7 @@ export async function GET(req: NextRequest) {
           (m.workspace.id === requestedWorkspaceId ||
             m.workspace.slug === requestedWorkspaceId)
       ) ||
+      memberships.find((m) => m.workspace.type !== "PERSONAL") ||
       memberships.find((m) => m.workspace.type === "PERSONAL") ||
       memberships[0];
 

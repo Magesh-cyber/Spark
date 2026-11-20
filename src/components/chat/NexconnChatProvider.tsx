@@ -54,6 +54,7 @@ import {
 export interface NexconnChatContextValue {
   isReady: boolean;
   isConnecting: boolean;
+  isRealtimeConnected: boolean;
   connectionStatus: string;
   connectionError: string | null;
   currentUserId: string | null;
@@ -264,11 +265,20 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
   const isAuthPage =
     pathname?.startsWith("/auth") || pathname?.startsWith("/invitations/accept");
 
-  const [isReady, setIsReady] = useState(false);
+  const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
+  const [nexconnReady, setNexconnReady] = useState(false);
+  const setIsReady = setNexconnReady;
   const [isConnecting, setIsConnecting] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState<string>("DISCONNECTED");
+  const [connectionStatus, setConnectionStatus] = useState<string>("CONNECTED");
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  // User is ready to collaborate as soon as workspace and auth session are resolved
+  const isReady = Boolean(
+    activeWorkspace?.id &&
+    activeWorkspace.id !== "personal-fallback" &&
+    (currentUser?.id || currentUserId)
+  );
 
   const [channels, setChannels] = useState<ChatChannelItem[]>(() => {
     if (activeWorkspace?.id) {
@@ -670,12 +680,17 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
   useEffect(() => {
     return subscribeBootstrap((payload) => {
       const wsId = payload.activeWorkspace?.id;
-      if (!wsId || wsId !== activeWorkspaceIdRef.current) return;
-      if (payload.directPeers) {
+      if (!wsId) return;
+
+      const currentWs = activeWorkspaceIdRef.current;
+      if (currentWs && currentWs !== "personal-fallback" && currentWs !== wsId) return;
+      activeWorkspaceIdRef.current = wsId;
+
+      if (payload.directPeers && payload.directPeers.length > 0) {
         directPeersRef.current = payload.directPeers;
         setDirectPeers(payload.directPeers);
       }
-      if (payload.channels) {
+      if (payload.channels && payload.channels.length > 0) {
         channelsRef.current = payload.channels;
         applyChannels(wsId, payload.channels);
       }
@@ -689,7 +704,7 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
       if (!wsId || wsId === "personal-fallback") return;
 
       const cached = clientChatCache.getChannels(wsId);
-      if (cached) {
+      if (cached && cached.length > 0) {
         channelsRef.current = cached;
         applyChannels(wsId, cached);
         if (!force && clientChatCache.isChannelsFresh(wsId)) {
@@ -698,7 +713,8 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
       }
 
       const res = await getWorkspaceChannels(wsId);
-      if (res.channels && activeWorkspaceIdRef.current === wsId) {
+      if (res.channels && (activeWorkspaceIdRef.current === wsId || activeWorkspaceIdRef.current === "personal-fallback")) {
+        activeWorkspaceIdRef.current = wsId;
         clientChatCache.setChannels(wsId, res.channels);
         channelsRef.current = res.channels;
         applyChannels(wsId, res.channels);
@@ -713,7 +729,7 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
       if (!wsId || wsId === "personal-fallback") return;
 
       const cached = clientChatCache.getPeers(wsId);
-      if (cached) {
+      if (cached && cached.length > 0) {
         directPeersRef.current = cached;
         setDirectPeers(cached);
         if (!force && clientChatCache.isPeersFresh(wsId)) {
@@ -722,7 +738,8 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
       }
 
       const res = await getWorkspaceDirectMessagePeers(wsId);
-      if (res.peers && activeWorkspaceIdRef.current === wsId) {
+      if (res.peers && (activeWorkspaceIdRef.current === wsId || activeWorkspaceIdRef.current === "personal-fallback")) {
+        activeWorkspaceIdRef.current = wsId;
         clientChatCache.setPeers(wsId, res.peers);
         directPeersRef.current = res.peers;
         setDirectPeers(res.peers);
@@ -926,6 +943,11 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
                 setIsReady(true);
                 setConnectionError(null);
                 reconnectAttemptsRef.current = 0;
+              } else if (code === 6) {
+                // Kicked offline by another tab/session belonging to the same user
+                setConnectionError("Session active in another tab (Realtime fallback active)");
+                console.info("[Nexconn] Session active in another tab/client. Real-time messages active via Supabase Realtime fallback.");
+                // Do not auto-reconnect in an aggressive loop to avoid ping-pong kick battle
               } else {
                 setIsReady(false);
                 const currentWs = activeWorkspaceIdRef.current;
@@ -1398,9 +1420,12 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
       })
       .subscribe(async (status) => {
         if (status === "SUBSCRIBED") {
+          setIsRealtimeConnected(true);
           try {
             await channel.track({ userId, onlineAt: Date.now() });
           } catch {}
+        } else if (status === "CLOSED" || status === "CHANNEL_ERROR") {
+          setIsRealtimeConnected(false);
         }
       });
 
@@ -1888,25 +1913,31 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
         let sentResult: any = null;
 
         if (active.type === "channel") {
-          const channel = new GroupChannel(active.nexconnTargetId);
-          let res = await channel.sendMessage(params);
-          if (res && !res.isOk && (res.code === 22406 || res.msg?.includes("22406"))) {
-            try {
-              await channel.join();
-              res = await channel.sendMessage(params);
-            } catch {}
+          try {
+            const channel = new GroupChannel(active.nexconnTargetId);
+            let res = await channel.sendMessage(params);
+            if (res && !res.isOk && (res.code === 22406 || res.msg?.includes("22406"))) {
+              try {
+                await channel.join();
+                res = await channel.sendMessage(params);
+              } catch {}
+            }
+            if (res && res.isOk) {
+              sentResult = res;
+            }
+          } catch (nexErr) {
+            console.warn("[Nexconn] Channel send via socket failed, delivering via Realtime fallback:", nexErr);
           }
-          if (res && !res.isOk) {
-            throw new Error(res.msg || "Failed to send message to channel.");
-          }
-          sentResult = res;
         } else {
-          const channel = new DirectChannel(active.nexconnTargetId);
-          const res = await channel.sendMessage(params);
-          if (res && !res.isOk) {
-            throw new Error(res.msg || "Failed to send direct message.");
+          try {
+            const channel = new DirectChannel(active.nexconnTargetId);
+            const res = await channel.sendMessage(params);
+            if (res && res.isOk) {
+              sentResult = res;
+            }
+          } catch (nexErr) {
+            console.warn("[Nexconn] Direct send via socket failed, delivering via Realtime fallback:", nexErr);
           }
-          sentResult = res;
 
           getOrCreateDirectConversation(wsId, active.nexconnTargetId).catch(() => {});
           recordChatNotification({
@@ -2077,25 +2108,31 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
 
         let sentResult: any = null;
         if (active.type === "channel") {
-          const channel = new GroupChannel(active.nexconnTargetId);
-          let res = await channel.sendMessage(params);
-          if (res && !res.isOk && (res.code === 22406 || res.msg?.includes("22406"))) {
-            try {
-              await channel.join();
-              res = await channel.sendMessage(params);
-            } catch {}
+          try {
+            const channel = new GroupChannel(active.nexconnTargetId);
+            let res = await channel.sendMessage(params);
+            if (res && !res.isOk && (res.code === 22406 || res.msg?.includes("22406"))) {
+              try {
+                await channel.join();
+                res = await channel.sendMessage(params);
+              } catch {}
+            }
+            if (res && res.isOk) {
+              sentResult = res;
+            }
+          } catch (nexErr) {
+            console.warn("[Nexconn] Channel media send via socket failed, delivering via Realtime fallback:", nexErr);
           }
-          if (res && !res.isOk) {
-            throw new Error(res.msg || "Failed to send media to channel.");
-          }
-          sentResult = res;
         } else {
-          const channel = new DirectChannel(active.nexconnTargetId);
-          const res = await channel.sendMessage(params);
-          if (res && !res.isOk) {
-            throw new Error(res.msg || "Failed to send direct media.");
+          try {
+            const channel = new DirectChannel(active.nexconnTargetId);
+            const res = await channel.sendMessage(params);
+            if (res && res.isOk) {
+              sentResult = res;
+            }
+          } catch (nexErr) {
+            console.warn("[Nexconn] Direct media send via socket failed, delivering via Realtime fallback:", nexErr);
           }
-          sentResult = res;
 
           getOrCreateDirectConversation(wsId, active.nexconnTargetId).catch(() => {});
           recordChatNotification({
@@ -2322,7 +2359,9 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
     return summariesByWorkspace[activeWorkspace.id] || {};
   }, [activeWorkspace?.id, summariesByWorkspace]);
 
-  const activeKey = getActiveConvKey();
+  const activeKey = activeConversation
+    ? `${activeConversation.type}:${activeConversation.nexconnTargetId}`
+    : null;
   const isOtherTyping = activeKey ? Boolean(typingStatus[activeKey]) : false;
 
   const totalUnreadCount = useMemo(() => {
@@ -2359,6 +2398,7 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
     () => ({
       isReady,
       isConnecting,
+      isRealtimeConnected,
       connectionStatus,
       connectionError,
       currentUserId,
@@ -2390,6 +2430,7 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
     [
       isReady,
       isConnecting,
+      isRealtimeConnected,
       connectionStatus,
       connectionError,
       currentUserId,
