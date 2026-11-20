@@ -77,6 +77,7 @@ export interface NexconnChatContextValue {
   summaries: Record<string, ConversationSummary>;
   sendTyping: () => void;
   isOtherTyping: boolean;
+  typingStatus: Record<string, boolean>;
   totalUnreadCount: number;
   onlineUserIds: Record<string, boolean>;
   setIsConversationVisible: (visible: boolean) => void;
@@ -340,6 +341,8 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
   const loadedHistoryKeysRef = useRef<Set<string>>(new Set());
   const channelDetailsCacheRef = useRef<Map<string, ChannelDetailsData>>(new Map());
   const lastTypingSentRef = useRef<number>(0);
+  const typingTimeoutsRef = useRef<Record<string, NodeJS.Timeout>>({});
+  const prevWorkspaceIdRef = useRef<string | null>(null);
   const reconnectAttemptsRef = useRef<number>(0);
   const reconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -600,11 +603,16 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
   const applyChannels = useCallback((wsId: string, list: ChatChannelItem[]) => {
     setChannels(list);
     const current = activeConvRef.current;
+
+    // If user is already in a direct message, preserve it! Do not overwrite with #general
+    if (current?.type === "direct") {
+      return;
+    }
+
     const belongsToWorkspace =
       current &&
-      ((current.type === "channel" && list.some((c) => c.id === current.id)) ||
-        (current.type === "direct" &&
-          directPeersRef.current.some((p) => p.id === current.id)));
+      current.type === "channel" &&
+      list.some((c) => c.id === current.id);
 
     if ((!current || !belongsToWorkspace) && list.length > 0) {
       const defaultChan = list.find((c) => c.isDefault) || list[0];
@@ -618,16 +626,20 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
           isPrivate: defaultChan.type === "PRIVATE",
         });
       }
-    } else if (list.length === 0) {
+    } else if (list.length === 0 && !current) {
       setActiveConversation(null);
     }
   }, []);
 
-  // 0. Cleanly reset active conversation immediately when switching workspaces
-  // (prevents race condition where an Org A DM stays open when switching to Personal Workspace or Org B!)
+  // 0. Cleanly reset active conversation only when switching to a DIFFERENT workspace
   useEffect(() => {
     const wsId = activeWorkspace?.id;
     if (!wsId || wsId === "personal-fallback") return;
+
+    if (prevWorkspaceIdRef.current === wsId) {
+      return;
+    }
+    prevWorkspaceIdRef.current = wsId;
 
     const cachedChannels = clientChatCache.getChannels(wsId) || [];
     const cachedPeers = clientChatCache.getPeers(wsId) || [];
@@ -951,7 +963,10 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
                       : `channel:${channelId}`;
 
                   setTypingStatus((prev) => ({ ...prev, [typingKey]: true }));
-                  setTimeout(() => {
+                  if (typingTimeoutsRef.current[typingKey]) {
+                    clearTimeout(typingTimeoutsRef.current[typingKey]);
+                  }
+                  typingTimeoutsRef.current[typingKey] = setTimeout(() => {
                     setTypingStatus((prev) => ({ ...prev, [typingKey]: false }));
                   }, 3500);
                 }
@@ -1331,6 +1346,56 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
           return { ...prev, [msgId]: [...list, ack] };
         });
       })
+      .on("broadcast", { event: "typing" }, ({ payload }: { payload: any }) => {
+        if (!payload?.userId || payload.userId === currentUserIdRef.current) return;
+        const isDirect = payload.convType === "direct";
+        if (isDirect && payload.targetId !== currentUserIdRef.current) return;
+
+        const typingKey = isDirect
+          ? `direct:${payload.userId}`
+          : `channel:${payload.targetId}`;
+
+        setTypingStatus((prev) => ({ ...prev, [typingKey]: true }));
+        if (typingTimeoutsRef.current[typingKey]) {
+          clearTimeout(typingTimeoutsRef.current[typingKey]);
+        }
+        typingTimeoutsRef.current[typingKey] = setTimeout(() => {
+          setTypingStatus((prev) => ({ ...prev, [typingKey]: false }));
+        }, 3500);
+      })
+      .on("broadcast", { event: "chat_message" }, ({ payload }: { payload: any }) => {
+        if (!payload?.message || payload.message.senderId === currentUserIdRef.current) return;
+        const incomingMsg: ChatMessageItem = payload.message;
+        const isDirect = payload.convType === "direct";
+        if (isDirect && payload.targetId !== currentUserIdRef.current) return;
+
+        const convKey = isDirect
+          ? `direct:${incomingMsg.senderId}`
+          : `channel:${payload.targetId}`;
+        const targetWsId = payload.workspaceId || wsId;
+        const storeKey = `${targetWsId}:${convKey}`;
+
+        setConversationsStore((prev) => {
+          const existing = prev[storeKey] || [];
+          return { ...prev, [storeKey]: mergeMessages(existing, [incomingMsg]) };
+        });
+
+        const active = activeConvRef.current;
+        const currentKey = active ? `${active.type}:${active.nexconnTargetId}` : null;
+        if (currentKey === convKey) {
+          setRawMessages((prev) => mergeMessages(prev, [incomingMsg]));
+        }
+
+        updateWorkspaceSummary(targetWsId, convKey, (prev) => ({
+          ...(prev || { unreadCount: 0 }),
+          lastMessageText: incomingMsg.text,
+          lastMessageTime: incomingMsg.time,
+          lastMessageTimestamp: incomingMsg.timestamp,
+          lastSenderId: incomingMsg.senderId,
+          lastSenderName: incomingMsg.senderName,
+          unreadCount: currentKey === convKey ? 0 : (prev?.unreadCount || 0) + 1,
+        }));
+      })
       .subscribe(async (status) => {
         if (status === "SUBSCRIBED") {
           try {
@@ -1338,6 +1403,54 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
           } catch {}
         }
       });
+
+    // Personal real-time direct channel for 100% reliable 1-on-1 typing and messages
+    const personalChannel = supabase.channel(`spark-user-direct:${userId}`);
+    personalChannel
+      .on("broadcast", { event: "typing" }, ({ payload }: { payload: any }) => {
+        if (!payload?.userId || payload.userId === currentUserIdRef.current) return;
+        const typingKey = `direct:${payload.userId}`;
+
+        setTypingStatus((prev) => ({ ...prev, [typingKey]: true }));
+        if (typingTimeoutsRef.current[typingKey]) {
+          clearTimeout(typingTimeoutsRef.current[typingKey]);
+        }
+        typingTimeoutsRef.current[typingKey] = setTimeout(() => {
+          setTypingStatus((prev) => ({ ...prev, [typingKey]: false }));
+        }, 3500);
+      })
+      .on("broadcast", { event: "chat_message" }, ({ payload }: { payload: any }) => {
+        if (!payload?.message || payload.message.senderId === currentUserIdRef.current) return;
+        const incomingMsg: ChatMessageItem = payload.message;
+        const senderId = incomingMsg.senderId;
+        const convKey = `direct:${senderId}`;
+        const targetWsId = payload.workspaceId || wsId;
+        const storeKey = `${targetWsId}:${convKey}`;
+
+        setConversationsStore((prev) => {
+          const existing = prev[storeKey] || [];
+          return { ...prev, [storeKey]: mergeMessages(existing, [incomingMsg]) };
+        });
+
+        const active = activeConvRef.current;
+        if (active && active.type === "direct" && active.nexconnTargetId === senderId) {
+          setRawMessages((prev) => mergeMessages(prev, [incomingMsg]));
+        }
+
+        updateWorkspaceSummary(targetWsId, convKey, (prev) => ({
+          ...(prev || { unreadCount: 0 }),
+          lastMessageText: incomingMsg.text,
+          lastMessageTime: incomingMsg.time,
+          lastMessageTimestamp: incomingMsg.timestamp,
+          lastSenderId: incomingMsg.senderId,
+          lastSenderName: incomingMsg.senderName,
+          unreadCount:
+            active?.type === "direct" && active.nexconnTargetId === senderId
+              ? 0
+              : (prev?.unreadCount || 0) + 1,
+        }));
+      })
+      .subscribe();
 
     const handlePageHide = () => {
       try {
@@ -1356,9 +1469,16 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
       try {
         channel.untrack();
       } catch {}
+      try {
+        supabase.removeChannel(personalChannel);
+      } catch {}
       supabase.removeChannel(channel);
+      const timeouts = typingTimeoutsRef.current;
+      for (const t of Object.values(timeouts)) {
+        clearTimeout(t);
+      }
     };
-  }, [isAuthPage, currentUser?.id, activeWorkspace?.id, resolveSenderName]);
+  }, [isAuthPage, currentUser?.id, activeWorkspace?.id, resolveSenderName, updateWorkspaceSummary]);
 
   // 4c. Emit Seen receipt whenever conversation is actually visible to the user
   useEffect(() => {
@@ -1520,14 +1640,7 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
           for (const msg of rawList) {
             const parsed = parseIncomingContent(msg);
 
-            // Multi-organization DM isolation: filter out DMs explicitly belonging to a DIFFERENT workspace
-            if (activeConversation?.type === "direct") {
-              const taggedWsId = extractMessageWorkspaceId(msg, parsed.fileInfo?.url);
-              if (taggedWsId && taggedWsId !== wsId) {
-                continue;
-              }
-            }
-
+            // Direct messages are preserved between colleagues
             const isMe = msg.senderUserId === myId;
             const timestamp = msg.sentTime || Date.now();
             formatted.push({
@@ -1634,15 +1747,55 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
   // 7. Send Typing status (throttled)
   const sendTyping = useCallback(async () => {
     const active = activeConvRef.current;
-    if (!active || active.type !== "direct") return;
+    const wsId = activeWorkspaceIdRef.current;
+    const myId = currentUserIdRef.current;
+    if (!active || !wsId || !myId) return;
+
     const now = Date.now();
-    if (now - lastTypingSentRef.current < 2500) return;
+    if (now - lastTypingSentRef.current < 2000) return;
     lastTypingSentRef.current = now;
 
+    // 1. Broadcast via Supabase Realtime for instant reliability
     try {
-      const { DirectChannel } = await import("@nexconn/chat");
-      const channel = new DirectChannel(active.nexconnTargetId);
-      await channel.sendTypingStatus("RC:TxtMsg");
+      const payload = {
+        userId: myId,
+        userName: currentUserNameRef.current,
+        convType: active.type,
+        targetId: active.nexconnTargetId,
+        workspaceId: wsId,
+      };
+
+      realtimeChannelRef.current?.send({
+        type: "broadcast",
+        event: "typing",
+        payload,
+      });
+
+      if (active.type === "direct") {
+        const supabase = createClient();
+        const peerChan = supabase.channel(`spark-user-direct:${active.nexconnTargetId}`);
+        peerChan.subscribe((status) => {
+          if (status === "SUBSCRIBED") {
+            peerChan.send({
+              type: "broadcast",
+              event: "typing",
+              payload,
+            });
+            setTimeout(() => supabase.removeChannel(peerChan), 1500);
+          }
+        });
+      }
+    } catch (err) {
+      console.warn("Typing broadcast warning:", err);
+    }
+
+    // 2. Also send via Nexconn SDK as secondary channel if available
+    try {
+      if (active.type === "direct") {
+        const { DirectChannel } = await import("@nexconn/chat");
+        const channel = new DirectChannel(active.nexconnTargetId);
+        await channel.sendTypingStatus("RC:TxtMsg");
+      }
     } catch {}
   }, []);
 
@@ -1778,6 +1931,44 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
           ...prev,
           [storeKey]: (prev[storeKey] || []).map(updateMsg),
         }));
+
+        // Broadcast via Supabase Realtime for instant peer delivery
+        try {
+          const sentPayload = {
+            message: {
+              ...optimisticMsg,
+              id: realId,
+              timestamp: realTime,
+              status: "sent" as const,
+              senderName: currentUser.name || "Teammate",
+            },
+            convType: active.type,
+            targetId: active.nexconnTargetId,
+            workspaceId: wsId,
+          };
+          realtimeChannelRef.current?.send({
+            type: "broadcast",
+            event: "chat_message",
+            payload: sentPayload,
+          });
+
+          if (active.type === "direct") {
+            const supabase = createClient();
+            const peerChan = supabase.channel(`spark-user-direct:${active.nexconnTargetId}`);
+            peerChan.subscribe((status) => {
+              if (status === "SUBSCRIBED") {
+                peerChan.send({
+                  type: "broadcast",
+                  event: "chat_message",
+                  payload: sentPayload,
+                });
+                setTimeout(() => supabase.removeChannel(peerChan), 2000);
+              }
+            });
+          }
+        } catch (err) {
+          console.warn("Realtime direct message broadcast warning:", err);
+        }
 
         return true;
       } catch (err: any) {
@@ -2191,6 +2382,7 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
       summaries,
       sendTyping,
       isOtherTyping,
+      typingStatus,
       totalUnreadCount,
       onlineUserIds,
       setIsConversationVisible,
@@ -2219,6 +2411,7 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
       summaries,
       sendTyping,
       isOtherTyping,
+      typingStatus,
       totalUnreadCount,
       onlineUserIds,
     ]

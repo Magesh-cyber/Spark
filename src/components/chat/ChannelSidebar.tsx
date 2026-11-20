@@ -27,6 +27,7 @@ export function ChannelSidebar({
     reconnect,
     summaries,
     onlineUserIds,
+    typingStatus,
   } = useNexconnChat();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -215,7 +216,7 @@ export function ChannelSidebar({
 
                 const summary = summaries[`direct:${peer.id}`];
                 const unread = summary?.unreadCount || 0;
-                const isTyping = summary?.isTyping || false;
+                const isTyping = Boolean(summary?.isTyping || (peer.id && typingStatus[`direct:${peer.id}`]));
 
                 return (
                   <button

@@ -21,6 +21,7 @@ function ChatInner() {
     activeConversation,
     setActiveConversation,
     directPeers,
+    channels,
     setIsConversationVisible,
   } = useNexconnChat();
   const { activeWorkspace, currentUser } = useWorkspace();
@@ -157,6 +158,23 @@ function ChatInner() {
 
     resolvePeerAndStart();
   }, [searchParams, activeWorkspace?.id, directPeers, setActiveConversation]);
+
+  // Auto-select default channel (#general) if activeConversation is null and no direct message was requested
+  useEffect(() => {
+    if (!searchParams.get("dm") && !activeConversation && channels.length > 0) {
+      const defaultChan = channels.find((c) => c.isDefault) || channels[0];
+      if (defaultChan) {
+        setActiveConversation({
+          type: "channel",
+          id: defaultChan.id,
+          name: defaultChan.name,
+          nexconnTargetId: defaultChan.nexconnChannelId,
+          description: defaultChan.description,
+          isPrivate: defaultChan.type === "PRIVATE",
+        });
+      }
+    }
+  }, [searchParams, activeConversation, channels, setActiveConversation]);
 
   return (
     <div className="relative flex h-[calc(100dvh-76px)] sm:h-[calc(100vh-90px)] overflow-hidden rounded-[12px] border border-[var(--spark-border)] bg-[var(--spark-surface)] shadow-subtle transition-colors duration-150">

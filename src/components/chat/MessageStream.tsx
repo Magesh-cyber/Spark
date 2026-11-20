@@ -774,11 +774,11 @@ export function MessageStream() {
       {/* Typing Indicator Bubble */}
       {isOtherTyping && (
         <div className="flex items-end gap-2 justify-start animate-in fade-in slide-in-from-bottom-2">
-          {!isChannel && activeConversation.peer && (
+          {!isChannel && (
             <Avatar
-              name={activeConversation.peer.fullName}
+              name={activeConversation.peer?.fullName || activeConversation.name}
               size="sm"
-              src={activeConversation.peer.avatarUrl || undefined}
+              src={activeConversation.peer?.avatarUrl || undefined}
             />
           )}
           <div className="bg-[var(--spark-surface)] border border-[var(--spark-border)] text-[var(--spark-text-secondary)] rounded-[14px] rounded-tl-[4px] px-3.5 py-2 shadow-2xs flex items-center gap-1.5">
