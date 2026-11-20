@@ -377,7 +377,7 @@ export async function createWorkspaceTask(params: {
     const startDateObj = params.startDate ? new Date(params.startDate) : null;
     const dueDateObj = params.dueDate ? new Date(params.dueDate) : null;
 
-    // Verify assignee belongs to workspace
+    // Verify assignee belongs to workspace AND is eligible if project is private
     if (params.assigneeId) {
       const assigneeMember = await prisma.workspaceMember.findUnique({
         where: {
@@ -389,6 +389,24 @@ export async function createWorkspaceTask(params: {
       });
       if (!assigneeMember) {
         return { success: false, error: "Assignee is not a member of this workspace." };
+      }
+
+      if (params.projectId) {
+        const proj = await prisma.project.findUnique({
+          where: { id: params.projectId },
+          include: { members: { select: { userId: true } } },
+        });
+        if (proj && proj.type === "PRIVATE") {
+          const isEligible =
+            proj.ownerId === params.assigneeId ||
+            proj.members.some((m) => m.userId === params.assigneeId);
+          if (!isEligible) {
+            return {
+              success: false,
+              error: "Cannot assign task: Selected user is not a member of this private project.",
+            };
+          }
+        }
       }
     }
 
@@ -668,6 +686,25 @@ export async function updateTaskDetails(
     }
 
     if (data.assigneeId !== undefined && data.assigneeId !== task.assigneeId) {
+      const effectiveProjectId = data.projectId !== undefined ? data.projectId : task.projectId;
+      if (data.assigneeId && effectiveProjectId) {
+        const proj = await prisma.project.findUnique({
+          where: { id: effectiveProjectId },
+          include: { members: { select: { userId: true } } },
+        });
+        if (proj && proj.type === "PRIVATE") {
+          const isEligible =
+            proj.ownerId === data.assigneeId ||
+            proj.members.some((m) => m.userId === data.assigneeId);
+          if (!isEligible) {
+            return {
+              success: false,
+              error: "Cannot assign task: Selected user is not a member of this private project.",
+            };
+          }
+        }
+      }
+
       updatePayload.assigneeId = data.assigneeId || null;
       await recordTaskActivity({
         workspaceId: access.workspace.id,

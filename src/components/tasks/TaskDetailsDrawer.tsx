@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   X,
   CheckSquare,
@@ -121,6 +121,21 @@ export function TaskDetailsDrawer({
   const [dueDate, setDueDate] = useState(task?.dueDate ? task.dueDate.slice(0, 10) : "");
   const [labels, setLabels] = useState<string[]>(task?.labels || []);
   const [newTagInput, setNewTagInput] = useState("");
+
+  // Dynamically filter eligible assignees based on selected project's visibility
+  const eligibleMembers = useMemo(() => {
+    if (!projectId) return members;
+    const selectedProj = projects.find((p) => p.id === projectId);
+    if (!selectedProj || selectedProj.type !== "PRIVATE") {
+      return members;
+    }
+    const allowedUserIds = new Set<string>();
+    if (selectedProj.ownerId) allowedUserIds.add(selectedProj.ownerId);
+    if (Array.isArray(selectedProj.members)) {
+      selectedProj.members.forEach((pm) => allowedUserIds.add(pm.userId));
+    }
+    return members.filter((m) => allowedUserIds.has(m.userId));
+  }, [projectId, projects, members]);
 
   // Subtasks / Checklist
   const [checklist, setChecklist] = useState<TaskChecklistItemData[]>([]);
@@ -645,13 +660,18 @@ export function TaskDetailsDrawer({
                       className="absolute inset-0 opacity-0 cursor-pointer"
                     >
                       <option value="">Unassigned</option>
-                      {members.map((m) => (
+                      {eligibleMembers.map((m) => (
                         <option key={m.userId} value={m.userId}>
                           {m.user.fullName}
                         </option>
                       ))}
                     </select>
                   </div>
+                  {projectId && projects.find((p) => p.id === projectId)?.type === "PRIVATE" && (
+                    <span className="text-[10px] text-amber-500 font-medium mt-1 block">
+                      🔒 Restricted to {eligibleMembers.length} private project member{eligibleMembers.length === 1 ? "" : "s"}
+                    </span>
+                  )}
                 </div>
 
                 {/* Story Points */}
@@ -692,14 +712,29 @@ export function TaskDetailsDrawer({
                     onChange={(e) => {
                       const next = e.target.value;
                       setProjectId(next);
-                      handleSaveField({ projectId: next || null });
+                      const targetProj = projects.find((p) => p.id === next);
+                      let newAssignee = assigneeId;
+                      if (targetProj && targetProj.type === "PRIVATE") {
+                        const allowed = new Set<string>([
+                          targetProj.ownerId,
+                          ...(targetProj.members || []).map((m) => m.userId),
+                        ]);
+                        if (assigneeId && !allowed.has(assigneeId)) {
+                          newAssignee = "";
+                          setAssigneeId("");
+                        }
+                      }
+                      handleSaveField({
+                        projectId: next || null,
+                        ...(newAssignee !== assigneeId ? { assigneeId: null } : {}),
+                      });
                     }}
                     className="flex-1 px-2.5 py-1 rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-surface)] text-xs text-[var(--spark-text-primary)] focus:outline-none"
                   >
                     <option value="">No Project</option>
                     {projects.map((p) => (
                       <option key={p.id} value={p.id}>
-                        [{p.key}] {p.name}
+                        [{p.key}] {p.name} {p.type === "PRIVATE" ? "🔒 (Private)" : ""}
                       </option>
                     ))}
                   </select>

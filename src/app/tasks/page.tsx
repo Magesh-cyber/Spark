@@ -402,6 +402,21 @@ function TasksContent() {
     return tasks.filter((t) => t.dueDate && new Date(t.dueDate) < now && t.status !== "DONE").length;
   }, [tasks]);
 
+  // Dynamically filter eligible assignees based on selected project's visibility
+  const eligibleAssignees = useMemo(() => {
+    if (!modalProjectId) return members;
+    const selectedProj = projects.find((p) => p.id === modalProjectId);
+    if (!selectedProj || selectedProj.type !== "PRIVATE") {
+      return members;
+    }
+    const allowedUserIds = new Set<string>();
+    if (selectedProj.ownerId) allowedUserIds.add(selectedProj.ownerId);
+    if (Array.isArray(selectedProj.members)) {
+      selectedProj.members.forEach((pm) => allowedUserIds.add(pm.userId));
+    }
+    return members.filter((m) => allowedUserIds.has(m.userId));
+  }, [modalProjectId, projects, members]);
+
   const getPriorityBadge = (p: string) => {
     switch (p) {
       case "URGENT":
@@ -429,6 +444,7 @@ function TasksContent() {
               leftIcon={<Plus className="h-3.5 w-3.5" />}
               onClick={() => {
                 setFormError("");
+                setModalProjectId(selectedProjectId || "");
                 setIsModalOpen(true);
               }}
             >
@@ -1011,13 +1027,28 @@ function TasksContent() {
                   </label>
                   <select
                     value={modalProjectId}
-                    onChange={(e) => setModalProjectId(e.target.value)}
+                    onChange={(e) => {
+                      const nextPid = e.target.value;
+                      setModalProjectId(nextPid);
+                      if (nextPid) {
+                        const targetProj = projects.find((p) => p.id === nextPid);
+                        if (targetProj && targetProj.type === "PRIVATE") {
+                          const allowed = new Set<string>([
+                            targetProj.ownerId,
+                            ...(targetProj.members || []).map((m) => m.userId),
+                          ]);
+                          if (assigneeId && !allowed.has(assigneeId)) {
+                            setAssigneeId("");
+                          }
+                        }
+                      }
+                    }}
                     className="w-full p-2 rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] text-xs text-[var(--spark-text-primary)] font-medium focus:outline-none focus:border-[var(--spark-accent)]"
                   >
                     <option value="">General Workspace (No project)</option>
                     {projects.map((p) => (
                       <option key={p.id} value={p.id}>
-                        [{p.key}] {p.name}
+                        [{p.key}] {p.name} {p.type === "PRIVATE" ? "🔒 (Private)" : ""}
                       </option>
                     ))}
                   </select>
@@ -1145,12 +1176,21 @@ function TasksContent() {
                     className="w-full p-2 rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] text-xs text-[var(--spark-text-primary)] focus:outline-none"
                   >
                     <option value="">Unassigned</option>
-                    {members.map((m) => (
+                    {eligibleAssignees.map((m) => (
                       <option key={m.userId} value={m.userId}>
                         {m.user.fullName}
                       </option>
                     ))}
                   </select>
+                  {modalProjectId && projects.find((p) => p.id === modalProjectId)?.type === "PRIVATE" ? (
+                    <span className="text-[10px] text-amber-500 font-medium mt-1 block">
+                      🔒 Only {eligibleAssignees.length} private project member{eligibleAssignees.length === 1 ? "" : "s"} can be assigned
+                    </span>
+                  ) : modalProjectId ? (
+                    <span className="text-[10px] text-[var(--spark-text-muted)] mt-1 block">
+                      🌐 Public project: All {members.length} workspace members eligible
+                    </span>
+                  ) : null}
                 </div>
 
                 <div>
