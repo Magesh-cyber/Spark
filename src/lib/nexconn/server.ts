@@ -60,7 +60,7 @@ export function getNexconnApiBaseUrl(): string {
     case "SG":
     case "AP":
     default:
-      return "https://api.sg-light-api.com";
+      return "https://api-sg01.ronghub.com";
   }
 }
 
@@ -131,19 +131,33 @@ async function callNexconnApi(
   }
   const postData = urlParams.toString();
 
+  const envHost = process.env.NEXCONN_API_BASE_URL
+    ? (() => {
+        try {
+          return new URL(process.env.NEXCONN_API_BASE_URL).hostname;
+        } catch {
+          return null;
+        }
+      })()
+    : null;
+
   const defaultHosts = [
+    envHost,
+    "api-sg01.ronghub.com",
     "api.sg-light-api.com",
+    "api-b.sg-light-api.com",
     "47.84.112.16",
     "47.84.107.146",
-    "api-b.sg-light-api.com",
     "47.84.41.235",
-  ];
+  ].filter(Boolean) as string[];
+
+  const uniqueDefaultHosts = Array.from(new Set(defaultHosts));
 
   // Put last known fast/working host first so subsequent requests have 0ms failover overhead
   const preferred = globalForNexconn.__sparkNexconnPreferredHost;
   const candidateHosts = preferred
-    ? [preferred, ...defaultHosts.filter((h) => h !== preferred)]
-    : defaultHosts;
+    ? [preferred, ...uniqueDefaultHosts.filter((h) => h !== preferred)]
+    : uniqueDefaultHosts;
 
   return new Promise((resolve, reject) => {
     function tryHost(index: number) {
@@ -152,6 +166,9 @@ async function callNexconnApi(
       }
 
       const host = candidateHosts[index];
+      const isIp = /^[\d.]+$/.test(host);
+      const targetDomain = isIp ? "api-sg01.ronghub.com" : host;
+
       const req = https.request(
         {
           host,
@@ -159,7 +176,7 @@ async function callNexconnApi(
           path: apiPath,
           method: "POST",
           headers: {
-            Host: "api.sg-light-api.com",
+            Host: targetDomain,
             "App-Key": key,
             Nonce: nonce,
             Timestamp: timestamp,
@@ -167,8 +184,9 @@ async function callNexconnApi(
             "Content-Type": "application/x-www-form-urlencoded",
             "Content-Length": Buffer.byteLength(postData),
           },
-          servername: "api.sg-light-api.com",
-          timeout: 2500,
+          servername: targetDomain,
+          rejectUnauthorized: !isIp,
+          timeout: 4000,
         },
         (res) => {
           let raw = "";
@@ -186,11 +204,11 @@ async function callNexconnApi(
               if (data.code === 200 || data.token) {
                 globalForNexconn.__sparkNexconnPreferredHost = host;
                 resolve(data);
-              } else if (data.code && data.code !== 200) {
-                globalForNexconn.__sparkNexconnPreferredHost = host;
-                resolve(data);
               } else {
-                tryHost(index + 1);
+                if (index + 1 < candidateHosts.length) {
+                  return tryHost(index + 1);
+                }
+                resolve(data);
               }
             } catch {
               tryHost(index + 1);
