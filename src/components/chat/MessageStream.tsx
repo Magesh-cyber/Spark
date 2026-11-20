@@ -127,11 +127,17 @@ export function MessageStream() {
 
   // Identify the latest outgoing message ID so we display the clean text receipt underneath it
   const latestMyMessageId = useMemo(() => {
+    const myId = currentUserId || currentUser?.id;
     for (let i = messages.length - 1; i >= 0; i--) {
-      if (messages[i].isMe) return messages[i].id;
+      const m = messages[i];
+      const isSelf = Boolean(
+        (myId && (m.senderId === myId || m.senderId === "me")) ||
+        (m.isMe && (!myId || m.senderId === myId || m.senderId === "me"))
+      );
+      if (isSelf) return m.id;
     }
     return null;
-  }, [messages]);
+  }, [messages, currentUserId, currentUser?.id]);
 
   // Group messages by calendar day
   const groupedMessages = useMemo(() => {
@@ -287,7 +293,11 @@ export function MessageStream() {
               prevMsg!.senderId === msg.senderId &&
               msg.timestamp - prevMsg!.timestamp < 180_000;
 
-            const isMe = msg.isMe;
+            const myId = currentUserId || currentUser?.id;
+            const isMe = Boolean(
+              (myId && (msg.senderId === myId || msg.senderId === "me")) ||
+              (msg.isMe && (!myId || msg.senderId === myId || msg.senderId === "me"))
+            );
             const isLatestOutgoing = isMe && msg.id === latestMyMessageId;
 
             const receiptTitle =

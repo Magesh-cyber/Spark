@@ -1374,9 +1374,10 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
         });
       })
       .on("broadcast", { event: "typing" }, ({ payload }: { payload: any }) => {
-        if (!payload?.userId || payload.userId === currentUserIdRef.current) return;
+        const myId = currentUserIdRef.current || currentUser?.id || userId;
+        if (!payload?.userId || (myId && payload.userId === myId)) return;
         const isDirect = payload.convType === "direct";
-        if (isDirect && payload.targetId !== currentUserIdRef.current) return;
+        if (isDirect && myId && payload.targetId !== myId) return;
 
         const typingKey = isDirect
           ? `direct:${payload.userId}`
@@ -1391,13 +1392,35 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
         }, 3500);
       })
       .on("broadcast", { event: "chat_message" }, ({ payload }: { payload: any }) => {
-        if (!payload?.message || payload.message.senderId === currentUserIdRef.current) return;
-        const incomingMsg: ChatMessageItem = payload.message;
+        const myId = currentUserIdRef.current || currentUser?.id || userId;
+        if (!payload?.message || (myId && payload.message.senderId === myId)) return;
         const isDirect = payload.convType === "direct";
-        if (isDirect && payload.targetId !== currentUserIdRef.current) return;
+        if (isDirect && myId && payload.targetId !== myId) return;
+
+        const senderId = payload.message.senderId;
+        const isMe = Boolean(myId && (senderId === myId || senderId === "me"));
+        const active = activeConvRef.current;
+        const senderName = isMe
+          ? "You"
+          : isDirect && active?.type === "direct" && active.nexconnTargetId === senderId
+          ? active.name
+          : resolveSenderName(senderId) || payload.message.senderName || "Teammate";
+        const senderAvatar = isMe
+          ? undefined
+          : isDirect && active?.type === "direct" && active.nexconnTargetId === senderId
+          ? active.peer?.avatarUrl || resolveSenderAvatar(senderId)
+          : resolveSenderAvatar(senderId) || payload.message.senderAvatar;
+
+        const incomingMsg: ChatMessageItem = {
+          ...payload.message,
+          isMe,
+          senderName,
+          senderAvatar,
+          status: isMe ? "sent" : "delivered",
+        };
 
         const convKey = isDirect
-          ? `direct:${incomingMsg.senderId}`
+          ? `direct:${senderId}`
           : `channel:${payload.targetId}`;
         const targetWsId = payload.workspaceId || wsId;
         const storeKey = `${targetWsId}:${convKey}`;
@@ -1409,7 +1432,6 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
           return { ...prev, [storeKey]: merged };
         });
 
-        const active = activeConvRef.current;
         const currentKey = active ? `${active.type}:${active.nexconnTargetId}` : null;
         if (currentKey === convKey) {
           setRawMessages((prev) => {
@@ -1444,7 +1466,8 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
     const personalChannel = supabase.channel(`spark-user-direct:${userId}`);
     personalChannel
       .on("broadcast", { event: "typing" }, ({ payload }: { payload: any }) => {
-        if (!payload?.userId || payload.userId === currentUserIdRef.current) return;
+        const myId = currentUserIdRef.current || currentUser?.id || userId;
+        if (!payload?.userId || (myId && payload.userId === myId)) return;
         const typingKey = `direct:${payload.userId}`;
 
         setTypingStatus((prev) => ({ ...prev, [typingKey]: true }));
@@ -1456,9 +1479,30 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
         }, 3500);
       })
       .on("broadcast", { event: "chat_message" }, ({ payload }: { payload: any }) => {
-        if (!payload?.message || payload.message.senderId === currentUserIdRef.current) return;
-        const incomingMsg: ChatMessageItem = payload.message;
-        const senderId = incomingMsg.senderId;
+        const myId = currentUserIdRef.current || currentUser?.id || userId;
+        if (!payload?.message || (myId && payload.message.senderId === myId)) return;
+        const senderId = payload.message.senderId;
+        const isMe = Boolean(myId && (senderId === myId || senderId === "me"));
+        const active = activeConvRef.current;
+        const senderName = isMe
+          ? "You"
+          : active?.type === "direct" && active.nexconnTargetId === senderId
+          ? active.name
+          : resolveSenderName(senderId) || payload.message.senderName || "Teammate";
+        const senderAvatar = isMe
+          ? undefined
+          : active?.type === "direct" && active.nexconnTargetId === senderId
+          ? active.peer?.avatarUrl || resolveSenderAvatar(senderId)
+          : resolveSenderAvatar(senderId) || payload.message.senderAvatar;
+
+        const incomingMsg: ChatMessageItem = {
+          ...payload.message,
+          isMe,
+          senderName,
+          senderAvatar,
+          status: isMe ? "sent" : "delivered",
+        };
+
         const convKey = `direct:${senderId}`;
         const targetWsId = payload.workspaceId || wsId;
         const storeKey = `${targetWsId}:${convKey}`;
@@ -1470,7 +1514,6 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
           return { ...prev, [storeKey]: merged };
         });
 
-        const active = activeConvRef.current;
         if (active && active.type === "direct" && active.nexconnTargetId === senderId) {
           setRawMessages((prev) => {
             const merged = mergeMessages(prev, [incomingMsg]);
@@ -1626,8 +1669,23 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
 
     const cached = conversationsStoreRef.current[storeKey] || clientChatCache.getMessages(wsId, convKey);
     if (cached && cached.length > 0) {
-      setRawMessages(cached);
-      conversationsStoreRef.current[storeKey] = cached;
+      const myId = currentUserIdRef.current || currentUser?.id;
+      const sanitized = cached.map((m: ChatMessageItem) => {
+        const isMe = Boolean(myId && (m.senderId === myId || m.senderId === "me"));
+        return {
+          ...m,
+          isMe,
+          senderName: isMe
+            ? "You"
+            : activeConversation.type === "direct"
+            ? (activeConversation.name || resolveSenderName(m.senderId) || m.senderName)
+            : (resolveSenderName(m.senderId) || m.senderName),
+          senderAvatar: isMe ? undefined : (resolveSenderAvatar(m.senderId) || m.senderAvatar),
+        };
+      });
+      setRawMessages(sanitized);
+      conversationsStoreRef.current[storeKey] = sanitized;
+      clientChatCache.setMessages(wsId, convKey, sanitized);
     } else {
       setRawMessages([]);
     }
@@ -1677,14 +1735,14 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
           loadedHistoryKeysRef.current.add(storeKey);
 
           const rawList = extractPageItems(result.data);
-          const myId = currentUserIdRef.current;
+          const myId = currentUserIdRef.current || currentUser?.id;
 
           const formatted: ChatMessageItem[] = [];
           for (const msg of rawList) {
             const parsed = parseIncomingContent(msg);
 
             // Direct messages are preserved between colleagues
-            const isMe = msg.senderUserId === myId;
+            const isMe = Boolean(myId && (msg.senderUserId === myId || msg.senderUserId === "me"));
             const timestamp = msg.sentTime || Date.now();
             formatted.push({
               id: msg.messageId || `msg_${timestamp}_${Math.random()}`,
@@ -1694,7 +1752,7 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
                 : activeConversation?.type === "direct"
                 ? activeConversation.name
                 : resolveSenderName(msg.senderUserId),
-              senderAvatar: resolveSenderAvatar(msg.senderUserId),
+              senderAvatar: isMe ? undefined : resolveSenderAvatar(msg.senderUserId),
               text: parsed.text,
               time: new Date(timestamp).toLocaleTimeString([], {
                 hour: "2-digit",
@@ -2005,6 +2063,7 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
               timestamp: realTime,
               status: "sent" as const,
               senderName: currentUser.name || "Teammate",
+              isMe: false,
             },
             convType: active.type,
             targetId: active.nexconnTargetId,
@@ -2221,6 +2280,42 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
           lastSenderName: "You",
         }));
 
+        // Broadcast media message via Supabase Realtime for instant peer display
+        try {
+          const sentMediaPayload = {
+            message: {
+              ...updateMsg(optimisticMsg),
+              isMe: false,
+              senderName: currentUser.name || "Teammate",
+            },
+            convType: active.type,
+            targetId: active.nexconnTargetId,
+            workspaceId: wsId,
+          };
+          realtimeChannelRef.current?.send({
+            type: "broadcast",
+            event: "chat_message",
+            payload: sentMediaPayload,
+          });
+
+          if (active.type === "direct") {
+            const supabase = createClient();
+            const peerChan = supabase.channel(`spark-user-direct:${active.nexconnTargetId}`);
+            peerChan.subscribe((status) => {
+              if (status === "SUBSCRIBED") {
+                peerChan.send({
+                  type: "broadcast",
+                  event: "chat_message",
+                  payload: sentMediaPayload,
+                });
+                setTimeout(() => supabase.removeChannel(peerChan), 2000);
+              }
+            });
+          }
+        } catch (mediaBroadcastErr) {
+          console.warn("Realtime media broadcast warning:", mediaBroadcastErr);
+        }
+
         URL.revokeObjectURL(localPreviewUrl);
         return { success: true };
       } catch (err: any) {
@@ -2352,9 +2447,36 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
     return rawMessages.map((msg) => {
       const acksForMsg = handoverAcks[msg.id] || msg.acknowledgments || [];
 
-      if (!msg.isMe || msg.status === "sending" || msg.status === "error") {
+      // Dynamically evaluate isMe based strictly on sender ID vs active authenticated user
+      const isMe = Boolean(
+        myId && (msg.senderId === myId || msg.senderId === "me")
+      );
+
+      if (!isMe) {
+        const resolvedName =
+          activeConversation.type === "direct"
+            ? (activeConversation.name || resolveSenderName(msg.senderId) || msg.senderName)
+            : (resolveSenderName(msg.senderId) || msg.senderName);
+        const resolvedAvatar =
+          activeConversation.type === "direct"
+            ? (activeConversation.peer?.avatarUrl || resolveSenderAvatar(msg.senderId) || msg.senderAvatar)
+            : (resolveSenderAvatar(msg.senderId) || msg.senderAvatar);
+
         return {
           ...msg,
+          isMe: false,
+          senderName: resolvedName,
+          senderAvatar: resolvedAvatar,
+          acknowledgments: acksForMsg,
+        };
+      }
+
+      // Outgoing message (sent by me)
+      if (msg.status === "sending" || msg.status === "error") {
+        return {
+          ...msg,
+          isMe: true,
+          senderName: "You",
           acknowledgments: acksForMsg,
         };
       }
@@ -2370,7 +2492,7 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
       }
 
       if (seenBy.length > 0) {
-        return { ...msg, status: "read", seenBy, acknowledgments: acksForMsg };
+        return { ...msg, isMe: true, senderName: "You", status: "read", seenBy, acknowledgments: acksForMsg };
       }
 
       if (
@@ -2378,10 +2500,10 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
         isDirectPeerOnline ||
         hasOtherOnlineChannelMember
       ) {
-        return { ...msg, status: "delivered", seenBy: [], acknowledgments: acksForMsg };
+        return { ...msg, isMe: true, senderName: "You", status: "delivered", seenBy: [], acknowledgments: acksForMsg };
       }
 
-      return { ...msg, status: "sent", seenBy: [], acknowledgments: acksForMsg };
+      return { ...msg, isMe: true, senderName: "You", status: "sent", seenBy: [], acknowledgments: acksForMsg };
     });
   }, [
     activeConversation,
@@ -2392,6 +2514,7 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
     deliveredCursors,
     onlineUserIds,
     resolveSenderName,
+    resolveSenderAvatar,
     handoverAcks,
   ]);
 
