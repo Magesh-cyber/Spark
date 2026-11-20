@@ -17,14 +17,9 @@ import {
   Check,
   Trash2,
   Users,
-  Sparkles,
-  ArrowUpRight,
-  ArrowDownLeft,
-  PhoneMissed,
+  VideoOff,
   AlertCircle,
   ExternalLink,
-  ShieldCheck,
-  Radio,
 } from "lucide-react";
 import { ShellLayout } from "@/components/layout/ShellLayout";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -44,6 +39,7 @@ import {
   WorkspaceMeetingLinkItem,
   WorkspaceCallLogItem,
 } from "@/lib/actions/meetings";
+import { generateRoomCode } from "@/lib/room-code";
 import { getWorkspaceMembers } from "@/lib/actions/workspace-members";
 import { WorkspaceMemberItem } from "@/lib/types";
 import { VideoRoomModal } from "@/components/meet/VideoRoomModal";
@@ -53,7 +49,7 @@ function MeetPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  // Active sub-sidebar tab: "calls" | "schedule" | "links"
+  // Active tab: "calls" | "schedule" | "links"
   const urlTab = searchParams.get("tab") as "calls" | "schedule" | "links" | null;
   const [activeTab, setActiveTab] = useState<"calls" | "schedule" | "links">(urlTab || "calls");
 
@@ -70,7 +66,7 @@ function MeetPageContent() {
   // Video Room Modal state
   const [isRoomOpen, setIsRoomOpen] = useState(false);
   const [currentRoomCode, setCurrentRoomCode] = useState("");
-  const [currentRoomTitle, setCurrentRoomTitle] = useState("Meeting Room");
+  const [currentRoomTitle, setCurrentRoomTitle] = useState("Meeting");
   const [currentCallType, setCurrentCallType] = useState<"VOICE" | "VIDEO">("VIDEO");
   const [currentReceiver, setCurrentReceiver] = useState<{
     id: string;
@@ -130,12 +126,12 @@ function MeetPageContent() {
     loadAllData();
   }, [loadAllData]);
 
-  // 2. Handle URL Room parameter (?room=spk-...)
+  // 2. Handle URL Room parameter (?room=xxx-yyyy-zzz)
   useEffect(() => {
     const roomFromUrl = searchParams.get("room");
     if (roomFromUrl && !isRoomOpen) {
       setCurrentRoomCode(roomFromUrl);
-      setCurrentRoomTitle(`Meeting [${roomFromUrl}]`);
+      setCurrentRoomTitle(`Meeting | ${roomFromUrl}`);
       setCurrentCallType("VIDEO");
       setCurrentReceiver(null);
       setIsRoomOpen(true);
@@ -157,53 +153,53 @@ function MeetPageContent() {
     setTimeout(() => setCopiedKey(null), 2000);
   };
 
-  // Launch direct 1-on-1 call
+  // Launch direct 1-on-1 call (3-4-3 room code)
   const startDirectCall = (
     targetUser: { id: string; fullName: string; email?: string; avatarUrl?: string | null },
     type: "VOICE" | "VIDEO"
   ) => {
-    const uniqueRoom = `call-${Math.random().toString(36).substring(2, 6)}-${Math.random().toString(36).substring(2, 6)}`;
-    setCurrentRoomCode(uniqueRoom);
-    setCurrentRoomTitle(`${type === "VIDEO" ? "Video Call" : "Voice Call"} with ${targetUser.fullName}`);
+    const code = generateRoomCode();
+    setCurrentRoomCode(code);
+    setCurrentRoomTitle(`Call with ${targetUser.fullName}`);
     setCurrentCallType(type);
     setCurrentReceiver(targetUser);
     setIsRoomOpen(true);
   };
 
-  // Launch instant meeting
+  // Launch instant meeting (3-4-3 room code)
   const startInstantMeeting = async () => {
     if (!activeWorkspace?.id) return;
-    const instantCode = `inst-${Math.random().toString(36).substring(2, 6)}-${Math.random().toString(36).substring(2, 6)}`;
+    const code = generateRoomCode();
 
     try {
       const res = await createWorkspaceMeetingLink({
         workspaceId: activeWorkspace.id,
-        title: "Instant Collaboration Huddle",
-        roomCode: instantCode,
+        title: "Instant meeting",
+        roomCode: code,
         isInstant: true,
       });
       if (res.success && res.link) {
         setLinks((prev) => [res.link!, ...prev]);
       }
     } catch (e) {
-      console.warn("Could not save instant link to DB:", e);
+      console.warn("Could not save link:", e);
     }
 
-    setCurrentRoomCode(instantCode);
-    setCurrentRoomTitle("Instant Collaboration Huddle");
+    setCurrentRoomCode(code);
+    setCurrentRoomTitle(`Meeting | ${code}`);
     setCurrentCallType("VIDEO");
     setCurrentReceiver(null);
     setIsRoomOpen(true);
   };
 
-  // Join Room by Code
+  // Join Room by Code (supports clean 3-4-3 codes and full URLs)
   const handleJoinWithCode = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    const clean = joinCodeInput.trim().replace(/^.*room=/, "");
+    const clean = joinCodeInput.trim().replace(/^.*room=/, "").replace(/[^a-zA-Z0-9-]/g, "");
     if (!clean) return;
 
     setCurrentRoomCode(clean);
-    setCurrentRoomTitle(`Room [${clean}]`);
+    setCurrentRoomTitle(`Meeting | ${clean}`);
     setCurrentCallType("VIDEO");
     setCurrentReceiver(null);
     setIsRoomOpen(true);
@@ -225,6 +221,7 @@ function MeetPageContent() {
       const startDateTime = new Date(`${scheduleDate}T${scheduleTime}`);
       const durationMinutes = parseInt(scheduleDuration, 10) || 30;
       const endDateTime = new Date(startDateTime.getTime() + durationMinutes * 60 * 1000);
+      const roomCode = generateRoomCode();
 
       const res = await scheduleWorkspaceMeeting({
         workspaceId: activeWorkspace.id,
@@ -232,6 +229,7 @@ function MeetPageContent() {
         description: scheduleDesc.trim() || undefined,
         startTime: startDateTime.toISOString(),
         endTime: endDateTime.toISOString(),
+        roomCode,
       });
 
       if (!res.success) {
@@ -264,16 +262,18 @@ function MeetPageContent() {
     }
   };
 
-  // Create permanent reusable link
+  // Create permanent reusable link (3-4-3 code)
   const handleCreateMeetingLink = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newLinkTitle.trim()) return;
 
     setIsCreatingLink(true);
     try {
+      const roomCode = generateRoomCode();
       const res = await createWorkspaceMeetingLink({
         workspaceId: activeWorkspace.id,
         title: newLinkTitle.trim(),
+        roomCode,
         isInstant: false,
       });
 
@@ -303,7 +303,7 @@ function MeetPageContent() {
 
   // Filter members for directory
   const filteredMembers = members.filter((m) => {
-    if (m.userId === currentUser?.id) return false; // exclude self
+    if (m.userId === currentUser?.id) return false;
     const query = memberSearch.toLowerCase();
     return (
       m.user.fullName.toLowerCase().includes(query) ||
@@ -318,19 +318,17 @@ function MeetPageContent() {
       <div className="flex flex-col space-y-4">
         {/* Top Header */}
         <PageHeader
-          title="Meetings & Calls"
-          description={`Direct 1-on-1 calling, scheduled calendar meetings, and instant video huddles for ${
-            activeWorkspace?.name || "your workspace"
-          }.`}
+          title="Meetings"
+          description="Video meetings and 1-on-1 calls for your workspace team."
           actions={
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
                 size="sm"
-                leftIcon={<Sparkles className="h-3.5 w-3.5 text-purple-400" />}
+                leftIcon={<Video className="h-3.5 w-3.5 text-[var(--spark-accent)]" />}
                 onClick={startInstantMeeting}
               >
-                Instant Huddle
+                New meeting
               </Button>
               <Button
                 variant="primary"
@@ -338,7 +336,7 @@ function MeetPageContent() {
                 leftIcon={<Plus className="h-3.5 w-3.5" />}
                 onClick={() => setIsScheduleOpen(true)}
               >
-                Schedule Meeting
+                Schedule meeting
               </Button>
             </div>
           }
@@ -347,20 +345,16 @@ function MeetPageContent() {
         {/* 2-Pane Collaboration Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
           {/* ========================================================= */}
-          {/* LEFT SUB-SIDEBAR: Calls, Schedule a Meeting, Meeting Links */}
+          {/* LEFT SUB-SIDEBAR: Calls, Schedule, Meeting Links          */}
           {/* ========================================================= */}
           <aside className="lg:col-span-3 rounded-[12px] border border-[var(--spark-border)] bg-[var(--spark-surface)] p-3.5 shadow-subtle flex flex-col justify-between space-y-5">
             {/* Nav Tabs */}
             <div className="space-y-1.5">
-              <div className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-[var(--spark-text-muted)] flex items-center justify-between">
-                <span>Collaboration Hub</span>
-                <span className="flex items-center gap-1 text-[10px] text-emerald-500 font-medium">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  VoIP Ready
-                </span>
+              <div className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-[var(--spark-text-muted)]">
+                Meetings
               </div>
 
-              {/* 1. Calls & Huddles */}
+              {/* 1. Calls */}
               <button
                 onClick={() => handleTabChange("calls")}
                 className={`w-full flex items-center justify-between rounded-[8px] px-3 py-2.5 text-left text-xs font-medium transition-all ${
@@ -372,9 +366,9 @@ function MeetPageContent() {
                 <div className="flex items-center gap-2.5">
                   <PhoneCall className="h-4 w-4 shrink-0" />
                   <div>
-                    <p className="font-semibold leading-tight">Calls & Huddles</p>
+                    <p className="font-semibold leading-tight">Calls</p>
                     <p className={`text-[10px] ${activeTab === "calls" ? "text-white/80" : "text-[var(--spark-text-muted)]"}`}>
-                      1-on-1 calls & call logs
+                      Direct calls & history
                     </p>
                   </div>
                 </div>
@@ -387,7 +381,7 @@ function MeetPageContent() {
                 </Badge>
               </button>
 
-              {/* 2. Schedule a Meeting */}
+              {/* 2. Schedule */}
               <button
                 onClick={() => handleTabChange("schedule")}
                 className={`w-full flex items-center justify-between rounded-[8px] px-3 py-2.5 text-left text-xs font-medium transition-all ${
@@ -399,9 +393,9 @@ function MeetPageContent() {
                 <div className="flex items-center gap-2.5">
                   <Calendar className="h-4 w-4 shrink-0" />
                   <div>
-                    <p className="font-semibold leading-tight">Schedule a Meeting</p>
+                    <p className="font-semibold leading-tight">Schedule</p>
                     <p className={`text-[10px] ${activeTab === "schedule" ? "text-white/80" : "text-[var(--spark-text-muted)]"}`}>
-                      Calendar & upcoming syncs
+                      Upcoming calendar meetings
                     </p>
                   </div>
                 </div>
@@ -426,9 +420,9 @@ function MeetPageContent() {
                 <div className="flex items-center gap-2.5">
                   <Link2 className="h-4 w-4 shrink-0" />
                   <div>
-                    <p className="font-semibold leading-tight">Meeting Links</p>
+                    <p className="font-semibold leading-tight">Meeting links</p>
                     <p className={`text-[10px] ${activeTab === "links" ? "text-white/80" : "text-[var(--spark-text-muted)]"}`}>
-                      Instant rooms & codes
+                      Saved rooms & links
                     </p>
                   </div>
                 </div>
@@ -447,15 +441,15 @@ function MeetPageContent() {
               {/* Join with Code Widget */}
               <form onSubmit={handleJoinWithCode} className="space-y-1.5">
                 <label className="block text-[11px] font-medium text-[var(--spark-text-primary)]">
-                  Join via Room Code
+                  Enter a code or link
                 </label>
                 <div className="flex items-center gap-1.5">
                   <input
                     type="text"
                     value={joinCodeInput}
                     onChange={(e) => setJoinCodeInput(e.target.value)}
-                    placeholder="e.g. spk-842a"
-                    className="flex-1 rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] px-2.5 py-1 text-xs text-[var(--spark-text-primary)] placeholder-[var(--spark-text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--spark-accent)]"
+                    placeholder="abc-defg-hij"
+                    className="flex-1 rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] px-2.5 py-1 text-xs text-[var(--spark-text-primary)] placeholder-[var(--spark-text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--spark-accent)] font-mono"
                   />
                   <Button type="submit" variant="secondary" size="sm" className="px-2.5 py-1 text-xs">
                     Join
@@ -466,29 +460,20 @@ function MeetPageContent() {
               {/* Start Instant Meeting Button */}
               <button
                 onClick={startInstantMeeting}
-                className="w-full flex items-center justify-center gap-2 rounded-[8px] bg-gradient-to-r from-purple-600 to-indigo-600 px-3 py-2 text-xs font-semibold text-white shadow-sm hover:from-purple-500 hover:to-indigo-500 transition-all"
+                className="w-full flex items-center justify-center gap-2 rounded-[8px] bg-[var(--spark-accent)] px-3 py-2 text-xs font-semibold text-white shadow-sm hover:opacity-90 transition-all"
               >
-                <Sparkles className="h-3.5 w-3.5" />
-                <span>Start Instant Meeting</span>
+                <Video className="h-3.5 w-3.5" />
+                <span>Start instant meeting</span>
               </button>
-
-              {/* Supabase Realtime WebRTC Status Card */}
-              <div className="rounded-[8px] bg-[var(--spark-canvas)] p-2.5 border border-[var(--spark-border)] flex items-center justify-between text-[11px]">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="h-3.5 w-3.5 text-purple-500" />
-                  <span className="text-[var(--spark-text-secondary)]">Supabase WebRTC P2P</span>
-                </div>
-                <span className="text-emerald-500 font-medium">Active</span>
-              </div>
             </div>
           </aside>
 
           {/* ========================================================= */}
-          {/* RIGHT MAIN PANE: Content based on activeTab */}
+          {/* RIGHT MAIN PANE                                           */}
           {/* ========================================================= */}
           <main className="lg:col-span-9 space-y-5">
             {/* ------------------------------------------------------- */}
-            {/* TAB 1: CALLS & HUDDLES (1-on-1 directory + call logs)  */}
+            {/* TAB 1: CALLS                                            */}
             {/* ------------------------------------------------------- */}
             {activeTab === "calls" && (
               <div className="space-y-6">
@@ -501,14 +486,14 @@ function MeetPageContent() {
                     </p>
                   </div>
                   <div className="rounded-[10px] border border-[var(--spark-border)] bg-[var(--spark-surface)] p-3.5 shadow-subtle">
-                    <p className="text-[11px] text-[var(--spark-text-muted)]">Total Calls Logged</p>
+                    <p className="text-[11px] text-[var(--spark-text-muted)]">Total Calls</p>
                     <p className="text-xl font-bold text-[var(--spark-text-primary)] mt-1">{callLogs.length}</p>
                   </div>
                   <div className="rounded-[10px] border border-[var(--spark-border)] bg-[var(--spark-surface)] p-3.5 shadow-subtle">
-                    <p className="text-[11px] text-[var(--spark-text-muted)]">Encrypted WebRTC Audio & Video</p>
+                    <p className="text-[11px] text-[var(--spark-text-muted)]">Connection</p>
                     <p className="text-xs font-semibold text-emerald-500 mt-2 flex items-center gap-1.5">
                       <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                      Zero Latency Peer Link
+                      HD Video & Audio
                     </p>
                   </div>
                 </div>
@@ -518,10 +503,10 @@ function MeetPageContent() {
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[var(--spark-border)]">
                     <div>
                       <h3 className="text-sm font-semibold text-[var(--spark-text-primary)]">
-                        Workspace Team Directory
+                        Team Directory
                       </h3>
                       <p className="text-xs text-[var(--spark-text-secondary)]">
-                        Start an instant video or voice call with any colleague in this workspace.
+                        Start a direct video or voice call with colleagues in this workspace.
                       </p>
                     </div>
 
@@ -531,7 +516,7 @@ function MeetPageContent() {
                         type="text"
                         value={memberSearch}
                         onChange={(e) => setMemberSearch(e.target.value)}
-                        placeholder="Search member by name..."
+                        placeholder="Search team..."
                         className="w-full rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] pl-8 pr-3 py-1.5 text-xs text-[var(--spark-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--spark-accent)]"
                       />
                     </div>
@@ -540,7 +525,7 @@ function MeetPageContent() {
                   {filteredMembers.length === 0 ? (
                     <div className="py-8 text-center text-xs text-[var(--spark-text-muted)]">
                       {members.length <= 1
-                        ? "No other team members in this workspace yet. Invite teammates to make calls!"
+                        ? "No other team members in this workspace yet. Invite teammates to make calls."
                         : "No team members matched your search."}
                     </div>
                   ) : (
@@ -576,7 +561,7 @@ function MeetPageContent() {
                               size="sm"
                               className="h-8 px-2.5 text-xs text-[var(--spark-accent)] hover:bg-[var(--spark-highlight)]"
                               onClick={() => startDirectCall(m.user, "VOICE")}
-                              title="Start Voice Call"
+                              title="Voice call"
                             >
                               <Phone className="h-3.5 w-3.5 mr-1" />
                               Voice
@@ -586,7 +571,7 @@ function MeetPageContent() {
                               size="sm"
                               className="h-8 px-2.5 text-xs"
                               onClick={() => startDirectCall(m.user, "VIDEO")}
-                              title="Start Video Call"
+                              title="Video call"
                             >
                               <Video className="h-3.5 w-3.5 mr-1" />
                               Video
@@ -602,16 +587,16 @@ function MeetPageContent() {
                 <div className="rounded-[12px] border border-[var(--spark-border)] bg-[var(--spark-surface)] p-4 shadow-subtle space-y-3">
                   <div className="flex items-center justify-between pb-2 border-b border-[var(--spark-border)]">
                     <h3 className="text-sm font-semibold text-[var(--spark-text-primary)]">
-                      Recent Call History & Logs
+                      Recent Calls
                     </h3>
                     <span className="text-[11px] text-[var(--spark-text-muted)]">
-                      {callLogs.length} total call records
+                      {callLogs.length} records
                     </span>
                   </div>
 
                   {callLogs.length === 0 ? (
                     <div className="py-6 text-center text-xs text-[var(--spark-text-muted)]">
-                      No call records yet. Initiate a 1-on-1 voice or video call above to populate logs.
+                      No call records yet. Initiate a call with a teammate above.
                     </div>
                   ) : (
                     <div className="divide-y divide-[var(--spark-border)]">
@@ -647,15 +632,15 @@ function MeetPageContent() {
                                 <div className="flex items-center gap-1.5">
                                   <span className="font-semibold text-[var(--spark-text-primary)]">
                                     {isCaller
-                                      ? `Called ${log.receiverName || "Team Member"}`
-                                      : `Received call from ${log.callerName}`}
+                                      ? `Called ${log.receiverName || "Teammate"}`
+                                      : `Call from ${log.callerName}`}
                                   </span>
                                   <Badge variant="secondary" size="sm" className="text-[10px] px-1.5 py-0">
                                     {log.type}
                                   </Badge>
                                 </div>
-                                <p className="text-[11px] text-[var(--spark-text-muted)]">
-                                  {dateFormatted} • Code: {log.roomCode}
+                                <p className="text-[11px] text-[var(--spark-text-muted)] font-mono">
+                                  {dateFormatted} • {log.roomCode}
                                 </p>
                               </div>
                             </div>
@@ -670,12 +655,12 @@ function MeetPageContent() {
                                 className="h-7 px-2 text-xs"
                                 onClick={() => {
                                   setCurrentRoomCode(log.roomCode);
-                                  setCurrentRoomTitle(`Call Back [${log.roomCode}]`);
+                                  setCurrentRoomTitle(`Call | ${log.roomCode}`);
                                   setCurrentCallType(log.type);
                                   setIsRoomOpen(true);
                                 }}
                               >
-                                Call Back
+                                Call back
                               </Button>
                             </div>
                           </div>
@@ -688,17 +673,17 @@ function MeetPageContent() {
             )}
 
             {/* ------------------------------------------------------- */}
-            {/* TAB 2: SCHEDULE A MEETING (Calendar syncs & manager)     */}
+            {/* TAB 2: SCHEDULE                                         */}
             {/* ------------------------------------------------------- */}
             {activeTab === "schedule" && (
               <div className="space-y-5">
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-base font-semibold text-[var(--spark-text-primary)]">
-                      Scheduled Workspace Meetings
+                      Scheduled Meetings
                     </h3>
                     <p className="text-xs text-[var(--spark-text-secondary)]">
-                      Plan team syncs, sprint reviews, and calendar events with direct room join links.
+                      Upcoming calendar meetings and reviews.
                     </p>
                   </div>
                   <Button
@@ -707,7 +692,7 @@ function MeetPageContent() {
                     leftIcon={<Plus className="h-3.5 w-3.5" />}
                     onClick={() => setIsScheduleOpen(true)}
                   >
-                    Schedule Meeting
+                    Schedule meeting
                   </Button>
                 </div>
 
@@ -716,8 +701,8 @@ function MeetPageContent() {
                     <EmptyState
                       icon={<Calendar className="h-6 w-6" />}
                       title="No scheduled meetings"
-                      description="Upcoming team calls and syncs scheduled in this workspace will appear here."
-                      actionLabel="Schedule First Call"
+                      description="Upcoming meetings scheduled in this workspace will appear here."
+                      actionLabel="Schedule meeting"
                       onAction={() => setIsScheduleOpen(true)}
                     />
                   </div>
@@ -726,7 +711,7 @@ function MeetPageContent() {
                     {meetings.map((m) => {
                       const dateObj = new Date(m.startTime);
                       const isPast = dateObj.getTime() < Date.now();
-                      const roomCode = m.roomCode || `spk-${m.id.substring(0, 8)}`;
+                      const roomCode = m.roomCode || generateRoomCode();
                       const meetUrl = `${originUrl}/meet?room=${roomCode}`;
 
                       return (
@@ -745,7 +730,7 @@ function MeetPageContent() {
                                 </h4>
                               </div>
                               <Badge variant={isPast ? "default" : "violet"} size="sm">
-                                {isPast ? "Concluded" : "Upcoming"}
+                                {isPast ? "Ended" : "Upcoming"}
                               </Badge>
                             </div>
 
@@ -786,7 +771,7 @@ function MeetPageContent() {
                               </span>
                             </div>
 
-                            {/* Action Buttons */}
+                            {/* Actions */}
                             <div className="flex items-center justify-between pt-2 border-t border-[var(--spark-border)] gap-2">
                               <Button
                                 variant="outline"
@@ -799,7 +784,7 @@ function MeetPageContent() {
                                 ) : (
                                   <Copy className="h-3.5 w-3.5 mr-1" />
                                 )}
-                                {copiedKey === `meet-${m.id}` ? "Copied" : "Copy Link"}
+                                {copiedKey === `meet-${m.id}` ? "Copied" : "Copy link"}
                               </Button>
 
                               <div className="flex items-center gap-1">
@@ -814,7 +799,7 @@ function MeetPageContent() {
                                     setIsRoomOpen(true);
                                   }}
                                 >
-                                  Join Room
+                                  Join
                                 </Button>
                                 <button
                                   type="button"
@@ -836,33 +821,33 @@ function MeetPageContent() {
             )}
 
             {/* ------------------------------------------------------- */}
-            {/* TAB 3: MEETING LINKS (Instant rooms & permanent links)   */}
+            {/* TAB 3: MEETING LINKS                                    */}
             {/* ------------------------------------------------------- */}
             {activeTab === "links" && (
               <div className="space-y-6">
                 <div>
                   <h3 className="text-base font-semibold text-[var(--spark-text-primary)]">
-                    Meeting Links & Persistent Rooms
+                    Meeting Links
                   </h3>
                   <p className="text-xs text-[var(--spark-text-secondary)]">
-                    Generate permanent room links for ongoing project syncs, design reviews, or quick ad-hoc meetings.
+                    Reusable rooms with fixed 3-4-3 codes for recurring calls and team huddles.
                   </p>
                 </div>
 
-                {/* 3 Quick Cards */}
+                {/* 2 Quick Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Card 1: Start Instant Meeting */}
-                  <div className="rounded-[12px] border border-[var(--spark-border)] bg-gradient-to-br from-purple-900/10 to-indigo-900/10 p-5 shadow-subtle space-y-3">
+                  <div className="rounded-[12px] border border-[var(--spark-border)] bg-[var(--spark-surface)] p-5 shadow-subtle space-y-3">
                     <div className="flex items-center gap-2.5">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-[8px] bg-purple-600 text-white shadow-md">
-                        <Sparkles className="h-4 w-4" />
+                      <div className="flex h-9 w-9 items-center justify-center rounded-[8px] bg-[var(--spark-highlight)] text-[var(--spark-accent)]">
+                        <Video className="h-4 w-4" />
                       </div>
                       <div>
                         <h4 className="text-sm font-semibold text-[var(--spark-text-primary)]">
-                          Start an Instant Meeting
+                          Start an instant meeting
                         </h4>
                         <p className="text-xs text-[var(--spark-text-secondary)]">
-                          Create a meeting room right now and invite others with a link.
+                          Create a meeting room and share the link with participants.
                         </p>
                       </div>
                     </div>
@@ -870,13 +855,13 @@ function MeetPageContent() {
                       variant="primary"
                       size="sm"
                       onClick={startInstantMeeting}
-                      className="w-full bg-purple-600 hover:bg-purple-700"
+                      className="w-full"
                     >
-                      Start Instant Meeting
+                      Start instant meeting
                     </Button>
                   </div>
 
-                  {/* Card 2: Create Link for Later */}
+                  {/* Card 2: Create Reusable Link */}
                   <form
                     onSubmit={handleCreateMeetingLink}
                     className="rounded-[12px] border border-[var(--spark-border)] bg-[var(--spark-surface)] p-5 shadow-subtle space-y-3"
@@ -887,10 +872,10 @@ function MeetPageContent() {
                       </div>
                       <div>
                         <h4 className="text-sm font-semibold text-[var(--spark-text-primary)]">
-                          Create Reusable Room Link
+                          Create link for later
                         </h4>
                         <p className="text-xs text-[var(--spark-text-secondary)]">
-                          Name a permanent room (e.g. Daily Standup).
+                          Set a permanent room name (e.g. Design Sync).
                         </p>
                       </div>
                     </div>
@@ -900,7 +885,7 @@ function MeetPageContent() {
                         required
                         value={newLinkTitle}
                         onChange={(e) => setNewLinkTitle(e.target.value)}
-                        placeholder="e.g. Design Critique Room"
+                        placeholder="e.g. Sprint Planning Room"
                         className="flex-1 rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] px-3 py-1.5 text-xs text-[var(--spark-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--spark-accent)]"
                       />
                       <Button type="submit" variant="primary" size="sm" isLoading={isCreatingLink}>
@@ -914,14 +899,14 @@ function MeetPageContent() {
                 <div className="rounded-[12px] border border-[var(--spark-border)] bg-[var(--spark-surface)] p-4 shadow-subtle space-y-3">
                   <div className="flex items-center justify-between pb-3 border-b border-[var(--spark-border)]">
                     <h4 className="text-sm font-semibold text-[var(--spark-text-primary)]">
-                      Active Meeting Links Directory
+                      Active Meeting Links
                     </h4>
-                    <span className="text-xs text-[var(--spark-text-muted)]">{links.length} total links</span>
+                    <span className="text-xs text-[var(--spark-text-muted)]">{links.length} total</span>
                   </div>
 
                   {links.length === 0 ? (
                     <div className="py-8 text-center text-xs text-[var(--spark-text-muted)]">
-                      No meeting links generated yet. Create a reusable room link or instant meeting above.
+                      No meeting links generated yet.
                     </div>
                   ) : (
                     <div className="divide-y divide-[var(--spark-border)]">
@@ -941,17 +926,13 @@ function MeetPageContent() {
                                   <Badge
                                     variant={link.isInstant ? "default" : "violet"}
                                     size="sm"
-                                    className="text-[9px] px-1.5 py-0"
+                                    className="text-[9px] px-1.5 py-0 font-mono"
                                   >
-                                    {link.isInstant ? "Instant" : "Permanent"}
+                                    {link.roomCode}
                                   </Badge>
                                 </div>
                                 <p className="text-[11px] text-[var(--spark-text-muted)]">
-                                  Room Code:{" "}
-                                  <span className="font-mono font-medium text-[var(--spark-text-primary)]">
-                                    {link.roomCode}
-                                  </span>{" "}
-                                  • Created by {link.creatorName}
+                                  Created by {link.creatorName}
                                 </p>
                               </div>
                             </div>
@@ -968,7 +949,7 @@ function MeetPageContent() {
                                 ) : (
                                   <Copy className="h-3.5 w-3.5 mr-1" />
                                 )}
-                                {copiedKey === `link-${link.id}` ? "Copied" : "Copy Link"}
+                                {copiedKey === `link-${link.id}` ? "Copied" : "Copy link"}
                               </Button>
 
                               <Button
@@ -1015,7 +996,7 @@ function MeetPageContent() {
             <div className="relative z-10 w-full max-w-md rounded-[12px] border spark-glass bg-[var(--spark-surface)] p-6 shadow-modal">
               <div className="flex items-center justify-between pb-3 border-b border-[var(--spark-border)]">
                 <h3 className="text-sm font-semibold text-[var(--spark-text-primary)]">
-                  Schedule Workspace Meeting
+                  Schedule meeting
                 </h3>
                 <button
                   type="button"
@@ -1036,27 +1017,27 @@ function MeetPageContent() {
               <form onSubmit={handleScheduleSubmit} className="mt-4 space-y-3.5">
                 <div>
                   <label className="block text-xs font-medium text-[var(--spark-text-primary)] mb-1">
-                    Meeting Title *
+                    Meeting title *
                   </label>
                   <input
                     type="text"
                     required
                     value={scheduleTitle}
                     onChange={(e) => setScheduleTitle(e.target.value)}
-                    placeholder="e.g. Weekly Product Sync"
+                    placeholder="e.g. Sprint Review"
                     className="w-full rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] px-3 py-1.5 text-xs text-[var(--spark-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--spark-accent)]"
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-medium text-[var(--spark-text-primary)] mb-1">
-                    Agenda / Description
+                    Description
                   </label>
                   <textarea
                     rows={2}
                     value={scheduleDesc}
                     onChange={(e) => setScheduleDesc(e.target.value)}
-                    placeholder="Meeting topics, preparation details..."
+                    placeholder="Agenda, notes..."
                     className="w-full rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] px-3 py-1.5 text-xs text-[var(--spark-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--spark-accent)]"
                   />
                 </div>
@@ -1121,7 +1102,7 @@ function MeetPageContent() {
                     size="sm"
                     isLoading={scheduleSubmitting}
                   >
-                    Schedule & Notify Members
+                    Schedule
                   </Button>
                 </div>
               </form>
@@ -1129,7 +1110,7 @@ function MeetPageContent() {
           </div>
         )}
 
-        {/* Live Interactive Video & Audio Call Room Modal */}
+        {/* Google Meet Style Video Room Modal */}
         <VideoRoomModal
           isOpen={isRoomOpen}
           onClose={() => {

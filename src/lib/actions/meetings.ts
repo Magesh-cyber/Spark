@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { verifyWorkspaceAccess } from "@/lib/workspace-guard";
 import { notifyWorkspaceMembers } from "@/lib/actions/notifications";
+import { generateRoomCode } from "@/lib/room-code";
 
 export interface ScheduledMeetingItem {
   id: string;
@@ -45,15 +46,6 @@ export interface WorkspaceCallLogItem {
   startedAt: string;
   endedAt: string | null;
   createdAt: string;
-}
-
-/**
- * Generate a friendly random room code: e.g. "spk-842a-9f1b"
- */
-function generateRoomCode(prefix = "spk"): string {
-  const seg1 = Math.random().toString(36).substring(2, 6);
-  const seg2 = Math.random().toString(36).substring(2, 6);
-  return `${prefix}-${seg1}-${seg2}`;
 }
 
 // ==========================================
@@ -257,7 +249,7 @@ export async function createWorkspaceMeetingLink(params: {
     const access = await verifyWorkspaceAccess(params.workspaceId);
 
     const title = params.title?.trim() || "Quick Meeting Room";
-    const roomCode = params.roomCode?.trim() || generateRoomCode(params.isInstant ? "inst" : "spk");
+    const roomCode = params.roomCode?.trim() || generateRoomCode();
 
     const created = await prisma.workspaceMeetingLink.create({
       data: {
