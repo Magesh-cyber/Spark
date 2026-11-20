@@ -269,7 +269,7 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
   const [nexconnReady, setNexconnReady] = useState(false);
   const setIsReady = setNexconnReady;
   const [isConnecting, setIsConnecting] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState<string>("CONNECTED");
+  const [connectionStatus, setConnectionStatus] = useState<string>("CONNECTING");
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
@@ -1090,8 +1090,9 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
 
                 const storeKey = `${msgWsId}:${convKey}`;
                 setConversationsStore((prev) => {
-                  const existing = prev[storeKey] || [];
+                  const existing = prev[storeKey] || clientChatCache.getMessages(msgWsId, convKey) || [];
                   const merged = mergeMessages(existing, [formattedMsg]);
+                  clientChatCache.setMessages(msgWsId, convKey, merged);
                   return { ...prev, [storeKey]: merged };
                 });
 
@@ -1127,7 +1128,11 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
                 });
 
                 if (belongsToActiveWorkspace && currentActiveKey === convKey) {
-                  setRawMessages((prev) => mergeMessages(prev, [formattedMsg]));
+                  setRawMessages((prev) => {
+                    const merged = mergeMessages(prev, [formattedMsg]);
+                    clientChatCache.setMessages(msgWsId, convKey, merged);
+                    return merged;
+                  });
                 }
 
                 // Real-time Delivery Ack & Read Receipt strictly for active workspace messages
@@ -1398,14 +1403,20 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
         const storeKey = `${targetWsId}:${convKey}`;
 
         setConversationsStore((prev) => {
-          const existing = prev[storeKey] || [];
-          return { ...prev, [storeKey]: mergeMessages(existing, [incomingMsg]) };
+          const existing = prev[storeKey] || clientChatCache.getMessages(targetWsId, convKey) || [];
+          const merged = mergeMessages(existing, [incomingMsg]);
+          clientChatCache.setMessages(targetWsId, convKey, merged);
+          return { ...prev, [storeKey]: merged };
         });
 
         const active = activeConvRef.current;
         const currentKey = active ? `${active.type}:${active.nexconnTargetId}` : null;
         if (currentKey === convKey) {
-          setRawMessages((prev) => mergeMessages(prev, [incomingMsg]));
+          setRawMessages((prev) => {
+            const merged = mergeMessages(prev, [incomingMsg]);
+            clientChatCache.setMessages(targetWsId, convKey, merged);
+            return merged;
+          });
         }
 
         updateWorkspaceSummary(targetWsId, convKey, (prev) => ({
@@ -1453,13 +1464,19 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
         const storeKey = `${targetWsId}:${convKey}`;
 
         setConversationsStore((prev) => {
-          const existing = prev[storeKey] || [];
-          return { ...prev, [storeKey]: mergeMessages(existing, [incomingMsg]) };
+          const existing = prev[storeKey] || clientChatCache.getMessages(targetWsId, convKey) || [];
+          const merged = mergeMessages(existing, [incomingMsg]);
+          clientChatCache.setMessages(targetWsId, convKey, merged);
+          return { ...prev, [storeKey]: merged };
         });
 
         const active = activeConvRef.current;
         if (active && active.type === "direct" && active.nexconnTargetId === senderId) {
-          setRawMessages((prev) => mergeMessages(prev, [incomingMsg]));
+          setRawMessages((prev) => {
+            const merged = mergeMessages(prev, [incomingMsg]);
+            clientChatCache.setMessages(targetWsId, convKey, merged);
+            return merged;
+          });
         }
 
         updateWorkspaceSummary(targetWsId, convKey, (prev) => ({
@@ -1607,9 +1624,10 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
         .catch(() => {});
     }
 
-    const cached = conversationsStoreRef.current[storeKey];
+    const cached = conversationsStoreRef.current[storeKey] || clientChatCache.getMessages(wsId, convKey);
     if (cached && cached.length > 0) {
       setRawMessages(cached);
+      conversationsStoreRef.current[storeKey] = cached;
     } else {
       setRawMessages([]);
     }
@@ -1695,12 +1713,18 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
           }
 
           setConversationsStore((prev) => {
-            const existing = prev[storeKey] || [];
+            const existing = prev[storeKey] || clientChatCache.getMessages(wsId, convKey) || [];
             const merged = mergeMessages(formatted, existing);
+            clientChatCache.setMessages(wsId, convKey, merged);
             return { ...prev, [storeKey]: merged };
           });
 
-          setRawMessages((prev) => mergeMessages(formatted, prev));
+          setRawMessages((prev) => {
+            const existing = prev.length > 0 ? prev : (clientChatCache.getMessages(wsId, convKey) || []);
+            const merged = mergeMessages(formatted, existing);
+            clientChatCache.setMessages(wsId, convKey, merged);
+            return merged;
+          });
 
           if (formatted.length > 0) {
             const sorted = [...formatted].sort((a, b) => a.timestamp - b.timestamp);
@@ -1762,6 +1786,7 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
   }, [
     activeConversation,
     activeWorkspace?.id,
+    connectionStatus,
     isReady,
     getStoreKey,
     resolveSenderName,
@@ -1957,11 +1982,19 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
             ? { ...m, id: realId, timestamp: realTime, status: "sent" }
             : m;
 
-        setRawMessages((prev) => prev.map(updateMsg));
-        setConversationsStore((prev) => ({
-          ...prev,
-          [storeKey]: (prev[storeKey] || []).map(updateMsg),
-        }));
+        setRawMessages((prev) => {
+          const next = prev.map(updateMsg);
+          clientChatCache.setMessages(wsId, convKey, next);
+          return next;
+        });
+        setConversationsStore((prev) => {
+          const next = {
+            ...prev,
+            [storeKey]: (prev[storeKey] || []).map(updateMsg),
+          };
+          clientChatCache.setMessages(wsId, convKey, next[storeKey]);
+          return next;
+        });
 
         // Broadcast via Supabase Realtime for instant peer delivery
         try {
@@ -2165,11 +2198,19 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
               }
             : m;
 
-        setRawMessages((prev) => prev.map(updateMsg));
-        setConversationsStore((prev) => ({
-          ...prev,
-          [storeKey]: (prev[storeKey] || []).map(updateMsg),
-        }));
+        setRawMessages((prev) => {
+          const next = prev.map(updateMsg);
+          clientChatCache.setMessages(wsId, convKey, next);
+          return next;
+        });
+        setConversationsStore((prev) => {
+          const next = {
+            ...prev,
+            [storeKey]: (prev[storeKey] || []).map(updateMsg),
+          };
+          clientChatCache.setMessages(wsId, convKey, next[storeKey]);
+          return next;
+        });
 
         updateWorkspaceSummary(wsId, convKey, (prev) => ({
           ...(prev || { unreadCount: 0 }),

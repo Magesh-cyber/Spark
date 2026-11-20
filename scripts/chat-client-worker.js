@@ -92,10 +92,11 @@ function getLiveToken(uId, name) {
   }).toString();
 
   const candidateHosts = [
-    '47.84.112.16',
-    '47.84.107.146',
+    'api-sg01.ronghub.com',
     'api.sg-light-api.com',
     'api-b.sg-light-api.com',
+    '47.84.112.16',
+    '47.84.107.146',
   ];
 
   return new Promise((resolve, reject) => {
@@ -110,7 +111,7 @@ function getLiveToken(uId, name) {
         path: '/user/getToken.json',
         method: 'POST',
         headers: {
-          Host: 'api.sg-light-api.com',
+          Host: host.match(/^\d/) ? 'api-sg01.ronghub.com' : host,
           'App-Key': key,
           Nonce: nonce,
           Timestamp: timestamp,
@@ -118,7 +119,7 @@ function getLiveToken(uId, name) {
           'Content-Type': 'application/x-www-form-urlencoded',
           'Content-Length': Buffer.byteLength(postData),
         },
-        servername: 'api.sg-light-api.com',
+        servername: host.match(/^\d/) ? 'api-sg01.ronghub.com' : host,
         timeout: 4000,
       }, (res) => {
         let raw = '';

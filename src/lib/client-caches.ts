@@ -40,6 +40,28 @@ function writeSession(key: string, value: unknown): void {
   } catch {}
 }
 
+function readLocal<T>(key: string): T | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(key) || sessionStorage.getItem(key);
+    if (!raw) return null;
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
+
+function writeLocal(key: string, value: unknown): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    try {
+      sessionStorage.setItem(key, JSON.stringify(value));
+    } catch {}
+  }
+}
+
 export const clientDashboardCache = {
   get(workspaceId: string): WorkspaceDashboardData | null {
     if (!workspaceId || workspaceId === "personal-fallback") return null;
@@ -151,6 +173,15 @@ export const clientChatCache = {
     if (!workspaceId || workspaceId === "personal-fallback" || !tokenData?.token) return;
     nexconnTokenMap.set(workspaceId, { data: tokenData, updatedAt: Date.now() });
   },
+
+  getMessages(workspaceId: string, convKey: string): any[] | null {
+    if (!workspaceId || workspaceId === "personal-fallback" || !convKey) return null;
+    return readLocal<any[]>(`spark_msgs_${workspaceId}_${convKey}`);
+  },
+  setMessages(workspaceId: string, convKey: string, messages: any[]): void {
+    if (!workspaceId || workspaceId === "personal-fallback" || !convKey || !messages) return;
+    writeLocal(`spark_msgs_${workspaceId}_${convKey}`, messages);
+  },
 };
 
 /**
@@ -173,6 +204,15 @@ export function clearAllClientCaches(): void {
         }
       }
       keysToRemove.forEach((k) => sessionStorage.removeItem(k));
+
+      const localKeysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith("spark_msgs_")) {
+          localKeysToRemove.push(key);
+        }
+      }
+      localKeysToRemove.forEach((k) => localStorage.removeItem(k));
     } catch {}
   }
 }
