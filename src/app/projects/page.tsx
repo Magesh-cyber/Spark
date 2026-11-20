@@ -26,17 +26,27 @@ import {
   Check,
   UserCheck,
   X,
+  Archive,
+  RotateCcw,
+  Tag,
+  AlertTriangle,
 } from "lucide-react";
 import { ShellLayout } from "@/components/layout/ShellLayout";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { EmptyState } from "@/components/feedback/EmptyState";
+import { Avatar } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { useWorkspace } from "@/lib/workspace-context";
 import {
   getWorkspaceProjects,
   createWorkspaceProject,
   updateWorkspaceProject,
   deleteWorkspaceProject,
+  archiveWorkspaceProject,
+  restoreWorkspaceProject,
   ProjectRecordItem,
+  ProjectMetricsSummary,
 } from "@/lib/actions/projects";
 import { getWorkspaceMembers } from "@/lib/actions/workspace-members";
 import { WorkspaceMemberItem } from "@/lib/types";
@@ -51,16 +61,32 @@ const COLOR_PRESETS = [
   { name: "Indigo", hex: "#4F46E5" },
 ];
 
+const CATEGORY_PRESETS = [
+  "Engineering",
+  "Infrastructure",
+  "Product & Design",
+  "AI & Machine Learning",
+  "Customer Operations",
+  "Marketing & Growth",
+  "Security & Compliance",
+];
+
 export default function ProjectsPage() {
   const router = useRouter();
   const { activeWorkspace, currentUser } = useWorkspace();
 
   const [projects, setProjects] = useState<ProjectRecordItem[]>([]);
+  const [metrics, setMetrics] = useState<ProjectMetricsSummary | null>(null);
   const [members, setMembers] = useState<WorkspaceMemberItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Filters & Sorting
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"ALL" | "ACTIVE" | "ON_HOLD" | "COMPLETED">("ALL");
+  const [statusFilter, setStatusFilter] = useState<
+    "ALL" | "PLANNING" | "ACTIVE" | "ON_HOLD" | "COMPLETED" | "ARCHIVED"
+  >("ALL");
   const [visibilityFilter, setVisibilityFilter] = useState<"ALL" | "PUBLIC" | "PRIVATE">("ALL");
+  const [sortBy, setSortBy] = useState<"NEWEST" | "DUE_DATE" | "PROGRESS" | "NAME">("NEWEST");
 
   // Create Modal State
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -68,6 +94,8 @@ export default function ProjectsPage() {
   const [key, setKey] = useState("");
   const [hasManuallyEditedKey, setHasManuallyEditedKey] = useState(false);
   const [description, setDescription] = useState("");
+  const [category, setCategory] = useState("Engineering");
+  const [initialStatus, setInitialStatus] = useState<"PLANNING" | "ACTIVE">("ACTIVE");
   const [projectType, setProjectType] = useState<"PUBLIC" | "PRIVATE">("PUBLIC");
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
   const [memberSearchQuery, setMemberSearchQuery] = useState("");
@@ -76,7 +104,7 @@ export default function ProjectsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Active Menu
+  // Active Dropdown Menu
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
   // Load projects and workspace members
@@ -84,6 +112,7 @@ export default function ProjectsPage() {
     if (!activeWorkspace?.id || activeWorkspace.id === "personal-fallback") {
       setProjects([]);
       setMembers([]);
+      setMetrics(null);
       setIsLoading(false);
       return;
     }
@@ -97,6 +126,7 @@ export default function ProjectsPage() {
 
       if (projRes.success && projRes.projects) {
         setProjects(projRes.projects);
+        if (projRes.metrics) setMetrics(projRes.metrics);
       }
       if (memRes.members) {
         setMembers(memRes.members);
@@ -140,8 +170,7 @@ export default function ProjectsPage() {
   };
 
   const toggleMemberSelection = (userId: string) => {
-    // Cannot unselect the creator
-    if (userId === currentUser?.id) return;
+    if (userId === currentUser?.id) return; // Cannot unselect the creator
 
     setSelectedMemberIds((prev) =>
       prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
@@ -161,6 +190,7 @@ export default function ProjectsPage() {
         name: name.trim(),
         key: key.trim().toUpperCase() || undefined,
         description: description.trim() || undefined,
+        category: category.trim() || undefined,
         type: projectType,
         memberIds: projectType === "PRIVATE" ? selectedMemberIds : undefined,
         color: selectedColor,
@@ -173,10 +203,12 @@ export default function ProjectsPage() {
         setName("");
         setKey("");
         setDescription("");
+        setCategory("Engineering");
         setProjectType("PUBLIC");
         setSelectedMemberIds(currentUser?.id ? [currentUser.id] : []);
         setTargetDate("");
         setHasManuallyEditedKey(false);
+        loadData(); // Refresh metrics
       } else {
         setErrorMsg(res.error || "Failed to create project.");
       }
@@ -187,7 +219,10 @@ export default function ProjectsPage() {
     }
   };
 
-  const handleStatusChange = async (projectId: string, newStatus: "ACTIVE" | "ON_HOLD" | "COMPLETED") => {
+  const handleStatusChange = async (
+    projectId: string,
+    newStatus: "PLANNING" | "ACTIVE" | "ON_HOLD" | "COMPLETED"
+  ) => {
     if (!activeWorkspace?.id) return;
     setActiveMenuId(null);
 
@@ -196,47 +231,74 @@ export default function ProjectsPage() {
     );
 
     await updateWorkspaceProject(activeWorkspace.id, projectId, { status: newStatus });
+    loadData();
+  };
+
+  const handleArchive = async (projectId: string) => {
+    if (!activeWorkspace?.id) return;
+    setActiveMenuId(null);
+    await archiveWorkspaceProject(activeWorkspace.id, projectId);
+    loadData();
+  };
+
+  const handleRestore = async (projectId: string) => {
+    if (!activeWorkspace?.id) return;
+    setActiveMenuId(null);
+    await restoreWorkspaceProject(activeWorkspace.id, projectId);
+    loadData();
   };
 
   const handleDelete = async (projectId: string) => {
     if (!activeWorkspace?.id) return;
-    if (!confirm("Are you sure you want to delete this project? Associated issues will remain in the workspace.")) {
+    if (
+      !confirm(
+        "Are you sure you want to permanently delete this project? Associated work items will remain in the workspace."
+      )
+    ) {
       return;
     }
     setActiveMenuId(null);
 
     setProjects((prev) => prev.filter((p) => p.id !== projectId));
     await deleteWorkspaceProject(activeWorkspace.id, projectId);
+    loadData();
   };
 
-  // KPIs
-  const kpis = useMemo(() => {
-    const total = projects.length;
-    const active = projects.filter((p) => p.status === "ACTIVE").length;
-    const totalIssues = projects.reduce((acc, p) => acc + p.taskStats.total, 0);
-    const completedIssues = projects.reduce((acc, p) => acc + p.taskStats.done, 0);
-    const overallRate = totalIssues > 0 ? Math.round((completedIssues / totalIssues) * 100) : 0;
-
-    return { total, active, totalIssues, completedIssues, overallRate };
-  }, [projects]);
-
-  // Filtered projects
+  // Filtered and sorted projects
   const filteredProjects = useMemo(() => {
-    return projects.filter((p) => {
+    const list = projects.filter((p) => {
+      const q = searchQuery.toLowerCase();
       const matchSearch =
-        searchQuery === "" ||
-        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.key.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (p.description && p.description.toLowerCase().includes(searchQuery.toLowerCase()));
+        !q ||
+        p.name.toLowerCase().includes(q) ||
+        p.key.toLowerCase().includes(q) ||
+        (p.description && p.description.toLowerCase().includes(q)) ||
+        (p.category && p.category.toLowerCase().includes(q));
 
       const matchStatus = statusFilter === "ALL" || p.status === statusFilter;
       const matchVisibility = visibilityFilter === "ALL" || p.type === visibilityFilter;
 
       return matchSearch && matchStatus && matchVisibility;
     });
-  }, [projects, searchQuery, statusFilter, visibilityFilter]);
 
-  // Filtered members for the modal member picker
+    return list.sort((a, b) => {
+      if (sortBy === "DUE_DATE") {
+        if (!a.targetDate) return 1;
+        if (!b.targetDate) return -1;
+        return new Date(a.targetDate).getTime() - new Date(b.targetDate).getTime();
+      }
+      if (sortBy === "PROGRESS") {
+        return b.taskStats.completionPercentage - a.taskStats.completionPercentage;
+      }
+      if (sortBy === "NAME") {
+        return a.name.localeCompare(b.name);
+      }
+      // NEWEST default
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+  }, [projects, searchQuery, statusFilter, visibilityFilter, sortBy]);
+
+  // Filtered members for private project picker
   const filteredModalMembers = useMemo(() => {
     return members.filter((m) => {
       if (!memberSearchQuery.trim()) return true;
@@ -248,119 +310,189 @@ export default function ProjectsPage() {
     });
   }, [members, memberSearchQuery]);
 
+  // Computed display metrics
+  const displayMetrics = useMemo(() => {
+    if (metrics) return metrics;
+
+    const total = projects.length;
+    const active = projects.filter((p) => p.status === "ACTIVE").length;
+    const onHold = projects.filter((p) => p.status === "ON_HOLD").length;
+    const completed = projects.filter((p) => p.status === "COMPLETED").length;
+    const now = new Date();
+    const overdue = projects.filter(
+      (p) => p.targetDate && new Date(p.targetDate) < now && p.status !== "COMPLETED"
+    ).length;
+    const totalIssues = projects.reduce((acc, p) => acc + p.taskStats.total, 0);
+    const completedIssues = projects.reduce((acc, p) => acc + p.taskStats.done, 0);
+    const overallDeliveryRate =
+      totalIssues > 0 ? Math.round((completedIssues / totalIssues) * 100) : 0;
+
+    return {
+      totalProjects: total,
+      activeProjects: active,
+      onHoldProjects: onHold,
+      completedProjects: completed,
+      overdueProjects: overdue,
+      totalIssues,
+      completedIssues,
+      overallDeliveryRate,
+    };
+  }, [metrics, projects]);
+
   return (
     <ShellLayout>
       <div className="space-y-6 max-w-7xl mx-auto pb-12">
         {/* Header */}
         <PageHeader
-          title="Projects"
-          description={`Track initiatives, team deliverables, and project boards for ${
+          title="Projects & Initiatives"
+          description={`Central organizational portfolio, deliverable roadmaps, and key-prefixed project execution for ${
             activeWorkspace?.name || "your organization"
           }.`}
           badge={
-            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-[var(--spark-accent)]/10 text-[var(--spark-accent)] border border-[var(--spark-accent)]/20">
-              {projects.length} Initiatives
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[var(--spark-accent)]/10 text-[var(--spark-accent)] border border-[var(--spark-accent)]/20">
+              {projects.length} Total Initiatives
             </span>
           }
           actions={
-            <button
+            <Button
+              variant="primary"
+              size="sm"
+              leftIcon={<Plus className="h-4 w-4" />}
               onClick={() => {
                 setErrorMsg(null);
                 setProjectType("PUBLIC");
                 setSelectedMemberIds(currentUser?.id ? [currentUser.id] : []);
                 setIsCreateOpen(true);
               }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-[var(--spark-accent)] hover:bg-[var(--spark-accent-hover)] text-white text-xs sm:text-sm font-semibold shadow-sm active:scale-[0.98] transition-all cursor-pointer"
             >
-              <Plus className="h-4 w-4 text-white" />
-              <span>Create Project</span>
-            </button>
+              Create Project
+            </Button>
           }
         />
 
-        {/* Top KPI Metrics */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-          <div className="rounded-[10px] border border-[var(--spark-border)] bg-[var(--spark-surface)] p-4 shadow-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-[var(--spark-text-secondary)]">
-                Total Projects
-              </span>
-              <div className="h-8 w-8 rounded-lg bg-[var(--spark-accent)]/10 flex items-center justify-center text-[var(--spark-accent)]">
-                <FolderKanban className="h-4 w-4" />
-              </div>
+        {/* 8 Real Database-Backed Metrics Dashboard */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5">
+          {/* 1. Total Projects */}
+          <div className="rounded-[10px] border border-[var(--spark-border)] bg-[var(--spark-surface)] p-3 shadow-xs">
+            <span className="text-[11px] font-medium text-[var(--spark-text-muted)] block">
+              Total Projects
+            </span>
+            <div className="mt-1 text-xl font-bold text-[var(--spark-text-primary)]">
+              {displayMetrics.totalProjects}
             </div>
-            <div className="mt-2 text-2xl font-bold text-[var(--spark-text-primary)]">
-              {kpis.total}
-            </div>
-            <p className="mt-1 text-[11px] text-[var(--spark-text-muted)]">
-              {kpis.active} active initiatives
-            </p>
+            <span className="text-[10px] text-[var(--spark-text-secondary)]">All initiatives</span>
           </div>
 
-          <div className="rounded-[10px] border border-[var(--spark-border)] bg-[var(--spark-surface)] p-4 shadow-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-[var(--spark-text-secondary)]">
-                Tracked Issues
-              </span>
-              <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-600 dark:text-blue-400">
-                <Layers className="h-4 w-4" />
-              </div>
+          {/* 2. Active Projects */}
+          <div className="rounded-[10px] border border-emerald-500/20 bg-emerald-500/5 p-3 shadow-xs">
+            <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 block">
+              Active
+            </span>
+            <div className="mt-1 text-xl font-bold text-emerald-700 dark:text-emerald-300">
+              {displayMetrics.activeProjects}
             </div>
-            <div className="mt-2 text-2xl font-bold text-[var(--spark-text-primary)]">
-              {kpis.totalIssues}
-            </div>
-            <p className="mt-1 text-[11px] text-[var(--spark-text-muted)]">
-              Across team boards
-            </p>
+            <span className="text-[10px] text-emerald-600/70">In execution</span>
           </div>
 
-          <div className="rounded-[10px] border border-[var(--spark-border)] bg-[var(--spark-surface)] p-4 shadow-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-[var(--spark-text-secondary)]">
-                Completed Issues
-              </span>
-              <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-                <CheckCircle2 className="h-4 w-4" />
-              </div>
+          {/* 3. Projects on Hold */}
+          <div className="rounded-[10px] border border-amber-500/20 bg-amber-500/5 p-3 shadow-xs">
+            <span className="text-[11px] font-medium text-amber-600 dark:text-amber-400 block">
+              On Hold
+            </span>
+            <div className="mt-1 text-xl font-bold text-amber-700 dark:text-amber-300">
+              {displayMetrics.onHoldProjects}
             </div>
-            <div className="mt-2 text-2xl font-bold text-[var(--spark-text-primary)]">
-              {kpis.completedIssues}
-            </div>
-            <p className="mt-1 text-[11px] text-[var(--spark-text-muted)]">
-              Resolved deliverables
-            </p>
+            <span className="text-[10px] text-amber-600/70">Paused</span>
           </div>
 
-          <div className="rounded-[10px] border border-[var(--spark-border)] bg-[var(--spark-surface)] p-4 shadow-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-[var(--spark-text-secondary)]">
-                Delivery Rate
-              </span>
-              <div className="h-8 w-8 rounded-lg bg-violet-500/10 flex items-center justify-center text-violet-600 dark:text-violet-400">
-                <TrendingUp className="h-4 w-4" />
-              </div>
+          {/* 4. Completed Projects */}
+          <div className="rounded-[10px] border border-blue-500/20 bg-blue-500/5 p-3 shadow-xs">
+            <span className="text-[11px] font-medium text-blue-600 dark:text-blue-400 block">
+              Completed
+            </span>
+            <div className="mt-1 text-xl font-bold text-blue-700 dark:text-blue-300">
+              {displayMetrics.completedProjects}
             </div>
-            <div className="mt-2 text-2xl font-bold text-[var(--spark-text-primary)]">
-              {kpis.overallRate}%
+            <span className="text-[10px] text-blue-600/70">Delivered</span>
+          </div>
+
+          {/* 5. Overdue Projects */}
+          <div
+            className={`rounded-[10px] border p-3 shadow-xs ${
+              displayMetrics.overdueProjects > 0
+                ? "border-rose-500/30 bg-rose-500/5"
+                : "border-[var(--spark-border)] bg-[var(--spark-surface)]"
+            }`}
+          >
+            <span
+              className={`text-[11px] font-medium block ${
+                displayMetrics.overdueProjects > 0
+                  ? "text-rose-600 dark:text-rose-400"
+                  : "text-[var(--spark-text-muted)]"
+              }`}
+            >
+              Overdue
+            </span>
+            <div
+              className={`mt-1 text-xl font-bold ${
+                displayMetrics.overdueProjects > 0
+                  ? "text-rose-600 dark:text-rose-400"
+                  : "text-[var(--spark-text-primary)]"
+              }`}
+            >
+              {displayMetrics.overdueProjects}
             </div>
-            <div className="mt-2 w-full bg-[var(--spark-border-subtle)] h-1.5 rounded-full overflow-hidden">
+            <span className="text-[10px] text-[var(--spark-text-muted)]">Past target</span>
+          </div>
+
+          {/* 6. Total Issues */}
+          <div className="rounded-[10px] border border-[var(--spark-border)] bg-[var(--spark-surface)] p-3 shadow-xs">
+            <span className="text-[11px] font-medium text-[var(--spark-text-muted)] block">
+              Total Issues
+            </span>
+            <div className="mt-1 text-xl font-bold text-[var(--spark-text-primary)]">
+              {displayMetrics.totalIssues}
+            </div>
+            <span className="text-[10px] text-[var(--spark-text-secondary)]">Work items</span>
+          </div>
+
+          {/* 7. Completed Issues */}
+          <div className="rounded-[10px] border border-[var(--spark-border)] bg-[var(--spark-surface)] p-3 shadow-xs">
+            <span className="text-[11px] font-medium text-[var(--spark-text-muted)] block">
+              Resolved Issues
+            </span>
+            <div className="mt-1 text-xl font-bold text-[var(--spark-text-primary)]">
+              {displayMetrics.completedIssues}
+            </div>
+            <span className="text-[10px] text-[var(--spark-text-secondary)]">Done</span>
+          </div>
+
+          {/* 8. Overall Delivery Rate */}
+          <div className="rounded-[10px] border border-violet-500/20 bg-violet-500/5 p-3 shadow-xs">
+            <span className="text-[11px] font-medium text-violet-600 dark:text-violet-400 block">
+              Delivery Rate
+            </span>
+            <div className="mt-1 text-xl font-bold text-violet-700 dark:text-violet-300">
+              {displayMetrics.overallDeliveryRate}%
+            </div>
+            <div className="mt-1.5 w-full bg-violet-200 dark:bg-violet-950/50 h-1.5 rounded-full overflow-hidden">
               <div
-                className="bg-emerald-500 h-full rounded-full transition-all duration-300"
-                style={{ width: `${kpis.overallRate}%` }}
+                className="bg-violet-600 dark:bg-violet-400 h-full rounded-full transition-all"
+                style={{ width: `${displayMetrics.overallDeliveryRate}%` }}
               />
             </div>
           </div>
         </div>
 
-        {/* Filter & Visibility Controls */}
-        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+        {/* Filter, Visibility, Search & Sort Bar */}
+        <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-center justify-between">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--spark-text-muted)]" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by project name or key (e.g. CORE)..."
+              placeholder="Search by name, key (e.g. CLA), or category..."
               className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm rounded-[8px] border border-[var(--spark-border)] bg-[var(--spark-surface)] text-[var(--spark-text-primary)] placeholder-[var(--spark-text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--spark-accent)] transition"
             />
           </div>
@@ -403,37 +535,52 @@ export default function ProjectsPage() {
             </div>
 
             {/* Status Tabs */}
-            <div className="flex items-center gap-1 overflow-x-auto">
-              {(["ALL", "ACTIVE", "ON_HOLD", "COMPLETED"] as const).map((tab) => (
+            <div className="flex items-center gap-1 overflow-x-auto text-xs">
+              {(
+                [
+                  { key: "ALL", label: "All Status" },
+                  { key: "ACTIVE", label: "Active" },
+                  { key: "PLANNING", label: "Planning" },
+                  { key: "ON_HOLD", label: "On Hold" },
+                  { key: "COMPLETED", label: "Completed" },
+                  { key: "ARCHIVED", label: "Archived" },
+                ] as const
+              ).map((tab) => (
                 <button
-                  key={tab}
-                  onClick={() => setStatusFilter(tab)}
-                  className={`px-3 py-1.5 rounded-[7px] text-xs font-medium whitespace-nowrap transition-colors ${
-                    statusFilter === tab
-                      ? "bg-[var(--spark-surface-elevated)] text-[var(--spark-text-primary)] shadow-xs border border-[var(--spark-border)]"
+                  key={tab.key}
+                  onClick={() => setStatusFilter(tab.key)}
+                  className={`px-2.5 py-1.5 rounded-[7px] text-xs font-medium whitespace-nowrap transition-colors ${
+                    statusFilter === tab.key
+                      ? "bg-[var(--spark-surface-elevated)] text-[var(--spark-text-primary)] shadow-xs border border-[var(--spark-border)] font-semibold"
                       : "text-[var(--spark-text-secondary)] hover:text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface-subtle)]"
                   }`}
                 >
-                  {tab === "ALL"
-                    ? "All"
-                    : tab === "ACTIVE"
-                    ? "Active"
-                    : tab === "ON_HOLD"
-                    ? "On Hold"
-                    : "Completed"}
+                  {tab.label}
                 </button>
               ))}
             </div>
+
+            {/* Sort Selector */}
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              className="px-2.5 py-1.5 rounded-[7px] border border-[var(--spark-border)] bg-[var(--spark-surface)] text-xs text-[var(--spark-text-secondary)] font-medium focus:outline-none"
+            >
+              <option value="NEWEST">Sort: Newest</option>
+              <option value="DUE_DATE">Sort: Target Date</option>
+              <option value="PROGRESS">Sort: Progress %</option>
+              <option value="NAME">Sort: Name (A-Z)</option>
+            </select>
           </div>
         </div>
 
         {/* Projects Grid */}
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[1, 2, 3].map((i) => (
+            {[1, 2, 3, 4, 5, 6].map((i) => (
               <div
                 key={i}
-                className="h-56 rounded-[12px] border border-[var(--spark-border)] bg-[var(--spark-surface)] animate-pulse"
+                className="h-64 rounded-[12px] border border-[var(--spark-border)] bg-[var(--spark-surface)] animate-pulse"
               />
             ))}
           </div>
@@ -444,8 +591,8 @@ export default function ProjectsPage() {
               title={searchQuery ? "No matching projects" : "No projects created yet"}
               description={
                 searchQuery
-                  ? `No project matched "${searchQuery}". Try a different keyword.`
-                  : "Organize your initiatives with project tracking, issue identifiers, and task boards."
+                  ? `No project matched "${searchQuery}". Try a different search term or filter.`
+                  : "Organize your team initiatives with project portfolios, issue identifiers, and sprint tracking."
               }
               actionLabel={!searchQuery ? "Create First Project" : undefined}
               onAction={!searchQuery ? () => setIsCreateOpen(true) : undefined}
@@ -463,29 +610,39 @@ export default function ProjectsPage() {
                 : null;
 
               const isPrivate = p.type === "PRIVATE";
+              const isOverdue =
+                p.targetDate &&
+                new Date(p.targetDate) < new Date() &&
+                p.status !== "COMPLETED";
 
               return (
                 <div
                   key={p.id}
-                  className="group relative rounded-[12px] border border-[var(--spark-border)] bg-[var(--spark-surface)] hover:border-[var(--spark-border-hover)] hover:shadow-sm transition-all duration-200 flex flex-col justify-between overflow-hidden"
+                  className="group relative rounded-[12px] border border-[var(--spark-border)] bg-[var(--spark-surface)] hover:border-[var(--spark-accent)]/60 hover:shadow-md transition-all duration-200 flex flex-col justify-between overflow-hidden"
                 >
-                  {/* Color accent strip */}
+                  {/* Accent strip */}
                   <div
                     className="h-1.5 w-full"
                     style={{ backgroundColor: p.color || "#7C3AED" }}
                   />
 
-                  <div className="p-5 flex-1 flex flex-col justify-between">
+                  <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
                     <div>
-                      {/* Top Row: Key badge, Privacy badge, Status, and Options Menu */}
+                      {/* Top Row: Key badge, Category, Privacy, Status, Menu */}
                       <div className="flex items-center justify-between gap-2 mb-3">
-                        <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           <span
                             className="px-2 py-0.5 rounded-[5px] text-[11px] font-mono font-bold uppercase tracking-wider text-white shadow-2xs"
                             style={{ backgroundColor: p.color || "#7C3AED" }}
                           >
                             {p.key}
                           </span>
+
+                          {p.category && (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--spark-surface-subtle)] text-[var(--spark-text-secondary)] border border-[var(--spark-border)] truncate max-w-[110px]">
+                              {p.category}
+                            </span>
+                          )}
 
                           {/* Privacy Badge */}
                           <span
@@ -494,11 +651,6 @@ export default function ProjectsPage() {
                                 ? "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30"
                                 : "bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20"
                             }`}
-                            title={
-                              isPrivate
-                                ? `Private project (${p.memberCount} assigned members)`
-                                : "Public project — visible to all workspace members"
-                            }
                           >
                             {isPrivate ? (
                               <>
@@ -515,12 +667,16 @@ export default function ProjectsPage() {
 
                           {/* Status Badge */}
                           <span
-                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium ${
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${
                               p.status === "ACTIVE"
-                                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
                                 : p.status === "ON_HOLD"
-                                ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
-                                : "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                                ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+                                : p.status === "COMPLETED"
+                                ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20"
+                                : p.status === "ARCHIVED"
+                                ? "bg-zinc-500/10 text-zinc-500 border border-zinc-500/20"
+                                : "bg-purple-500/10 text-purple-600 border border-purple-500/20"
                             }`}
                           >
                             <span
@@ -529,20 +685,21 @@ export default function ProjectsPage() {
                                   ? "bg-emerald-500"
                                   : p.status === "ON_HOLD"
                                   ? "bg-amber-500"
-                                  : "bg-blue-500"
+                                  : p.status === "COMPLETED"
+                                  ? "bg-blue-500"
+                                  : p.status === "ARCHIVED"
+                                  ? "bg-zinc-500"
+                                  : "bg-purple-500"
                               }`}
                             />
-                            {p.status === "ACTIVE"
-                              ? "Active"
-                              : p.status === "ON_HOLD"
-                              ? "On Hold"
-                              : "Completed"}
+                            {p.status}
                           </span>
                         </div>
 
-                        {/* Menu dropdown */}
+                        {/* Dropdown menu */}
                         <div className="relative">
                           <button
+                            type="button"
                             onClick={() =>
                               setActiveMenuId((prev) => (prev === p.id ? null : p.id))
                             }
@@ -552,36 +709,62 @@ export default function ProjectsPage() {
                           </button>
 
                           {activeMenuId === p.id && (
-                            <div className="absolute right-0 top-full mt-1 w-44 rounded-[8px] border border-[var(--spark-border)] bg-[var(--spark-surface-elevated)] shadow-lg py-1 z-30 animate-in fade-in zoom-in-95">
+                            <div className="absolute right-0 top-full mt-1 w-48 rounded-[8px] border border-[var(--spark-border)] bg-[var(--spark-surface-elevated)] shadow-lg py-1 z-30 animate-in fade-in zoom-in-95 text-xs">
                               <div className="px-2.5 py-1 text-[10px] font-semibold text-[var(--spark-text-muted)] uppercase tracking-wider">
-                                Set Status
+                                Lifecycle Status
                               </div>
                               <button
                                 onClick={() => handleStatusChange(p.id, "ACTIVE")}
-                                className="w-full text-left px-3 py-1.5 text-xs text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface-subtle)] flex items-center gap-2"
+                                className="w-full text-left px-3 py-1.5 text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface-subtle)] flex items-center gap-2"
                               >
                                 <PlayCircle className="h-3.5 w-3.5 text-emerald-500" />
                                 Active
                               </button>
                               <button
+                                onClick={() => handleStatusChange(p.id, "PLANNING")}
+                                className="w-full text-left px-3 py-1.5 text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface-subtle)] flex items-center gap-2"
+                              >
+                                <Clock className="h-3.5 w-3.5 text-purple-500" />
+                                Planning
+                              </button>
+                              <button
                                 onClick={() => handleStatusChange(p.id, "ON_HOLD")}
-                                className="w-full text-left px-3 py-1.5 text-xs text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface-subtle)] flex items-center gap-2"
+                                className="w-full text-left px-3 py-1.5 text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface-subtle)] flex items-center gap-2"
                               >
                                 <PauseCircle className="h-3.5 w-3.5 text-amber-500" />
                                 On Hold
                               </button>
                               <button
                                 onClick={() => handleStatusChange(p.id, "COMPLETED")}
-                                className="w-full text-left px-3 py-1.5 text-xs text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface-subtle)] flex items-center gap-2"
+                                className="w-full text-left px-3 py-1.5 text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface-subtle)] flex items-center gap-2"
                               >
                                 <CheckCircle className="h-3.5 w-3.5 text-blue-500" />
                                 Completed
                               </button>
 
                               <div className="my-1 border-t border-[var(--spark-border-subtle)]" />
+
+                              {p.status === "ARCHIVED" ? (
+                                <button
+                                  onClick={() => handleRestore(p.id)}
+                                  className="w-full text-left px-3 py-1.5 text-emerald-600 hover:bg-emerald-500/10 flex items-center gap-2"
+                                >
+                                  <RotateCcw className="h-3.5 w-3.5" />
+                                  Restore Project
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleArchive(p.id)}
+                                  className="w-full text-left px-3 py-1.5 text-[var(--spark-text-secondary)] hover:bg-[var(--spark-surface-subtle)] flex items-center gap-2"
+                                >
+                                  <Archive className="h-3.5 w-3.5" />
+                                  Archive Project
+                                </button>
+                              )}
+
                               <button
                                 onClick={() => handleDelete(p.id)}
-                                className="w-full text-left px-3 py-1.5 text-xs text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 flex items-center gap-2"
+                                className="w-full text-left px-3 py-1.5 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 flex items-center gap-2"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                                 Delete Project
@@ -591,51 +774,55 @@ export default function ProjectsPage() {
                         </div>
                       </div>
 
-                      {/* Project Title & Description */}
-                      <h3 className="text-base font-semibold text-[var(--spark-text-primary)] line-clamp-1 group-hover:text-[var(--spark-accent)] transition-colors">
-                        {p.name}
-                      </h3>
+                      {/* Project Title & Link to dedicated Project Hub */}
+                      <Link href={`/projects/${p.key}`}>
+                        <h3 className="text-base font-bold text-[var(--spark-text-primary)] hover:text-[var(--spark-accent)] transition-colors line-clamp-1 cursor-pointer">
+                          {p.name}
+                        </h3>
+                      </Link>
                       <p className="mt-1 text-xs text-[var(--spark-text-secondary)] line-clamp-2 min-h-[2rem]">
-                        {p.description || "No description provided for this project."}
+                        {p.description || "No description provided for this initiative."}
                       </p>
                     </div>
 
                     {/* Meta info & Progress */}
-                    <div className="mt-5 space-y-3.5 pt-3 border-t border-[var(--spark-border-subtle)]">
-                      {/* Lead and Date */}
+                    <div className="space-y-3 pt-3 border-t border-[var(--spark-border-subtle)]">
+                      {/* Owner & Target Date */}
                       <div className="flex items-center justify-between text-xs text-[var(--spark-text-secondary)]">
                         <div className="flex items-center gap-1.5">
-                          {p.ownerAvatar ? (
-                            <img
-                              src={p.ownerAvatar}
-                              alt={p.ownerName}
-                              className="h-4 w-4 rounded-full object-cover"
-                            />
-                          ) : (
-                            <div className="h-4 w-4 rounded-full bg-[var(--spark-accent)]/20 text-[var(--spark-accent)] flex items-center justify-center text-[9px] font-bold">
-                              {p.ownerName?.[0]?.toUpperCase() || "L"}
-                            </div>
-                          )}
-                          <span className="truncate max-w-[110px]">{p.ownerName}</span>
+                          <Avatar
+                            name={p.ownerName || "Lead"}
+                            size="sm"
+                            src={p.ownerAvatar || undefined}
+                          />
+                          <span className="truncate max-w-[110px] font-medium text-[var(--spark-text-primary)]">
+                            {p.ownerName}
+                          </span>
                         </div>
 
                         {targetDateFormatted ? (
-                          <div className="flex items-center gap-1 text-[var(--spark-text-muted)]">
+                          <div
+                            className={`flex items-center gap-1 text-[11px] ${
+                              isOverdue
+                                ? "text-rose-600 dark:text-rose-400 font-semibold"
+                                : "text-[var(--spark-text-muted)]"
+                            }`}
+                          >
                             <Calendar className="h-3.5 w-3.5" />
                             <span>{targetDateFormatted}</span>
                           </div>
                         ) : (
-                          <span className="text-[var(--spark-text-muted)]">No deadline</span>
+                          <span className="text-[11px] text-[var(--spark-text-muted)]">No target</span>
                         )}
                       </div>
 
-                      {/* Progress bar */}
+                      {/* Progress Bar */}
                       <div>
                         <div className="flex items-center justify-between text-xs mb-1.5">
                           <span className="text-[var(--spark-text-muted)] text-[11px]">
-                            {p.taskStats.done} of {p.taskStats.total} issues completed
+                            {p.taskStats.done} of {p.taskStats.total} work items completed
                           </span>
-                          <span className="font-semibold text-[var(--spark-text-primary)] text-[11px]">
+                          <span className="font-bold text-[var(--spark-text-primary)] text-[11px]">
                             {p.taskStats.completionPercentage}%
                           </span>
                         </div>
@@ -650,7 +837,7 @@ export default function ProjectsPage() {
                         </div>
                       </div>
 
-                      {/* Issue breakdown pills */}
+                      {/* Breakdown Pills */}
                       <div className="flex items-center gap-1.5 text-[10px] font-medium text-[var(--spark-text-muted)] flex-wrap">
                         <span className="px-1.5 py-0.5 rounded bg-[var(--spark-surface-subtle)] border border-[var(--spark-border-subtle)]">
                           {p.taskStats.todo} To Do
@@ -658,7 +845,7 @@ export default function ProjectsPage() {
                         <span className="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400">
                           {p.taskStats.inProgress} In Dev
                         </span>
-                        <span className="px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-600 dark:text-purple-400">
+                        <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400">
                           {p.taskStats.inReview} Review
                         </span>
                         <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
@@ -668,17 +855,21 @@ export default function ProjectsPage() {
                     </div>
                   </div>
 
-                  {/* Card Footer CTA */}
+                  {/* Card Footer Actions */}
                   <div className="px-5 py-3 bg-[var(--spark-surface-subtle)] border-t border-[var(--spark-border)] flex items-center justify-between">
-                    <span className="text-[11px] font-mono text-[var(--spark-text-muted)]">
-                      Prefix: {p.key}-#
-                    </span>
                     <Link
-                      href={`/tasks?project=${p.id}`}
+                      href={`/projects/${p.key}`}
                       className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--spark-accent)] hover:text-[var(--spark-accent-hover)] transition-colors"
                     >
-                      <span>Open Board</span>
+                      <span>Project Hub</span>
                       <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
+                    </Link>
+
+                    <Link
+                      href={`/tasks?project=${p.id}`}
+                      className="text-xs text-[var(--spark-text-secondary)] hover:text-[var(--spark-text-primary)] font-medium"
+                    >
+                      Kanban Board
                     </Link>
                   </div>
                 </div>
@@ -734,12 +925,12 @@ export default function ProjectsPage() {
                     required
                     value={name}
                     onChange={(e) => handleNameChange(e.target.value)}
-                    placeholder="e.g. Core Infrastructure or Mobile Client"
+                    placeholder="e.g. Carbon Ledger AI or Mobile Client"
                     className="w-full px-3 py-2 text-xs sm:text-sm rounded-[8px] border border-[var(--spark-border)] bg-[var(--spark-surface-elevated)] text-[var(--spark-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--spark-accent)]"
                   />
                 </div>
 
-                {/* Key & Target Date */}
+                {/* Key & Category */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-[var(--spark-text-primary)] mb-1">
@@ -754,7 +945,7 @@ export default function ProjectsPage() {
                         setKey(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""));
                         setHasManuallyEditedKey(true);
                       }}
-                      placeholder="e.g. CORE"
+                      placeholder="e.g. CLA"
                       className="w-full px-3 py-2 text-xs sm:text-sm font-mono uppercase font-bold rounded-[8px] border border-[var(--spark-border)] bg-[var(--spark-surface-elevated)] text-[var(--spark-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--spark-accent)]"
                     />
                     <span className="text-[10px] text-[var(--spark-text-muted)]">
@@ -764,15 +955,33 @@ export default function ProjectsPage() {
 
                   <div>
                     <label className="block text-xs font-semibold text-[var(--spark-text-primary)] mb-1">
-                      Target Completion Date
+                      Category
                     </label>
-                    <input
-                      type="date"
-                      value={targetDate}
-                      onChange={(e) => setTargetDate(e.target.value)}
+                    <select
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
                       className="w-full px-3 py-2 text-xs sm:text-sm rounded-[8px] border border-[var(--spark-border)] bg-[var(--spark-surface-elevated)] text-[var(--spark-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--spark-accent)]"
-                    />
+                    >
+                      {CATEGORY_PRESETS.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                    </select>
                   </div>
+                </div>
+
+                {/* Target Date */}
+                <div>
+                  <label className="block text-xs font-semibold text-[var(--spark-text-primary)] mb-1">
+                    Target Completion Date
+                  </label>
+                  <input
+                    type="date"
+                    value={targetDate}
+                    onChange={(e) => setTargetDate(e.target.value)}
+                    className="w-full px-3 py-2 text-xs sm:text-sm rounded-[8px] border border-[var(--spark-border)] bg-[var(--spark-surface-elevated)] text-[var(--spark-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--spark-accent)]"
+                  />
                 </div>
 
                 {/* Visibility: Public vs Private Project */}
@@ -852,7 +1061,6 @@ export default function ProjectsPage() {
                       Select which employees from this organization will be granted access to this private project. You (the creator) are included by default.
                     </p>
 
-                    {/* Member Search input if workspace has several members */}
                     {members.length > 3 && (
                       <div className="relative">
                         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[var(--spark-text-muted)]" />
@@ -866,7 +1074,6 @@ export default function ProjectsPage() {
                       </div>
                     )}
 
-                    {/* Members List with Checkboxes */}
                     <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1 divide-y divide-[var(--spark-border-subtle)]">
                       {filteredModalMembers.map((m) => {
                         const isSelected = selectedMemberIds.includes(m.userId);
@@ -883,17 +1090,11 @@ export default function ProjectsPage() {
                             }`}
                           >
                             <div className="flex items-center gap-2">
-                              {m.user.avatarUrl ? (
-                                <img
-                                  src={m.user.avatarUrl}
-                                  alt={m.user.fullName}
-                                  className="h-6 w-6 rounded-full object-cover"
-                                />
-                              ) : (
-                                <div className="h-6 w-6 rounded-full bg-[var(--spark-accent)]/20 text-[var(--spark-accent)] flex items-center justify-center text-[10px] font-bold">
-                                  {m.user.fullName?.[0]?.toUpperCase() || "U"}
-                                </div>
-                              )}
+                              <Avatar
+                                name={m.user.fullName || "User"}
+                                size="sm"
+                                src={m.user.avatarUrl || undefined}
+                              />
                               <div>
                                 <div className="text-xs font-semibold text-[var(--spark-text-primary)] flex items-center gap-1.5">
                                   <span>{m.user.fullName}</span>
@@ -934,12 +1135,12 @@ export default function ProjectsPage() {
                     rows={2}
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Project scope and deliverables summary..."
+                    placeholder="Project mission, scope, and key deliverables..."
                     className="w-full px-3 py-2 text-xs sm:text-sm rounded-[8px] border border-[var(--spark-border)] bg-[var(--spark-surface-elevated)] text-[var(--spark-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--spark-accent)] resize-none"
                   />
                 </div>
 
-                {/* Color Selection */}
+                {/* Accent Color Selection */}
                 <div>
                   <label className="block text-xs font-semibold text-[var(--spark-text-primary)] mb-1.5">
                     Accent Color
@@ -951,7 +1152,9 @@ export default function ProjectsPage() {
                         type="button"
                         onClick={() => setSelectedColor(c.hex)}
                         className={`h-7 w-7 rounded-full transition-transform ${
-                          selectedColor === c.hex ? "scale-115 ring-2 ring-offset-2 ring-[var(--spark-accent)]" : "hover:scale-105"
+                          selectedColor === c.hex
+                            ? "scale-115 ring-2 ring-offset-2 ring-[var(--spark-accent)]"
+                            : "hover:scale-105"
                         }`}
                         style={{ backgroundColor: c.hex }}
                         title={c.name}
@@ -962,20 +1165,22 @@ export default function ProjectsPage() {
 
                 {/* Modal Footer Actions */}
                 <div className="pt-4 border-t border-[var(--spark-border)] flex items-center justify-end gap-2.5">
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
+                    size="sm"
                     onClick={() => setIsCreateOpen(false)}
-                    className="px-3.5 py-2 rounded-[8px] text-xs font-medium text-[var(--spark-text-secondary)] hover:bg-[var(--spark-surface-subtle)]"
                   >
                     Cancel
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="submit"
+                    variant="primary"
+                    size="sm"
                     disabled={isSubmitting || !name.trim()}
-                    className="px-4 py-2 rounded-[8px] bg-[var(--spark-accent)] hover:bg-[var(--spark-accent-hover)] text-white text-xs font-semibold shadow-sm active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer"
                   >
                     {isSubmitting ? "Creating..." : "Create Project"}
-                  </button>
+                  </Button>
                 </div>
               </form>
             </div>
