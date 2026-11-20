@@ -8,7 +8,6 @@ import {
   Clock,
   Eye,
   CheckCircle2,
-  Plus,
   Trash2,
   Calendar,
   AlertCircle,
@@ -39,7 +38,6 @@ import { Avatar } from "@/components/ui/avatar";
 import { useWorkspace } from "@/lib/workspace-context";
 import {
   getWorkspaceTasks,
-  createWorkspaceTask,
   updateTaskStatus,
   deleteTask,
   TaskRecordItem,
@@ -96,11 +94,11 @@ const ISSUE_TYPE_CONFIG: Record<
 
 type QuickFilterType =
   | "ALL"
-  | "MY_TASKS"
-  | "REPORTED"
-  | "BUGS"
+  | "TODO"
+  | "IN_PROGRESS"
+  | "IN_REVIEW"
+  | "DONE"
   | "HIGH_PRIORITY"
-  | "UNASSIGNED"
   | "OVERDUE";
 
 function TasksContent() {
@@ -130,23 +128,6 @@ function TasksContent() {
   const [selectedTask, setSelectedTask] = useState<TaskRecordItem | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
-  // New Issue Modal State
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [type, setType] = useState<WorkItemType>("TASK");
-  const [priority, setPriority] = useState<"LOW" | "MEDIUM" | "HIGH" | "URGENT">("MEDIUM");
-  const [status, setStatus] = useState<"BACKLOG" | "TODO" | "IN_PROGRESS" | "IN_REVIEW" | "DONE">("TODO");
-  const [assigneeId, setAssigneeId] = useState("");
-  const [modalProjectId, setModalProjectId] = useState("");
-  const [storyPoints, setStoryPoints] = useState<number | "">("");
-  const [startDate, setStartDate] = useState("");
-  const [dueDate, setDueDate] = useState("");
-  const [labelsInput, setLabelsInput] = useState("");
-  const [parentTaskId, setParentTaskId] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formError, setFormError] = useState("");
-
   const loadData = useCallback(async () => {
     if (!activeWorkspace?.id || activeWorkspace.id === "personal-fallback") {
       setIsLoading(false);
@@ -172,60 +153,6 @@ function TasksContent() {
   useEffect(() => {
     loadData();
   }, [loadData]);
-
-  const handleCreateTask = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title.trim()) {
-      setFormError("Issue summary is required.");
-      return;
-    }
-    setIsSubmitting(true);
-    setFormError("");
-
-    const labels = labelsInput
-      .split(",")
-      .map((l) => l.trim())
-      .filter(Boolean);
-
-    try {
-      const res = await createWorkspaceTask({
-        workspaceId: activeWorkspace.id,
-        title: title.trim(),
-        description: description.trim() || undefined,
-        type,
-        status,
-        priority,
-        projectId: modalProjectId || undefined,
-        storyPoints: storyPoints === "" ? undefined : Number(storyPoints),
-        startDate: startDate || undefined,
-        dueDate: dueDate || undefined,
-        assigneeId: assigneeId || undefined,
-        labels: labels.length > 0 ? labels : undefined,
-        parentTaskId: parentTaskId || undefined,
-      });
-
-      if (!res.success) {
-        setFormError(res.error || "Failed to create issue.");
-      } else if (res.task) {
-        setTasks((prev) => [res.task!, ...prev]);
-        setIsModalOpen(false);
-        setTitle("");
-        setDescription("");
-        setType("TASK");
-        setStoryPoints("");
-        setStartDate("");
-        setDueDate("");
-        setAssigneeId("");
-        setModalProjectId("");
-        setLabelsInput("");
-        setParentTaskId("");
-      }
-    } catch {
-      setFormError("An unexpected error occurred while creating issue.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   const handleStatusChange = async (
     taskId: string,
@@ -312,18 +239,55 @@ function TasksContent() {
     setSelectedTask(null);
   };
 
+  const accessibleProjectIds = useMemo(
+    () => new Set(projects.map((p) => p.id)),
+    [projects]
+  );
+
+  // Strictly isolate tasks to those assigned to the current user for projects they reside in
+  const myAssignedTasks = useMemo(() => {
+    if (!currentUser?.id) return [];
+    return tasks.filter((t) => {
+      if (t.assigneeId !== currentUser.id) return false;
+      if (t.projectId && !accessibleProjectIds.has(t.projectId)) return false;
+      return true;
+    });
+  }, [tasks, currentUser?.id, accessibleProjectIds]);
+
+  const todoCount = useMemo(
+    () => myAssignedTasks.filter((t) => t.status === "TODO" || t.status === "BACKLOG").length,
+    [myAssignedTasks]
+  );
+  const inProgressCount = useMemo(
+    () => myAssignedTasks.filter((t) => t.status === "IN_PROGRESS").length,
+    [myAssignedTasks]
+  );
+  const inReviewCount = useMemo(
+    () => myAssignedTasks.filter((t) => t.status === "IN_REVIEW").length,
+    [myAssignedTasks]
+  );
+  const doneCount = useMemo(
+    () => myAssignedTasks.filter((t) => t.status === "DONE").length,
+    [myAssignedTasks]
+  );
+  const overdueCount = useMemo(() => {
+    const now = new Date();
+    return myAssignedTasks.filter(
+      (t) => t.dueDate && new Date(t.dueDate) < now && t.status !== "DONE"
+    ).length;
+  }, [myAssignedTasks]);
+
   // Filter tasks with Quick Filters, Search, Dropdowns, and Sorting
   const filteredTasks = useMemo(() => {
     const now = new Date();
 
-    const filtered = tasks.filter((t) => {
-      // Search query (matches title, description, assignee, reporter, key, labels)
+    const filtered = myAssignedTasks.filter((t) => {
+      // Search query (matches title, description, key, labels)
       const q = searchQuery.toLowerCase();
       const matchesSearch =
         !q ||
         t.title.toLowerCase().includes(q) ||
         t.description?.toLowerCase().includes(q) ||
-        t.assigneeName?.toLowerCase().includes(q) ||
         (t.issueKey && t.issueKey.toLowerCase().includes(q)) ||
         t.labels?.some((l) => l.toLowerCase().includes(q));
 
@@ -346,16 +310,16 @@ function TasksContent() {
 
       // Quick filter tabs
       switch (quickFilter) {
-        case "MY_TASKS":
-          return t.assigneeId === currentUser?.id;
-        case "REPORTED":
-          return t.createdById === currentUser?.id;
-        case "BUGS":
-          return t.type === "BUG";
+        case "TODO":
+          return t.status === "TODO" || t.status === "BACKLOG";
+        case "IN_PROGRESS":
+          return t.status === "IN_PROGRESS";
+        case "IN_REVIEW":
+          return t.status === "IN_REVIEW";
+        case "DONE":
+          return t.status === "DONE";
         case "HIGH_PRIORITY":
           return t.priority === "HIGH" || t.priority === "URGENT";
-        case "UNASSIGNED":
-          return !t.assigneeId;
         case "OVERDUE":
           return t.dueDate && new Date(t.dueDate) < now && t.status !== "DONE";
         case "ALL":
@@ -382,40 +346,14 @@ function TasksContent() {
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
   }, [
-    tasks,
+    myAssignedTasks,
     searchQuery,
     selectedProjectId,
     selectedType,
     selectedPriority,
     quickFilter,
     sortBy,
-    currentUser?.id,
   ]);
-
-  const myTasksCount = useMemo(
-    () => tasks.filter((t) => t.assigneeId === currentUser?.id).length,
-    [tasks, currentUser?.id]
-  );
-  const bugsCount = useMemo(() => tasks.filter((t) => t.type === "BUG").length, [tasks]);
-  const overdueCount = useMemo(() => {
-    const now = new Date();
-    return tasks.filter((t) => t.dueDate && new Date(t.dueDate) < now && t.status !== "DONE").length;
-  }, [tasks]);
-
-  // Dynamically filter eligible assignees based on selected project's visibility
-  const eligibleAssignees = useMemo(() => {
-    if (!modalProjectId) return members;
-    const selectedProj = projects.find((p) => p.id === modalProjectId);
-    if (!selectedProj || selectedProj.type !== "PRIVATE") {
-      return members;
-    }
-    const allowedUserIds = new Set<string>();
-    if (selectedProj.ownerId) allowedUserIds.add(selectedProj.ownerId);
-    if (Array.isArray(selectedProj.members)) {
-      selectedProj.members.forEach((pm) => allowedUserIds.add(pm.userId));
-    }
-    return members.filter((m) => allowedUserIds.has(m.userId));
-  }, [modalProjectId, projects, members]);
 
   const getPriorityBadge = (p: string) => {
     switch (p) {
@@ -435,22 +373,8 @@ function TasksContent() {
     <ShellLayout>
       <div className="space-y-5">
         <PageHeader
-          title="Issues & Tasks"
-          description={`Work management, sprint execution, and deliverable tracking for ${activeWorkspace?.name || "your workspace"}.`}
-          actions={
-            <Button
-              variant="primary"
-              size="sm"
-              leftIcon={<Plus className="h-3.5 w-3.5" />}
-              onClick={() => {
-                setFormError("");
-                setModalProjectId(selectedProjectId || "");
-                setIsModalOpen(true);
-              }}
-            >
-              Create Issue
-            </Button>
-          }
+          title="My Tasks"
+          description={`Tasks assigned to you across projects you participate in within ${activeWorkspace?.name || "your workspace"}.`}
         />
 
         {/* Quick Filter Tabs */}
@@ -464,42 +388,51 @@ function TasksContent() {
                   : "text-[var(--spark-text-secondary)] hover:bg-[var(--spark-surface-subtle)]"
               }`}
             >
-              All Issues ({tasks.length})
+              All Tasks ({myAssignedTasks.length})
             </button>
 
             <button
-              onClick={() => setQuickFilter("MY_TASKS")}
-              className={`px-3 py-1.5 rounded-[6px] font-semibold flex items-center gap-1.5 transition-colors ${
-                quickFilter === "MY_TASKS"
-                  ? "bg-[var(--spark-accent)] text-white shadow-2xs"
-                  : "text-[var(--spark-text-secondary)] hover:bg-[var(--spark-surface-subtle)]"
-              }`}
-            >
-              <Zap className="h-3.5 w-3.5 text-amber-400" />
-              <span>My Tasks ({myTasksCount})</span>
-            </button>
-
-            <button
-              onClick={() => setQuickFilter("REPORTED")}
+              onClick={() => setQuickFilter("TODO")}
               className={`px-3 py-1.5 rounded-[6px] font-semibold transition-colors ${
-                quickFilter === "REPORTED"
+                quickFilter === "TODO"
                   ? "bg-[var(--spark-accent)] text-white shadow-2xs"
                   : "text-[var(--spark-text-secondary)] hover:bg-[var(--spark-surface-subtle)]"
               }`}
             >
-              Reported by Me
+              To Do ({todoCount})
             </button>
 
             <button
-              onClick={() => setQuickFilter("BUGS")}
-              className={`px-3 py-1.5 rounded-[6px] font-semibold flex items-center gap-1.5 transition-colors ${
-                quickFilter === "BUGS"
-                  ? "bg-rose-600 text-white shadow-2xs"
-                  : "text-rose-600 dark:text-rose-400 hover:bg-rose-500/10"
+              onClick={() => setQuickFilter("IN_PROGRESS")}
+              className={`px-3 py-1.5 rounded-[6px] font-semibold transition-colors ${
+                quickFilter === "IN_PROGRESS"
+                  ? "bg-[var(--spark-accent)] text-white shadow-2xs"
+                  : "text-[var(--spark-text-secondary)] hover:bg-[var(--spark-surface-subtle)]"
               }`}
             >
-              <Bug className="h-3.5 w-3.5" />
-              <span>Bugs Only ({bugsCount})</span>
+              In Progress ({inProgressCount})
+            </button>
+
+            <button
+              onClick={() => setQuickFilter("IN_REVIEW")}
+              className={`px-3 py-1.5 rounded-[6px] font-semibold transition-colors ${
+                quickFilter === "IN_REVIEW"
+                  ? "bg-[var(--spark-accent)] text-white shadow-2xs"
+                  : "text-[var(--spark-text-secondary)] hover:bg-[var(--spark-surface-subtle)]"
+              }`}
+            >
+              In Review ({inReviewCount})
+            </button>
+
+            <button
+              onClick={() => setQuickFilter("DONE")}
+              className={`px-3 py-1.5 rounded-[6px] font-semibold transition-colors ${
+                quickFilter === "DONE"
+                  ? "bg-emerald-600 text-white shadow-2xs"
+                  : "text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
+              }`}
+            >
+              Done ({doneCount})
             </button>
 
             <button
@@ -510,18 +443,7 @@ function TasksContent() {
                   : "text-[var(--spark-text-secondary)] hover:bg-[var(--spark-surface-subtle)]"
               }`}
             >
-              High & Urgent
-            </button>
-
-            <button
-              onClick={() => setQuickFilter("UNASSIGNED")}
-              className={`px-3 py-1.5 rounded-[6px] font-semibold transition-colors ${
-                quickFilter === "UNASSIGNED"
-                  ? "bg-[var(--spark-accent)] text-white shadow-2xs"
-                  : "text-[var(--spark-text-secondary)] hover:bg-[var(--spark-surface-subtle)]"
-              }`}
-            >
-              Unassigned
+              High Priority
             </button>
 
             {overdueCount > 0 && (
@@ -529,8 +451,8 @@ function TasksContent() {
                 onClick={() => setQuickFilter("OVERDUE")}
                 className={`px-3 py-1.5 rounded-[6px] font-semibold flex items-center gap-1.5 transition-colors ${
                   quickFilter === "OVERDUE"
-                    ? "bg-amber-600 text-white shadow-2xs"
-                    : "text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
+                    ? "bg-rose-600 text-white shadow-2xs"
+                    : "text-rose-600 dark:text-rose-400 hover:bg-rose-500/10"
                 }`}
               >
                 <AlertTriangle className="h-3.5 w-3.5" />
@@ -601,13 +523,18 @@ function TasksContent() {
         <FilterBar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          searchPlaceholder="Search issues by key, title, assignee, labels..."
+          searchPlaceholder="Search tasks by key, title, labels..."
           viewMode={viewMode}
           onViewModeChange={setViewMode}
         />
 
-        {/* Board (Kanban) View with Drag and Drop */}
-        {viewMode === "board" ? (
+        {!isLoading && myAssignedTasks.length === 0 ? (
+          <EmptyState
+            icon={<CheckSquare className="h-6 w-6" />}
+            title="No tasks assigned to you"
+            description="Tasks assigned to you across projects you belong to will appear here on your execution board. To create or assign tasks, visit Projects and select a project."
+          />
+        ) : viewMode === "board" ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
             {BOARD_COLUMNS.map((col) => {
               const Icon = col.icon;
@@ -641,7 +568,7 @@ function TasksContent() {
                   <div className="p-2.5 flex-1 flex flex-col gap-2.5 bg-[var(--spark-canvas)]/30">
                     {columnTasks.length === 0 ? (
                       <div className="flex-1 flex flex-col items-center justify-center text-center p-4 text-[var(--spark-text-muted)] border-2 border-dashed border-[var(--spark-border)]/40 rounded-[8px] m-1">
-                        <p className="text-[11px]">Drop issues here</p>
+                        <p className="text-[11px]">No tasks</p>
                       </div>
                     ) : (
                       columnTasks.map((task) => {
@@ -973,282 +900,6 @@ function TasksContent() {
         onTaskUpdated={handleTaskUpdatedInDrawer}
         onTaskDeleted={handleTaskDeletedInDrawer}
       />
-
-      {/* Create Issue Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-          <div className="w-full max-w-lg rounded-[12px] border border-[var(--spark-border)] bg-[var(--spark-surface)] p-6 shadow-xl animate-in zoom-in-95 duration-150 space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-[var(--spark-border)] pb-3">
-              <div className="flex items-center gap-2">
-                <CheckSquare className="h-5 w-5 text-[var(--spark-accent)]" />
-                <h3 className="text-sm font-bold text-[var(--spark-text-primary)]">
-                  Create Work Item
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsModalOpen(false)}
-                className="text-[var(--spark-text-muted)] hover:text-[var(--spark-text-primary)]"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            {formError && (
-              <div className="p-3 rounded-[8px] bg-rose-500/10 border border-rose-500/20 text-xs text-rose-600 dark:text-rose-400 flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 shrink-0" />
-                <span>{formError}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleCreateTask} className="space-y-3.5 text-xs">
-              {/* Type and Project Selector */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-semibold text-[var(--spark-text-secondary)] mb-1">
-                    Issue Type
-                  </label>
-                  <select
-                    value={type}
-                    onChange={(e) => setType(e.target.value as WorkItemType)}
-                    className="w-full p-2 rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] text-xs text-[var(--spark-text-primary)] font-medium focus:outline-none focus:border-[var(--spark-accent)]"
-                  >
-                    <option value="TASK">Task (Standard Deliverable)</option>
-                    <option value="BUG">Bug (Defect / Issue)</option>
-                    <option value="STORY">Story (User Feature)</option>
-                    <option value="EPIC">Epic (Strategic Initiative)</option>
-                    <option value="SUBTASK">Subtask (Granular Step)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-semibold text-[var(--spark-text-secondary)] mb-1">
-                    Project
-                  </label>
-                  <select
-                    value={modalProjectId}
-                    onChange={(e) => {
-                      const nextPid = e.target.value;
-                      setModalProjectId(nextPid);
-                      if (nextPid) {
-                        const targetProj = projects.find((p) => p.id === nextPid);
-                        if (targetProj && targetProj.type === "PRIVATE") {
-                          const allowed = new Set<string>([
-                            targetProj.ownerId,
-                            ...(targetProj.members || []).map((m) => m.userId),
-                          ]);
-                          if (assigneeId && !allowed.has(assigneeId)) {
-                            setAssigneeId("");
-                          }
-                        }
-                      }
-                    }}
-                    className="w-full p-2 rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] text-xs text-[var(--spark-text-primary)] font-medium focus:outline-none focus:border-[var(--spark-accent)]"
-                  >
-                    <option value="">General Workspace (No project)</option>
-                    {projects.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        [{p.key}] {p.name} {p.type === "PRIVATE" ? "🔒 (Private)" : ""}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Title / Summary */}
-              <div>
-                <label className="block text-[11px] font-semibold text-[var(--spark-text-secondary)] mb-1">
-                  Issue Summary <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g. Implement OAuth2 Session Refresh Strategy"
-                  className="w-full p-2 rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] text-xs text-[var(--spark-text-primary)] focus:outline-none focus:border-[var(--spark-accent)]"
-                  required
-                />
-              </div>
-
-              {/* Description */}
-              <div>
-                <label className="block text-[11px] font-semibold text-[var(--spark-text-secondary)] mb-1">
-                  Description / Acceptance Criteria
-                </label>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="User story narrative, technical specs, or reproduction steps..."
-                  rows={3}
-                  className="w-full p-2 rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] text-xs text-[var(--spark-text-primary)] focus:outline-none focus:border-[var(--spark-accent)] resize-y"
-                />
-              </div>
-
-              {/* Priority, Story Points, Status */}
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-[11px] font-semibold text-[var(--spark-text-secondary)] mb-1">
-                    Priority
-                  </label>
-                  <select
-                    value={priority}
-                    onChange={(e) => setPriority(e.target.value as any)}
-                    className="w-full p-2 rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] text-xs text-[var(--spark-text-primary)] focus:outline-none"
-                  >
-                    <option value="LOW">Low</option>
-                    <option value="MEDIUM">Medium</option>
-                    <option value="HIGH">High</option>
-                    <option value="URGENT">Urgent (Critical)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-semibold text-[var(--spark-text-secondary)] mb-1">
-                    Story Points
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={storyPoints}
-                    onChange={(e) =>
-                      setStoryPoints(e.target.value === "" ? "" : Number(e.target.value))
-                    }
-                    placeholder="e.g. 5"
-                    className="w-full p-2 rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] text-xs text-[var(--spark-text-primary)] focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-semibold text-[var(--spark-text-secondary)] mb-1">
-                    Initial Status
-                  </label>
-                  <select
-                    value={status}
-                    onChange={(e) => setStatus(e.target.value as any)}
-                    className="w-full p-2 rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] text-xs text-[var(--spark-text-primary)] focus:outline-none"
-                  >
-                    <option value="BACKLOG">Backlog</option>
-                    <option value="TODO">To Do</option>
-                    <option value="IN_PROGRESS">In Progress</option>
-                    <option value="IN_REVIEW">In Review</option>
-                    <option value="DONE">Done</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Start Date & Due Date */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-semibold text-[var(--spark-text-secondary)] mb-1">
-                    Start Date
-                  </label>
-                  <input
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="w-full p-2 rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] text-xs text-[var(--spark-text-primary)] focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-semibold text-[var(--spark-text-secondary)] mb-1">
-                    Due Date
-                  </label>
-                  <input
-                    type="date"
-                    value={dueDate}
-                    onChange={(e) => setDueDate(e.target.value)}
-                    className="w-full p-2 rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] text-xs text-[var(--spark-text-primary)] focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              {/* Assignee & Parent Issue */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-semibold text-[var(--spark-text-secondary)] mb-1">
-                    Assignee
-                  </label>
-                  <select
-                    value={assigneeId}
-                    onChange={(e) => setAssigneeId(e.target.value)}
-                    className="w-full p-2 rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] text-xs text-[var(--spark-text-primary)] focus:outline-none"
-                  >
-                    <option value="">Unassigned</option>
-                    {eligibleAssignees.map((m) => (
-                      <option key={m.userId} value={m.userId}>
-                        {m.user.fullName}
-                      </option>
-                    ))}
-                  </select>
-                  {modalProjectId && projects.find((p) => p.id === modalProjectId)?.type === "PRIVATE" ? (
-                    <span className="text-[10px] text-amber-500 font-medium mt-1 block">
-                      🔒 Only {eligibleAssignees.length} private project member{eligibleAssignees.length === 1 ? "" : "s"} can be assigned
-                    </span>
-                  ) : modalProjectId ? (
-                    <span className="text-[10px] text-[var(--spark-text-muted)] mt-1 block">
-                      🌐 Public project: All {members.length} workspace members eligible
-                    </span>
-                  ) : null}
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-semibold text-[var(--spark-text-secondary)] mb-1">
-                    Parent Issue (Optional)
-                  </label>
-                  <select
-                    value={parentTaskId}
-                    onChange={(e) => setParentTaskId(e.target.value)}
-                    className="w-full p-2 rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] text-xs text-[var(--spark-text-primary)] focus:outline-none"
-                  >
-                    <option value="">No parent (Top level)</option>
-                    {tasks.slice(0, 50).map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.issueKey ? `[${t.issueKey}] ` : ""}
-                        {t.title.slice(0, 30)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Labels */}
-              <div>
-                <label className="block text-[11px] font-semibold text-[var(--spark-text-secondary)] mb-1">
-                  Labels (Comma separated)
-                </label>
-                <input
-                  type="text"
-                  value={labelsInput}
-                  onChange={(e) => setLabelsInput(e.target.value)}
-                  placeholder="e.g. backend, security, frontend"
-                  className="w-full p-2 rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] text-xs text-[var(--spark-text-primary)] focus:outline-none focus:border-[var(--spark-accent)]"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-3 border-t border-[var(--spark-border)]">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsModalOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  variant="primary"
-                  size="sm"
-                  disabled={isSubmitting || !title.trim()}
-                >
-                  {isSubmitting ? "Creating..." : "Create Work Item"}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </ShellLayout>
   );
 }

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   FolderKanban,
   ArrowLeft,
@@ -92,19 +92,25 @@ const KANBAN_COLUMNS: { key: TaskRecordItem["status"]; label: string; dotColor: 
   { key: "DONE", label: "Done", dotColor: "bg-emerald-500" },
 ];
 
-export default function ProjectDetailsPage() {
+function ProjectDetailsContent() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const projectKey = (params?.projectKey as string) || "";
   const { activeWorkspace, currentUser } = useWorkspace();
 
+  const tabParam = searchParams.get("tab");
   const [project, setProject] = useState<DetailedProjectView | null>(null);
   const [tasks, setTasks] = useState<TaskRecordItem[]>([]);
   const [workspaceMembers, setWorkspaceMembers] = useState<WorkspaceMemberItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<
     "overview" | "work-items" | "sprints" | "timeline" | "activity" | "settings"
-  >("overview");
+  >(
+    tabParam && ["overview", "work-items", "sprints", "timeline", "activity", "settings"].includes(tabParam)
+      ? (tabParam as any)
+      : "overview"
+  );
 
   // Work items view toggle
   const [workItemsView, setWorkItemsView] = useState<"board" | "list">("board");
@@ -394,6 +400,21 @@ export default function ProjectDetailsPage() {
         t.assigneeName?.toLowerCase().includes(q)
     );
   }, [tasks, taskSearchQuery]);
+
+  // Dynamically determine eligible assignees for the project
+  const eligibleAssignees = useMemo(() => {
+    if (!project) return [];
+    if (project.type === "PRIVATE") {
+      return project.members;
+    }
+    // For PUBLIC projects, all workspace members can be assigned
+    return workspaceMembers.map((m) => ({
+      userId: m.userId,
+      fullName: m.user?.fullName || m.user?.email || "Member",
+      avatarUrl: m.user?.avatarUrl || null,
+      email: m.user?.email || "",
+    }));
+  }, [project, workspaceMembers]);
 
   if (isLoading) {
     return (
@@ -1277,10 +1298,19 @@ export default function ProjectDetailsPage() {
                     className="w-full px-3 py-1.5 rounded-[6px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] focus:outline-none"
                   >
                     <option value="">Unassigned</option>
-                    {project.members.map((m) => (
+                    {eligibleAssignees.map((m) => (
                       <option key={m.userId} value={m.userId}>{m.fullName}</option>
                     ))}
                   </select>
+                  {project.type === "PRIVATE" ? (
+                    <span className="text-[10px] text-amber-500 font-medium mt-1 block">
+                      🔒 Only {eligibleAssignees.length} private member{eligibleAssignees.length === 1 ? "" : "s"} can be assigned
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-[var(--spark-text-muted)] mt-1 block">
+                      🌐 Public initiative: All {workspaceMembers.length} members eligible
+                    </span>
+                  )}
                 </div>
                 <div>
                   <label className="block font-semibold mb-1">Due Date</label>
@@ -1404,5 +1434,21 @@ export default function ProjectDetailsPage() {
         }}
       />
     </ShellLayout>
+  );
+}
+
+export default function ProjectDetailsPage() {
+  return (
+    <React.Suspense
+      fallback={
+        <ShellLayout>
+          <div className="flex h-64 items-center justify-center">
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--spark-accent)] border-t-transparent" />
+          </div>
+        </ShellLayout>
+      }
+    >
+      <ProjectDetailsContent />
+    </React.Suspense>
   );
 }

@@ -964,7 +964,7 @@ export default function ProjectsPage() {
                     </Link>
 
                     <Link
-                      href={`/tasks?project=${p.id}`}
+                      href={`/projects/${p.key}?tab=work-items`}
                       className="text-xs text-[var(--spark-text-secondary)] hover:text-[var(--spark-text-primary)] font-medium"
                     >
                       Kanban Board
