@@ -158,6 +158,21 @@ export default function ProjectsPage() {
   // Active Dropdown Menu
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
+  // Close 3-dots project dropdown menu when clicking outside
+  useEffect(() => {
+    if (!activeMenuId) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest("[data-project-menu]")) {
+        setActiveMenuId(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [activeMenuId]);
+
   // Load projects and workspace members
   const loadData = useCallback(async () => {
     if (!activeWorkspace?.id || activeWorkspace.id === "personal-fallback") {
@@ -728,11 +743,13 @@ export default function ProjectsPage() {
               return (
                 <div
                   key={p.id}
-                  className="group relative rounded-[12px] border border-[var(--spark-border)] bg-[var(--spark-surface)] hover:border-[var(--spark-accent)]/60 hover:shadow-md transition-all duration-200 flex flex-col justify-between overflow-hidden"
+                  className={`group relative rounded-[12px] border border-[var(--spark-border)] bg-[var(--spark-surface)] hover:border-[var(--spark-accent)]/60 hover:shadow-md transition-all duration-200 flex flex-col justify-between ${
+                    activeMenuId === p.id ? "z-30" : "z-10"
+                  }`}
                 >
                   {/* Accent strip */}
                   <div
-                    className="h-1.5 w-full"
+                    className="h-1.5 w-full rounded-t-[12px]"
                     style={{ backgroundColor: p.color || "#7C3AED" }}
                   />
 
@@ -807,77 +824,84 @@ export default function ProjectsPage() {
                         </div>
 
                         {/* Dropdown menu */}
-                        <div className="relative">
+                        <div className="relative" data-project-menu>
                           <button
                             type="button"
                             onClick={() =>
                               setActiveMenuId((prev) => (prev === p.id ? null : p.id))
                             }
-                            className="p-1 rounded-[6px] text-[var(--spark-text-muted)] hover:text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface-subtle)] transition"
+                            className="p-1 rounded-[6px] text-[var(--spark-text-muted)] hover:text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface-subtle)] transition cursor-pointer"
                           >
                             <MoreVertical className="h-4 w-4" />
                           </button>
 
                           {activeMenuId === p.id && (
-                            <div className="absolute right-0 top-full mt-1 w-48 rounded-[8px] border border-[var(--spark-border)] bg-[var(--spark-surface-elevated)] shadow-lg py-1 z-30 animate-in fade-in zoom-in-95 text-xs">
-                              <div className="px-2.5 py-1 text-[10px] font-semibold text-[var(--spark-text-muted)] uppercase tracking-wider">
+                            <div className="absolute right-0 top-full mt-1.5 w-48 rounded-[10px] border border-[var(--spark-border)] bg-white dark:bg-[#1D182E] shadow-2xl py-1.5 z-50 animate-in fade-in zoom-in-95 text-xs ring-1 ring-black/5 dark:ring-white/10">
+                              <div className="px-3 py-1 text-[10px] font-bold text-[var(--spark-text-muted)] uppercase tracking-wider">
                                 Lifecycle Status
                               </div>
                               <button
+                                type="button"
                                 onClick={() => handleStatusChange(p.id, "ACTIVE")}
-                                className="w-full text-left px-3 py-1.5 text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface-subtle)] flex items-center gap-2"
+                                className="w-full text-left px-3 py-2 text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface-subtle)] flex items-center gap-2 transition-colors cursor-pointer"
                               >
                                 <PlayCircle className="h-3.5 w-3.5 text-emerald-500" />
-                                Active
+                                <span>Active</span>
                               </button>
                               <button
+                                type="button"
                                 onClick={() => handleStatusChange(p.id, "PLANNING")}
-                                className="w-full text-left px-3 py-1.5 text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface-subtle)] flex items-center gap-2"
+                                className="w-full text-left px-3 py-2 text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface-subtle)] flex items-center gap-2 transition-colors cursor-pointer"
                               >
                                 <Clock className="h-3.5 w-3.5 text-purple-500" />
-                                Planning
+                                <span>Planning</span>
                               </button>
                               <button
+                                type="button"
                                 onClick={() => handleStatusChange(p.id, "ON_HOLD")}
-                                className="w-full text-left px-3 py-1.5 text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface-subtle)] flex items-center gap-2"
+                                className="w-full text-left px-3 py-2 text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface-subtle)] flex items-center gap-2 transition-colors cursor-pointer"
                               >
                                 <PauseCircle className="h-3.5 w-3.5 text-amber-500" />
-                                On Hold
+                                <span>On Hold</span>
                               </button>
                               <button
+                                type="button"
                                 onClick={() => handleStatusChange(p.id, "COMPLETED")}
-                                className="w-full text-left px-3 py-1.5 text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface-subtle)] flex items-center gap-2"
+                                className="w-full text-left px-3 py-2 text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface-subtle)] flex items-center gap-2 transition-colors cursor-pointer"
                               >
                                 <CheckCircle className="h-3.5 w-3.5 text-blue-500" />
-                                Completed
+                                <span>Completed</span>
                               </button>
 
                               <div className="my-1 border-t border-[var(--spark-border-subtle)]" />
 
                               {p.status === "ARCHIVED" ? (
                                 <button
+                                  type="button"
                                   onClick={() => handleRestore(p.id)}
-                                  className="w-full text-left px-3 py-1.5 text-emerald-600 hover:bg-emerald-500/10 flex items-center gap-2"
+                                  className="w-full text-left px-3 py-2 text-emerald-600 hover:bg-emerald-500/10 flex items-center gap-2 transition-colors cursor-pointer"
                                 >
                                   <RotateCcw className="h-3.5 w-3.5" />
-                                  Restore Project
+                                  <span>Restore Project</span>
                                 </button>
                               ) : (
                                 <button
+                                  type="button"
                                   onClick={() => handleArchive(p.id)}
-                                  className="w-full text-left px-3 py-1.5 text-[var(--spark-text-secondary)] hover:bg-[var(--spark-surface-subtle)] flex items-center gap-2"
+                                  className="w-full text-left px-3 py-2 text-[var(--spark-text-secondary)] hover:bg-[var(--spark-surface-subtle)] flex items-center gap-2 transition-colors cursor-pointer"
                                 >
                                   <Archive className="h-3.5 w-3.5" />
-                                  Archive Project
+                                  <span>Archive Project</span>
                                 </button>
                               )}
 
                               <button
+                                type="button"
                                 onClick={() => handleDelete(p.id)}
-                                className="w-full text-left px-3 py-1.5 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 flex items-center gap-2"
+                                className="w-full text-left px-3 py-2 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 flex items-center gap-2 transition-colors cursor-pointer font-medium"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
-                                Delete Project
+                                <span>Delete Project</span>
                               </button>
                             </div>
                           )}
@@ -966,7 +990,7 @@ export default function ProjectsPage() {
                   </div>
 
                   {/* Card Footer Actions */}
-                  <div className="px-5 py-3 bg-[var(--spark-surface-subtle)] border-t border-[var(--spark-border)] flex items-center justify-between">
+                  <div className="px-5 py-3 bg-[var(--spark-surface-subtle)] border-t border-[var(--spark-border)] rounded-b-[12px] flex items-center justify-between">
                     <Link
                       href={`/projects/${p.key}`}
                       className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--spark-accent)] hover:text-[var(--spark-accent-hover)] transition-colors"

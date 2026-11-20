@@ -9,6 +9,7 @@
     --spark-canvas: #F9F8FC;
     --spark-surface: #FFFFFF;
     --spark-surface-subtle: #F3F0FA;
+    --spark-surface-elevated: #FFFFFF;
     --spark-border: #E6E2F0;
     --spark-border-strong: #D3CCE6;
     --spark-text-primary: #14111F;
@@ -39,6 +40,7 @@
     --spark-canvas: #0D0B14;
     --spark-surface: #161321;
     --spark-surface-subtle: #1F1A2E;
+    --spark-surface-elevated: #201B2E;
     --spark-border: #282338;
     --spark-border-strong: #3B3454;
     --spark-text-primary: #F4F2FA;
