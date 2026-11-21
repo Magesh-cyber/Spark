@@ -61,7 +61,7 @@ export const SparkWordmark: React.FC<{
       />
       {/* a */}
       <path
-        d="M55 24H44V12H55V24.5"
+        d="M55 24H44V12H55V24L58.5 27.5"
         stroke="currentColor"
         strokeWidth={strokeWidth}
         strokeLinecap="round"
