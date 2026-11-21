@@ -12,13 +12,17 @@ import {
   KeyRound,
   ShieldCheck,
   Check,
+  Sparkles,
 } from "lucide-react";
 import { SparkLogo } from "@/components/brand/SparkLogo";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/client";
-import { syncVerifiedUser } from "@/lib/actions/auth-verify";
+import {
+  verifySignupOtp,
+  resendSignupOtp,
+  syncVerifiedUser,
+} from "@/lib/actions/auth-verify";
 import { clearBootstrapMemory } from "@/lib/bootstrap-client";
 import { clearAllClientCaches } from "@/lib/client-caches";
 
@@ -29,7 +33,8 @@ function VerifyEmailContent() {
   const errorParam = searchParams.get("error");
 
   const [email, setEmail] = useState(emailParam);
-  const [digits, setDigits] = useState<string[]>(["", "", "", "", "", ""]);
+  // 4-Digit OTP Boxes
+  const [digits, setDigits] = useState<string[]>(["", "", "", ""]);
   const [isVerifying, setIsVerifying] = useState(false);
   const [verifyError, setVerifyError] = useState("");
   const [verifySuccess, setVerifySuccess] = useState(false);
@@ -38,12 +43,21 @@ function VerifyEmailContent() {
   const [resendCooldown, setResendCooldown] = useState(0);
   const [resendStatus, setResendStatus] = useState<"idle" | "success" | "error">("idle");
   const [statusMessage, setStatusMessage] = useState("");
+  const [devOtpHint, setDevOtpHint] = useState<string | null>(null);
 
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
     if (emailParam) {
       setEmail(emailParam);
+      if (typeof window !== "undefined") {
+        try {
+          const cached = sessionStorage.getItem(`spark_dev_otp_${emailParam.trim().toLowerCase()}`);
+          if (cached) {
+            setDevOtpHint(cached);
+          }
+        } catch {}
+      }
     }
   }, [emailParam]);
 
@@ -63,20 +77,20 @@ function VerifyEmailContent() {
 
   const handleDigitChange = (index: number, value: string) => {
     setVerifyError("");
-    const cleaned = value.replace(/[^0-9a-zA-Z]/g, "");
+    const cleaned = value.replace(/[^0-9]/g, "");
 
-    // Handle full code paste (e.g. user pastes 6 digits into any box)
+    // Handle full code paste (e.g. user pastes 4 digits into any box)
     if (cleaned.length > 1) {
-      const pasteDigits = cleaned.slice(0, 6).split("");
+      const pasteDigits = cleaned.slice(0, 4).split("");
       const nextDigits = [...digits];
-      for (let i = 0; i < 6; i++) {
+      for (let i = 0; i < 4; i++) {
         nextDigits[i] = pasteDigits[i] || "";
       }
       setDigits(nextDigits);
-      const targetIndex = Math.min(pasteDigits.length, 5);
+      const targetIndex = Math.min(pasteDigits.length, 3);
       inputRefs.current[targetIndex]?.focus();
 
-      if (pasteDigits.length === 6) {
+      if (pasteDigits.length === 4) {
         verifyCode(nextDigits.join(""));
       }
       return;
@@ -87,13 +101,13 @@ function VerifyEmailContent() {
     setDigits(nextDigits);
 
     // Auto-advance to next box if filled
-    if (cleaned && index < 5) {
+    if (cleaned && index < 3) {
       inputRefs.current[index + 1]?.focus();
     }
 
-    // Auto-verify if all 6 digits are filled
+    // Auto-verify if all 4 digits are filled
     const fullCode = nextDigits.join("");
-    if (fullCode.length === 6) {
+    if (fullCode.length === 4) {
       verifyCode(fullCode);
     }
   };
@@ -106,73 +120,71 @@ function VerifyEmailContent() {
 
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
     e.preventDefault();
-    const pasted = e.clipboardData.getData("text").trim().replace(/[^0-9a-zA-Z]/g, "");
+    const pasted = e.clipboardData.getData("text").trim().replace(/[^0-9]/g, "");
     if (!pasted) return;
 
-    const pasteDigits = pasted.slice(0, 6).split("");
+    const pasteDigits = pasted.slice(0, 4).split("");
     const nextDigits = [...digits];
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 4; i++) {
       nextDigits[i] = pasteDigits[i] || "";
     }
     setDigits(nextDigits);
-    const targetIndex = Math.min(pasteDigits.length, 5);
+    const targetIndex = Math.min(pasteDigits.length, 3);
     inputRefs.current[targetIndex]?.focus();
 
-    if (pasteDigits.length === 6) {
+    if (pasteDigits.length === 4) {
       verifyCode(nextDigits.join(""));
     }
   };
 
   const verifyCode = async (tokenCode: string) => {
     const code = tokenCode.trim();
-    if (code.length < 6 || !email.trim()) return;
+    if (code.length < 4 || !email.trim()) return;
 
     setIsVerifying(true);
     setVerifyError("");
 
     try {
-      const supabase = createClient();
-
-      // 1. Attempt signup OTP verification first
-      let { data, error } = await supabase.auth.verifyOtp({
+      const res = await verifySignupOtp({
         email: email.trim(),
-        token: code,
-        type: "signup",
+        otp: code,
       });
 
-      // 2. If 'signup' type fails, try 'email' type (magiclink/token fallback)
-      if (error && (error.message.includes("type") || error.message.includes("Token"))) {
-        const secondary = await supabase.auth.verifyOtp({
-          email: email.trim(),
-          token: code,
-          type: "email",
-        });
-        if (!secondary.error) {
-          data = secondary.data;
-          error = null;
-        }
-      }
-
-      if (error) {
+      if (!res.success) {
         setVerifyError(
-          error.message ||
-            "The verification code entered is invalid or has expired. Please check your email or click Resend."
+          res.error ||
+            "The 4-digit verification code is invalid or has expired. Please check your email or click Resend."
         );
         setIsVerifying(false);
         return;
+      }
+
+      // Automatically authenticate session in Supabase client
+      const supabase = createClient();
+      if (res.password) {
+        await supabase.auth.signInWithPassword({
+          email: res.email || email.trim(),
+          password: res.password,
+        });
       }
 
       setVerifySuccess(true);
       clearAllClientCaches();
       clearBootstrapMemory();
 
-      // Synchronize database profile in background
+      // Synchronize database profile
       await syncVerifiedUser(email.trim()).catch(() => {});
+
+      if (typeof window !== "undefined") {
+        try {
+          sessionStorage.removeItem(`spark_dev_otp_${email.trim().toLowerCase()}`);
+        } catch {}
+      }
 
       setTimeout(() => {
         router.push("/");
         router.refresh();
-      }, 1200);
+      }, 1000);
     } catch {
       setVerifyError("An unexpected error occurred during verification. Please try again.");
       setIsVerifying(false);
@@ -192,34 +204,40 @@ function VerifyEmailContent() {
     setStatusMessage("");
 
     try {
-      const supabase = createClient();
-      const { error } = await supabase.auth.resend({
-        type: "signup",
-        email: email.trim(),
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
+      const res = await resendSignupOtp(email.trim());
 
-      if (error) {
+      if (!res.success) {
         setResendStatus("error");
-        if (error.message.toLowerCase().includes("rate limit")) {
-          setStatusMessage("Email rate limit reached. Please wait a few moments before requesting a new code.");
-        } else {
-          setStatusMessage(error.message);
-        }
+        setStatusMessage(res.error || "Failed to resend verification code.");
       } else {
         setResendStatus("success");
-        setStatusMessage("A fresh one-time verification code has been dispatched to your email.");
+        setStatusMessage("A fresh 4-digit verification code has been dispatched to your email.");
         setResendCooldown(45);
-        setDigits(["", "", "", "", "", ""]);
+        setDigits(["", "", "", ""]);
         inputRefs.current[0]?.focus();
+
+        if (res.devOtp) {
+          setDevOtpHint(res.devOtp);
+          if (typeof window !== "undefined") {
+            try {
+              sessionStorage.setItem(`spark_dev_otp_${email.trim().toLowerCase()}`, res.devOtp);
+            } catch {}
+          }
+        }
       }
     } catch {
       setResendStatus("error");
       setStatusMessage("Failed to send verification code. Please try again.");
     } finally {
       setIsResending(false);
+    }
+  };
+
+  const autofillDevOtp = () => {
+    if (devOtpHint && devOtpHint.length === 4) {
+      const split = devOtpHint.split("");
+      setDigits(split);
+      verifyCode(devOtpHint);
     }
   };
 
@@ -234,7 +252,7 @@ function VerifyEmailContent() {
           <div className="text-xs text-rose-700 dark:text-rose-300 leading-relaxed">
             <p className="font-semibold">Verification link expired or invalid</p>
             <p className="mt-0.5">
-              The link or code may have expired. Please enter the latest 6-digit code sent to your email or request a new one below.
+              The code may have expired. Please enter the latest 4-digit code sent to your email or request a new one below.
             </p>
           </div>
         </div>
@@ -245,16 +263,33 @@ function VerifyEmailContent() {
           </div>
           <div className="text-xs text-[var(--spark-text-secondary)]">
             <p className="font-semibold text-[var(--spark-text-primary)]">
-              One-Time Verification Code Sent
+              4-Digit Verification Code Sent
             </p>
             <p className="mt-0.5 leading-relaxed">
-              We sent a 6-digit verification code to{" "}
+              We sent a 4-digit verification code to{" "}
               <span className="font-semibold text-[var(--spark-text-primary)]">
                 {email || "your registered email"}
               </span>
               . Enter the code below to activate your account.
             </p>
           </div>
+        </div>
+      )}
+
+      {/* Dev OTP Helper if in local dev */}
+      {devOtpHint && !verifySuccess && (
+        <div className="flex items-center justify-between rounded-[8px] border border-violet-500/30 bg-violet-500/10 px-3.5 py-2 text-xs text-violet-700 dark:text-violet-300">
+          <span className="flex items-center gap-1.5">
+            <Sparkles className="h-3.5 w-3.5 text-violet-500 shrink-0" />
+            Verification Code: <strong className="font-mono text-sm tracking-widest">{devOtpHint}</strong>
+          </span>
+          <button
+            type="button"
+            onClick={autofillDevOtp}
+            className="text-[11px] font-semibold text-violet-600 dark:text-violet-400 underline hover:opacity-80"
+          >
+            Auto-fill
+          </button>
         </div>
       )}
 
@@ -272,12 +307,12 @@ function VerifyEmailContent() {
         </div>
       ) : (
         <form onSubmit={handleManualSubmit} className="space-y-5">
-          {/* 6-Digit Code Input Grid */}
-          <div className="space-y-2">
+          {/* 4-Digit Code Input Grid */}
+          <div className="space-y-2.5">
             <label className="block text-xs font-semibold text-[var(--spark-text-primary)] text-center">
-              Enter 6-Digit Verification Code
+              Enter 4-Digit Verification Code
             </label>
-            <div className="flex items-center justify-center gap-2 sm:gap-2.5">
+            <div className="flex items-center justify-center gap-3 sm:gap-4">
               {digits.map((digit, idx) => (
                 <input
                   key={idx}
@@ -292,7 +327,7 @@ function VerifyEmailContent() {
                   onKeyDown={(e) => handleKeyDown(idx, e)}
                   onPaste={handlePaste}
                   disabled={isVerifying}
-                  className="h-12 w-11 sm:h-13 sm:w-12 rounded-[10px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] text-center text-lg sm:text-xl font-mono font-bold text-[var(--spark-text-primary)] shadow-2xs focus:border-[var(--spark-accent)] focus:ring-2 focus:ring-[var(--spark-accent)]/20 outline-none transition-all duration-150 disabled:opacity-60"
+                  className="h-14 w-12 sm:h-15 sm:w-14 rounded-[12px] border-2 border-[var(--spark-border)] bg-[var(--spark-canvas)] text-center text-2xl font-mono font-bold text-[var(--spark-text-primary)] shadow-2xs focus:border-[var(--spark-accent)] focus:ring-2 focus:ring-[var(--spark-accent)]/20 outline-none transition-all duration-150 disabled:opacity-60"
                   autoComplete="one-time-code"
                 />
               ))}
@@ -322,7 +357,7 @@ function VerifyEmailContent() {
       {/* Resend Section */}
       <div className="border-t border-[var(--spark-border)] pt-4 space-y-3 text-center">
         <p className="text-xs text-[var(--spark-text-secondary)]">
-          Didn&apos;t receive the code? Check spam or request a new one.
+          Didn&apos;t receive the code? Check your spam folder or request a new one.
         </p>
 
         {resendStatus === "success" && (
@@ -348,7 +383,7 @@ function VerifyEmailContent() {
           <RefreshCw className={`h-3 w-3 ${isResending ? "animate-spin" : ""}`} />
           {resendCooldown > 0
             ? `Resend Code in ${resendCooldown}s`
-            : "Resend 6-Digit Code"}
+            : "Resend 4-Digit Code"}
         </button>
       </div>
 
@@ -388,7 +423,7 @@ export default function VerifyEmailPage() {
             Verify your email
           </h1>
           <p className="text-xs text-[var(--spark-text-secondary)] font-normal">
-            One-time verification code is required only upon registration.
+            One-time 4-digit verification code is required only upon registration.
           </p>
         </div>
 

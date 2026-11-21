@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { createClient } from "@/lib/supabase/client";
 import { signupSchema } from "@/lib/validations/auth";
+import { requestSignupOtp } from "@/lib/actions/auth-verify";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -51,39 +52,36 @@ export default function SignupPage() {
     setIsLoading(true);
 
     try {
-      const supabase = createClient();
-      const redirectUrl = `${window.location.origin}/auth/callback`;
-
-      const { data, error } = await supabase.auth.signUp({
+      // Server-side legitimacy check, MX verification, 4-digit OTP generation & dispatch
+      const otpRes = await requestSignupOtp({
+        fullName: fullName.trim(),
         email: email.trim(),
         password,
-        options: {
-          data: {
-            full_name: fullName.trim(),
-          },
-          emailRedirectTo: redirectUrl,
-        },
       });
 
-      if (error) {
-        if (error.message.toLowerCase().includes("rate limit")) {
-          setGeneralError(
-            "Email rate limit exceeded. Supabase default email service is capped at 3–4 emails/hour. You can disable 'Confirm email' in your Supabase Dashboard (Authentication → Providers → Email) for instant registration."
-          );
-        } else {
-          setGeneralError(error.message);
+      if (!otpRes.success) {
+        const errorMsg = otpRes.error || "Please enter a valid email address.";
+        if (
+          errorMsg.toLowerCase().includes("valid email") ||
+          errorMsg.toLowerCase().includes("domain") ||
+          errorMsg.toLowerCase().includes("disposable")
+        ) {
+          setErrors({ email: errorMsg });
+        } else if (errorMsg.toLowerCase().includes("exists")) {
+          setErrors({ email: errorMsg });
         }
+        setGeneralError(errorMsg);
         return;
       }
 
-      if (data.user) {
-        if (data.session) {
-          router.push("/");
-          router.refresh();
-        } else {
-          router.push(`/auth/verify?email=${encodeURIComponent(email.trim())}`);
-        }
+      // Store devOtp in sessionStorage if present (for seamless local development/testing)
+      if (otpRes.devOtp && typeof window !== "undefined") {
+        try {
+          sessionStorage.setItem(`spark_dev_otp_${email.trim().toLowerCase()}`, otpRes.devOtp);
+        } catch {}
       }
+
+      router.push(`/auth/verify?email=${encodeURIComponent(email.trim().toLowerCase())}`);
     } catch {
       setGeneralError("An unexpected error occurred during signup. Please try again.");
     } finally {

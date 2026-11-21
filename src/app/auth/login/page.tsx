@@ -71,7 +71,7 @@ function LoginForm() {
         if (error.message.toLowerCase().includes("email not confirmed")) {
           setUnconfirmedEmail(email.trim());
           setGeneralError(
-            "Your email has not been verified yet. Please enter the 6-digit one-time code sent to your email during registration."
+            "Your email has not been verified yet. Please enter the 4-digit one-time code sent to your email during registration."
           );
         } else if (error.message.toLowerCase().includes("invalid login credentials")) {
           setGeneralError(
@@ -132,7 +132,7 @@ function LoginForm() {
                 href={`/auth/verify?email=${encodeURIComponent(unconfirmedEmail)}`}
                 className="inline-flex items-center gap-1 font-semibold text-violet-600 dark:text-violet-400 hover:underline"
               >
-                Enter 6-digit verification code &rarr;
+                Enter 4-digit verification code &rarr;
               </Link>
             </div>
           )}
