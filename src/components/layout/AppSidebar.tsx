@@ -146,7 +146,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ className, isMobile }) =
         {/* Top Header: Brand + Collapse / Mobile Close */}
         <div
           className={cn(
-            "flex h-[58px] items-center border-b border-[var(--spark-border)]/60 shrink-0",
+            "flex h-[60px] items-center border-b border-[var(--spark-border)]/60 shrink-0",
             isCompact ? "justify-center px-2" : "justify-between px-4"
           )}
         >
@@ -237,16 +237,16 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ className, isMobile }) =
                   if (mobileMode) setSidebarOpen(false);
                 }}
                 className={cn(
-                  "group relative flex items-center rounded-[12px] text-xs font-medium transition-all duration-150 select-none",
+                  "group relative flex items-center rounded-[12px] text-xs sm:text-[13px] font-medium transition-all duration-150 select-none",
                   isCompact
                     ? "justify-center h-10 w-full px-0"
-                    : "justify-between px-3 py-2",
+                    : "justify-between px-3.5 py-2.5",
                   isActive
                     ? "spark-nav-active-pill font-semibold"
                     : "text-[var(--spark-text-secondary)] hover:text-[var(--spark-text-primary)] hover:bg-white/45 dark:hover:bg-white/5 border border-transparent hover:border-[var(--spark-border)]/50"
                 )}
               >
-                <div className={cn("flex items-center truncate", !isCompact && "gap-2.5")}>
+                <div className={cn("flex items-center truncate", !isCompact && "gap-3")}>
                   {isNavigatingToThis ? (
                     <Loader2 className="h-4 w-4 shrink-0 animate-spin text-[var(--spark-accent)]" />
                   ) : (
@@ -299,14 +299,14 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ className, isMobile }) =
       {/* Desktop Persistent Floating Navigation Rail (Glossy Glass with Rounded Corners) */}
       <div
         className={cn(
-          "hidden lg:flex shrink-0 p-3 pr-0 sticky top-0 h-screen z-30 transition-[width] duration-200 ease-out select-none",
-          collapsed ? "w-[76px]" : "w-[256px]",
+          "hidden lg:flex shrink-0 p-3.5 pr-1.5 sticky top-0 h-screen z-30 transition-[width] duration-200 ease-out select-none",
+          collapsed ? "w-[84px]" : "w-[280px]",
           className
         )}
       >
         <aside
           className={cn(
-            "flex h-full w-full flex-col justify-between overflow-hidden rounded-[22px] spark-glossy-sidebar transition-all duration-200"
+            "flex h-full w-full flex-col justify-between overflow-hidden rounded-[24px] spark-glossy-sidebar transition-all duration-200 shadow-xl"
           )}
         >
           {renderSidebarContent(collapsed, false)}
@@ -320,7 +320,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ className, isMobile }) =
             className="fixed inset-0 bg-[#110F13]/60 backdrop-blur-xs transition-opacity"
             onClick={() => setSidebarOpen(false)}
           />
-          <div className="fixed inset-y-3 left-3 w-[268px] max-w-[85vw] spark-glossy-sidebar rounded-[22px] shadow-2xl overflow-hidden animate-in slide-in-from-left duration-200">
+          <div className="fixed inset-y-3 left-3 w-[280px] max-w-[85vw] spark-glossy-sidebar rounded-[24px] shadow-2xl overflow-hidden animate-in slide-in-from-left duration-200">
             {renderSidebarContent(false, true)}
           </div>
         </div>
