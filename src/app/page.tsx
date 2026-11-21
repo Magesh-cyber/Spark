@@ -52,6 +52,16 @@ export default function WorkspaceHomePage() {
   const isPersonal =
     activeWorkspace.type === "personal" || activeWorkspace.type === "PERSONAL";
 
+  // Dynamic time-aware greeting (Good morning / afternoon / evening)
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 17) return "Good afternoon";
+    return "Good evening";
+  };
+  const greeting = getGreeting();
+  const firstName = currentUser.name?.split(" ")[0] || "there";
+
   const loadDashboard = useCallback(async () => {
     if (!activeWorkspace?.id || activeWorkspace.id === "personal-fallback") {
       setIsLoadingDashboard(false);
@@ -122,13 +132,13 @@ export default function WorkspaceHomePage() {
               <div className="space-y-1.5">
                 <h1 className="text-2xl font-semibold tracking-tight text-[var(--spark-text-primary)]">
                   {isPersonal
-                    ? `Welcome back, ${currentUser.name.split(" ")[0] || "User"}`
-                    : activeWorkspace.name || "Workspace Overview"}
+                    ? `${greeting}, ${firstName}`
+                    : activeWorkspace.name || `${greeting}, ${firstName}`}
                 </h1>
                 <p className="text-xs sm:text-[13px] text-[var(--spark-text-secondary)] leading-relaxed">
                   {isPersonal
                     ? "Manage your messages, tasks, and projects from one focused workspace."
-                    : "Stay connected across team channels, direct conversations, and active projects."}
+                    : `Welcome to ${activeWorkspace.name || "SPARK"}. Stay connected across team channels, direct conversations, and active projects.`}
                 </p>
               </div>
             </div>
