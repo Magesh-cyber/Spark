@@ -223,8 +223,8 @@ export default function LoginPage() {
         <ThemeToggle variant="icon" />
       </div>
 
-      {/* LEFT SIDE: Brand Header, "Welcome back!" Greeting & Sign-in Card (Vanta-inspired) */}
-      <div className="flex-1 flex flex-col justify-between px-6 sm:px-12 lg:px-16 xl:px-24 py-8 lg:py-12 z-20">
+      {/* LEFT SIDE: Brand Header, "Welcome back!" Greeting & Sign-in Card */}
+      <div className="w-full lg:w-[480px] xl:w-[520px] 2xl:w-[560px] flex flex-col justify-between px-6 sm:px-10 lg:px-12 xl:px-16 py-8 lg:py-12 z-20 shrink-0">
         {/* Brand Header */}
         <div className="flex items-center">
           <SparkLogo size="md" href="/" variant="wordmark" />
@@ -265,44 +265,88 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* RIGHT SIDE: Curvilinear Organic Shape Backdrop + Retro Car Mascot ("Hi!") */}
-      <div className="hidden lg:flex relative lg:w-[46%] xl:w-[48%] h-screen overflow-hidden select-none items-end justify-end">
-        {/* Organic Curved Fluid Shape in SPARK's Deep Muted Plum & Warm Sand Theme */}
+      {/* RIGHT STAGE: Panoramic Curving Highway & Vintage Car Mascot */}
+      <div className="hidden lg:flex flex-1 relative h-screen overflow-hidden select-none items-end justify-end">
+        {/* Curvilinear Organic Terrain & Perspective Highway */}
         <div className="absolute inset-0 z-0 pointer-events-none">
           <svg
             className="h-full w-full object-cover"
-            viewBox="0 0 700 900"
+            viewBox="0 0 1000 900"
             fill="none"
             preserveAspectRatio="none"
             xmlns="http://www.w3.org/2000/svg"
           >
+            <defs>
+              <filter id="roadShadow" x="-10%" y="-10%" width="120%" height="120%">
+                <feDropShadow dx="-4" dy="12" stdDeviation="16" floodColor="#4A354F" floodOpacity="0.14" />
+              </filter>
+            </defs>
+
             {/* Soft Warm Sand underlay accent curve */}
             <path
-              d="M260 0C380 180 140 380 280 580C390 730 200 850 320 900H700V0H260Z"
+              d="M440 0C600 180 320 380 480 580C620 730 380 850 520 900H1000V0H440Z"
               fill="var(--spark-surface-selected)"
-              className="opacity-70 dark:opacity-20"
+              className="opacity-75 dark:opacity-25"
             />
+
             {/* Primary Deep Muted Plum Organic Shape */}
             <path
-              d="M320 0C440 160 200 360 340 560C450 710 260 830 380 900H700V0H320Z"
+              d="M520 0C680 160 400 360 560 560C700 710 460 830 600 900H1000V0H520Z"
               fill="var(--spark-accent)"
-              className="opacity-90 dark:opacity-85"
+              className="opacity-95 dark:opacity-85"
+            />
+
+            {/* THE ROAD: Sweeping Highway Perspective from Right Horizon into Foreground */}
+            {/* Road Bed / Shadow Base */}
+            <path
+              d="M 940 360 C 780 430, 520 540, 40 900 L 460 900 C 740 650, 910 500, 1010 360 Z"
+              fill="var(--spark-border)"
+              filter="url(#roadShadow)"
+              className="opacity-80 dark:opacity-50"
+            />
+
+            {/* Road Surface */}
+            <path
+              d="M 950 360 C 790 432, 538 544, 70 900 L 430 900 C 715 652, 895 502, 1000 360 Z"
+              fill="var(--spark-surface-selected)"
+              className="opacity-90 dark:opacity-80"
+            />
+
+            {/* Solid Road Curbs (Inner & Outer) */}
+            <path
+              d="M 950 360 C 790 432, 538 544, 70 900"
+              stroke="var(--spark-border)"
+              strokeWidth="2.5"
+              className="opacity-80 dark:opacity-40"
+            />
+            <path
+              d="M 1000 360 C 895 502, 715 652, 430 900"
+              stroke="var(--spark-border)"
+              strokeWidth="2.5"
+              className="opacity-80 dark:opacity-40"
+            />
+
+            {/* Dashed Center Dividing Lane Markings */}
+            <path
+              d="M 975 360 C 842 467, 626 598, 250 900"
+              stroke="var(--spark-canvas)"
+              strokeWidth="4"
+              strokeDasharray="24 16"
+              strokeLinecap="round"
+              className="opacity-90 dark:stroke-[#E6DFD5]/50"
             />
           </svg>
         </div>
 
-        {/* Floating Playful "Hi!" Speech Bubble */}
-        <div className="absolute bottom-[440px] right-[240px] z-20 rounded-full bg-white dark:bg-[#1A161E] border border-[#E6DFD5] dark:border-[#2E2633] px-3.5 py-1.5 shadow-lg flex items-center gap-1.5 text-xs font-bold text-[#4A354F] dark:text-[#C79FD0] animate-bounce">
-          <span>👋</span>
-          <span>Hi!</span>
-        </div>
+        {/* Tire Contact Shadow for physical grounding */}
+        <div className="absolute bottom-[10px] right-[40px] xl:right-[80px] 2xl:right-[120px] w-[580px] xl:w-[680px] 2xl:w-[760px] h-[55px] bg-[radial-gradient(ellipse_at_50%_50%,rgba(74,53,79,0.35)_0%,rgba(74,53,79,0)_72%)] dark:bg-[radial-gradient(ellipse_at_50%_50%,rgba(0,0,0,0.6)_0%,rgba(0,0,0,0)_72%)] z-10 pointer-events-none" />
 
-        {/* Mascot Illustration: Man leaning out of retro car saying Hi */}
-        <div className="relative z-10 w-full max-w-[560px] xl:max-w-[620px] mr-[-20px] mb-[-10px] pointer-events-none">
+        {/* Mascot Illustration: Transparent retro car driving along highway */}
+        <div className="relative z-10 w-full max-w-[620px] lg:max-w-[680px] xl:max-w-[760px] 2xl:max-w-[840px] mr-[-10px] xl:mr-[20px] 2xl:mr-[60px] mb-[-12px] pointer-events-none">
           <img
-            src="/images/welcome_car_man.jpg"
-            alt="SPARK Welcome Mascot — Man waving hello from car"
-            className="w-full h-auto object-contain mix-blend-multiply dark:mix-blend-normal dark:rounded-[20px] dark:opacity-90 transition-opacity duration-200"
+            src="/images/welcome_car_transparent.png"
+            alt="SPARK Welcome Mascot — Driving vintage car along highway"
+            className="w-full h-auto object-contain drop-shadow-[0_20px_30px_rgba(74,53,79,0.22)] dark:drop-shadow-[0_16px_36px_rgba(107,78,113,0.38)] transition-all duration-200"
           />
         </div>
       </div>
