@@ -150,7 +150,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ className, isMobile }) =
             isCompact ? "justify-center px-2" : "justify-between px-4"
           )}
         >
-          <SparkLogo size="md" href="/" showWordmark={!isCompact} />
+          <SparkLogo size="md" href="/" variant={isCompact ? "icon" : "wordmark"} />
 
           {mobileMode ? (
             <button
