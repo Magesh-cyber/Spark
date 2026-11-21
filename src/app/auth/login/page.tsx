@@ -280,6 +280,11 @@ export default function LoginPage() {
               <filter id="roadShadow" x="-10%" y="-10%" width="120%" height="120%">
                 <feDropShadow dx="-4" dy="12" stdDeviation="16" floodColor="#4A354F" floodOpacity="0.14" />
               </filter>
+              <linearGradient id="roadGradLight" x1="0.8" y1="0.2" x2="0.2" y2="0.9">
+                <stop offset="0%" stopColor="#EADECE" />
+                <stop offset="60%" stopColor="#E2D4C3" />
+                <stop offset="100%" stopColor="#D9C9B6" />
+              </linearGradient>
             </defs>
 
             {/* Soft Warm Sand underlay accent curve */}
@@ -296,15 +301,17 @@ export default function LoginPage() {
               className="opacity-95 dark:opacity-85"
             />
 
-            {/* SERPENTINE S-HIGHWAY: Gentle undulating curves (S-structure) */}
+            {/* SERPENTINE S-HIGHWAY: Natural light S-curves winding from horizon to foreground */}
             {/* Road Bed / Shadow Base */}
             <path
-              d="M 890 260 
-                 C 740 360, 560 480, 600 580 
-                 C 640 680, 360 780, 160 900 
-                 L 580 900 
-                 C 740 800, 780 700, 740 600 
-                 C 700 500, 840 370, 950 260 Z"
+              d="M 935 180 
+                 C 780 250, 650 330, 680 400 
+                 C 710 470, 810 520, 830 580 
+                 C 850 660, 480 780, 140 900 
+                 L 600 900 
+                 C 820 780, 970 660, 960 580 
+                 C 940 500, 840 450, 810 400 
+                 C 780 340, 880 250, 985 180 Z"
               fill="var(--spark-border)"
               filter="url(#roadShadow)"
               className="opacity-75 dark:opacity-40"
@@ -312,51 +319,56 @@ export default function LoginPage() {
 
             {/* Road Surface */}
             <path
-              d="M 895 260 
-                 C 745 362, 568 482, 608 580 
-                 C 648 678, 370 782, 180 900 
-                 L 560 900 
-                 C 725 798, 768 698, 730 600 
-                 C 692 502, 835 372, 945 260 Z"
-              fill="var(--spark-surface-selected)"
-              className="opacity-95 dark:opacity-85"
+              d="M 940 180 
+                 C 785 252, 658 332, 688 400 
+                 C 718 468, 818 518, 838 580 
+                 C 858 658, 490 782, 160 900 
+                 L 580 900 
+                 C 800 778, 950 658, 940 580 
+                 C 920 502, 822 452, 792 400 
+                 C 762 342, 862 252, 975 180 Z"
+              fill="url(#roadGradLight)"
+              className="dark:fill-[#2A1F2D]"
             />
 
             {/* Solid Road Curbs (Inner & Outer) */}
             <path
-              d="M 895 260 C 745 362, 568 482, 608 580 C 648 678, 370 782, 180 900"
+              d="M 940 180 C 785 252, 658 332, 688 400 C 718 468, 818 518, 838 580 C 858 658, 490 782, 160 900"
               stroke="var(--spark-border)"
-              strokeWidth="2.5"
+              strokeWidth="3"
               className="opacity-80 dark:opacity-50"
             />
             <path
-              d="M 945 260 C 835 372, 692 502, 730 600 C 768 698, 725 798, 560 900"
+              d="M 975 180 C 862 252, 762 342, 792 400 C 822 452, 920 502, 940 580 C 950 658, 800 778, 580 900"
               stroke="var(--spark-border)"
-              strokeWidth="2.5"
+              strokeWidth="3"
               className="opacity-80 dark:opacity-50"
             />
 
             {/* Dashed Center Dividing Lane Markings along S-Curve */}
             <path
-              d="M 920 260 C 790 367, 630 492, 669 590 C 708 688, 548 790, 370 900"
+              d="M 958 180 
+                 C 824 252, 710 337, 740 400 
+                 C 770 460, 869 510, 889 580 
+                 C 904 658, 645 780, 370 900"
               stroke="var(--spark-canvas)"
-              strokeWidth="4"
+              strokeWidth="4.5"
               strokeDasharray="24 16"
               strokeLinecap="round"
-              className="opacity-90 dark:stroke-[#E6DFD5]/40"
+              className="opacity-95 dark:stroke-[#E6DFD5]/50"
             />
           </svg>
         </div>
 
         {/* Tire Contact Shadow for physical grounding */}
-        <div className="absolute bottom-[24px] right-[40px] xl:right-[70px] 2xl:right-[100px] w-[580px] xl:w-[680px] 2xl:w-[760px] h-[55px] bg-[radial-gradient(ellipse_at_50%_50%,rgba(74,53,79,0.35)_0%,rgba(74,53,79,0)_72%)] dark:bg-[radial-gradient(ellipse_at_50%_50%,rgba(0,0,0,0.6)_0%,rgba(0,0,0,0)_72%)] z-10 pointer-events-none" />
+        <div className="absolute bottom-[35px] right-[40px] xl:right-[80px] 2xl:right-[120px] w-[580px] xl:w-[680px] 2xl:w-[760px] h-[50px] bg-[radial-gradient(ellipse_at_50%_50%,rgba(74,53,79,0.3)_0%,rgba(74,53,79,0)_72%)] dark:bg-[radial-gradient(ellipse_at_50%_50%,rgba(0,0,0,0.6)_0%,rgba(0,0,0,0)_72%)] z-10 pointer-events-none" />
 
         {/* Mascot Illustration: Transparent retro car riding above highway */}
-        <div className="relative z-10 w-full max-w-[620px] lg:max-w-[680px] xl:max-w-[760px] 2xl:max-w-[840px] mr-[10px] xl:mr-[40px] 2xl:mr-[80px] mb-[15px] pointer-events-none">
+        <div className="relative z-10 w-full max-w-[620px] lg:max-w-[680px] xl:max-w-[760px] 2xl:max-w-[840px] mr-[10px] xl:mr-[40px] 2xl:mr-[80px] mb-[25px] pointer-events-none">
           <img
             src="/images/welcome_car_transparent.png"
             alt="SPARK Welcome Mascot — Driving vintage car along highway"
-            className="w-full h-auto object-contain drop-shadow-[0_20px_30px_rgba(74,53,79,0.22)] dark:drop-shadow-[0_16px_36px_rgba(107,78,113,0.38)] transition-all duration-200"
+            className="w-full h-auto object-contain drop-shadow-[0_15px_30px_rgba(74,53,79,0.22)] dark:drop-shadow-[0_16px_36px_rgba(107,78,113,0.38)] transition-all duration-200"
           />
         </div>
       </div>
