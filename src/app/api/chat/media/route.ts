@@ -146,9 +146,9 @@ export async function POST(req: NextRequest) {
           : 403;
       return NextResponse.json({ error: err.message }, { status });
     }
-    console.error("[Secure Media Upload Error]:", err?.message || err);
+    console.error("[Secure Media Upload Error]:", err?.stack || err?.message || err);
     return NextResponse.json(
-      { error: "Failed to encrypt and upload media." },
+      { error: err?.message || "Failed to encrypt and upload media." },
       { status: 500 }
     );
   }

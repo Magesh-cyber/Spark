@@ -624,3 +624,23 @@ model WorkspaceCallLog {
   @@map("workspace_call_logs")
 }
 
+model ChatEncryptedMedia {
+  id                   String   @id
+  workspaceId          String   @map("workspace_id") @db.Uuid
+  uploaderId           String   @map("uploader_id") @db.Uuid
+  conversationType     String?  @map("conversation_type")
+  conversationTargetId String?  @map("conversation_target_id")
+  originalName         String   @map("original_name")
+  mimeType             String   @map("mime_type")
+  size                 Int
+  kind                 String
+  ivHex                String   @map("iv_hex")
+  authTagHex           String   @map("auth_tag_hex")
+  sha256               String
+  encryptedData        String   @map("encrypted_data") @db.Text
+  createdAt            DateTime @default(now()) @map("created_at")
+
+  @@index([workspaceId])
+  @@map("chat_encrypted_media")
+}
+
