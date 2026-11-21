@@ -114,11 +114,12 @@ export async function updateUserProfile(input: ProfileUpdateInput) {
       },
     });
 
-    // 2. Synchronize user_metadata in Supabase Auth
+    // 2. Synchronize user_metadata in Supabase Auth (exclude large base64 data URLs to prevent HTTP 431)
+    const isExternalUrl = avatarUrl && !avatarUrl.startsWith("data:") && avatarUrl.length < 500;
     await supabase.auth.updateUser({
       data: {
         full_name: fullName,
-        avatar_url: avatarUrl || null,
+        ...(isExternalUrl ? { avatar_url: avatarUrl } : {}),
       },
     });
 
