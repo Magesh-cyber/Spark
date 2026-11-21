@@ -278,12 +278,12 @@ export default function LoginPage() {
           >
             <defs>
               <filter id="roadShadow" x="-10%" y="-10%" width="120%" height="120%">
-                <feDropShadow dx="-4" dy="12" stdDeviation="16" floodColor="#4A354F" floodOpacity="0.14" />
+                <feDropShadow dx="-4" dy="12" stdDeviation="16" floodColor="#000000" floodOpacity="0.2" />
               </filter>
-              <linearGradient id="roadGradLight" x1="0.8" y1="0.2" x2="0.2" y2="0.9">
-                <stop offset="0%" stopColor="#EADECE" />
-                <stop offset="60%" stopColor="#E2D4C3" />
-                <stop offset="100%" stopColor="#D9C9B6" />
+              <linearGradient id="roadGradBlack" x1="0.8" y1="0.2" x2="0.2" y2="0.9">
+                <stop offset="0%" stopColor="#26202B" />
+                <stop offset="50%" stopColor="#1C1721" />
+                <stop offset="100%" stopColor="#120F16" />
               </linearGradient>
             </defs>
 
@@ -301,7 +301,7 @@ export default function LoginPage() {
               className="opacity-95 dark:opacity-85"
             />
 
-            {/* SERPENTINE S-HIGHWAY: Natural light S-curves winding from horizon to foreground */}
+            {/* SERPENTINE S-HIGHWAY: Deep Black Asphalt with crisp lane markings */}
             {/* Road Bed / Shadow Base */}
             <path
               d="M 935 180 
@@ -312,12 +312,12 @@ export default function LoginPage() {
                  C 820 780, 970 660, 960 580 
                  C 940 500, 840 450, 810 400 
                  C 780 340, 880 250, 985 180 Z"
-              fill="var(--spark-border)"
+              fill="#0D0A10"
               filter="url(#roadShadow)"
-              className="opacity-75 dark:opacity-40"
+              className="opacity-90 dark:opacity-60"
             />
 
-            {/* Road Surface */}
+            {/* Road Surface (Black Asphalt) */}
             <path
               d="M 940 180 
                  C 785 252, 658 332, 688 400 
@@ -327,22 +327,22 @@ export default function LoginPage() {
                  C 800 778, 950 658, 940 580 
                  C 920 502, 822 452, 792 400 
                  C 762 342, 862 252, 975 180 Z"
-              fill="url(#roadGradLight)"
-              className="dark:fill-[#2A1F2D]"
+              fill="url(#roadGradBlack)"
+              className="dark:fill-[#0E0B11]"
             />
 
             {/* Solid Road Curbs (Inner & Outer) */}
             <path
               d="M 940 180 C 785 252, 658 332, 688 400 C 718 468, 818 518, 838 580 C 858 658, 490 782, 160 900"
-              stroke="var(--spark-border)"
-              strokeWidth="3"
-              className="opacity-80 dark:opacity-50"
+              stroke="#3D3344"
+              strokeWidth="2.5"
+              className="opacity-90 dark:opacity-60"
             />
             <path
               d="M 975 180 C 862 252, 762 342, 792 400 C 822 452, 920 502, 940 580 C 950 658, 800 778, 580 900"
-              stroke="var(--spark-border)"
-              strokeWidth="3"
-              className="opacity-80 dark:opacity-50"
+              stroke="#3D3344"
+              strokeWidth="2.5"
+              className="opacity-90 dark:opacity-60"
             />
 
             {/* Dashed Center Dividing Lane Markings along S-Curve */}
@@ -351,11 +351,11 @@ export default function LoginPage() {
                  C 824 252, 710 337, 740 400 
                  C 770 460, 869 510, 889 580 
                  C 904 658, 645 780, 370 900"
-              stroke="var(--spark-canvas)"
+              stroke="#FFFFFF"
               strokeWidth="4.5"
               strokeDasharray="24 16"
               strokeLinecap="round"
-              className="opacity-95 dark:stroke-[#E6DFD5]/50"
+              className="opacity-95 dark:stroke-[#F4EFE8]/80"
             />
           </svg>
         </div>
