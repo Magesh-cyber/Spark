@@ -12,6 +12,8 @@ import {
   Building2,
   User,
   ArrowUpRight,
+  Plus,
+  UserPlus,
 } from "lucide-react";
 import { ShellLayout } from "@/components/layout/ShellLayout";
 import { useWorkspace } from "@/lib/workspace-context";
@@ -233,11 +235,11 @@ export default function WorkspaceHomePage() {
           </div>
         </div>
 
-        {/* Bottom Asymmetrical Bento Row (7 + 5 cols) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-          {/* Left 7 Cols: Active Channels + Assigned Tasks */}
-          <div className="lg:col-span-7 space-y-5">
-            <Card>
+        {/* Bottom Bento Row 1: Communication & Team (Synchronized Grid Row) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+          {/* Left 7 Cols: Active Channels */}
+          <Card className="lg:col-span-7 flex flex-col justify-between">
+            <div>
               <CardHeader className="p-4 flex flex-row items-center justify-between space-y-0">
                 <div>
                   <CardTitle className="text-sm">Channels</CardTitle>
@@ -254,7 +256,7 @@ export default function WorkspaceHomePage() {
                   <ArrowUpRight className="h-3.5 w-3.5" />
                 </Link>
               </CardHeader>
-              <CardContent className="p-4">
+              <CardContent className="p-4 pt-0">
                 {isLoadingDashboard ? (
                   <LoadingState type="table" count={3} />
                 ) : !dashboardData?.recentChannels ||
@@ -267,10 +269,10 @@ export default function WorkspaceHomePage() {
                     {dashboardData.recentChannels.map((channel) => (
                       <div
                         key={channel.id}
-                        className="py-3 flex items-center justify-between hover:bg-[var(--spark-surface-subtle)]/60 px-2.5 rounded-[8px] transition-colors duration-150"
+                        className="py-2.5 flex items-center justify-between hover:bg-[var(--spark-surface-subtle)]/60 px-2 rounded-[8px] transition-colors duration-150"
                       >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="h-8 w-8 shrink-0 rounded-[8px] bg-[var(--spark-highlight)] text-[var(--spark-accent)] flex items-center justify-center text-xs font-bold">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="h-7 w-7 shrink-0 rounded-[7px] bg-[var(--spark-highlight)] text-[var(--spark-accent)] flex items-center justify-center text-xs font-bold">
                             #
                           </div>
                           <div className="min-w-0">
@@ -282,7 +284,7 @@ export default function WorkspaceHomePage() {
                             </p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2.5 shrink-0 ml-2">
+                        <div className="flex items-center gap-2 shrink-0 ml-2">
                           <Badge
                             variant={channel.type === "PUBLIC" ? "secondary" : "warning"}
                             size="sm"
@@ -302,37 +304,24 @@ export default function WorkspaceHomePage() {
                   </div>
                 )}
               </CardContent>
-            </Card>
+            </div>
 
-            <Card>
-              <CardHeader className="p-4 flex flex-row items-center justify-between space-y-0">
-                <div>
-                  <CardTitle className="text-sm">Assigned Tasks</CardTitle>
-                  <CardDescription>Your upcoming work items</CardDescription>
-                </div>
-                <Link
-                  href="/tasks"
-                  prefetch={true}
-                  className="text-xs font-medium text-[var(--spark-accent)] hover:text-[var(--spark-accent-hover)] inline-flex items-center gap-1 transition-colors duration-150"
-                >
-                  <span>Task board</span>
-                  <ChevronRight className="h-3.5 w-3.5" />
-                </Link>
-              </CardHeader>
-              <CardContent className="p-5">
-                <EmptyState
-                  icon={<CheckSquare className="h-5 w-5" />}
-                  title="No assigned tasks"
-                  description="Tasks assigned to you in this workspace will appear here."
-                  className="min-h-[190px]"
-                />
-              </CardContent>
-            </Card>
-          </div>
+            <div className="p-4 pt-3 border-t border-[var(--spark-border)] flex items-center justify-between text-xs text-[var(--spark-text-secondary)]">
+              <span>Need a new discussion space?</span>
+              <Link
+                href="/chat"
+                prefetch={true}
+                className="inline-flex items-center gap-1 font-medium text-[var(--spark-accent)] hover:text-[var(--spark-accent-hover)] transition-colors duration-150"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>New channel</span>
+              </Link>
+            </div>
+          </Card>
 
-          {/* Right 5 Cols: Team Members + Active Projects */}
-          <div className="lg:col-span-5 space-y-5">
-            <Card>
+          {/* Right 5 Cols: Team Members */}
+          <Card className="lg:col-span-5 flex flex-col justify-between">
+            <div>
               <CardHeader className="p-4 flex flex-row items-center justify-between space-y-0">
                 <div>
                   <CardTitle className="text-sm">Team Members</CardTitle>
@@ -347,7 +336,7 @@ export default function WorkspaceHomePage() {
                   <ChevronRight className="h-3.5 w-3.5" />
                 </Link>
               </CardHeader>
-              <CardContent className="p-4 space-y-2.5">
+              <CardContent className="p-4 pt-0 space-y-2">
                 {isLoadingDashboard ? (
                   <LoadingState type="cards" count={3} />
                 ) : !dashboardData?.recentMembers ||
@@ -359,7 +348,7 @@ export default function WorkspaceHomePage() {
                   dashboardData.recentMembers.map((m) => (
                     <div
                       key={m.id}
-                      className="flex items-center justify-between rounded-[8px] border border-[var(--spark-border)] bg-[var(--spark-canvas)]/55 p-2.5 hover:bg-[var(--spark-surface-subtle)] transition-colors duration-150"
+                      className="flex items-center justify-between rounded-[8px] border border-[var(--spark-border)] bg-[var(--spark-canvas)]/55 p-2 hover:bg-[var(--spark-surface-subtle)] transition-colors duration-150"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <Avatar
@@ -383,33 +372,75 @@ export default function WorkspaceHomePage() {
                   ))
                 )}
               </CardContent>
-            </Card>
+            </div>
 
-            <Card>
-              <CardHeader className="p-4 flex flex-row items-center justify-between space-y-0">
-                <div>
-                  <CardTitle className="text-sm">Projects</CardTitle>
-                  <CardDescription>Active initiatives &amp; milestones</CardDescription>
-                </div>
-                <Link
-                  href="/projects"
-                  prefetch={true}
-                  className="text-xs font-medium text-[var(--spark-accent)] hover:text-[var(--spark-accent-hover)] inline-flex items-center gap-1 transition-colors duration-150"
-                >
-                  <span>View all</span>
-                  <ChevronRight className="h-3.5 w-3.5" />
-                </Link>
-              </CardHeader>
-              <CardContent className="p-5">
-                <EmptyState
-                  icon={<FolderKanban className="h-5 w-5" />}
-                  title="No active projects"
-                  description="Projects and milestones created in this workspace will appear here."
-                  className="min-h-[190px]"
-                />
-              </CardContent>
-            </Card>
-          </div>
+            <div className="p-4 pt-3 border-t border-[var(--spark-border)] flex items-center justify-between text-xs text-[var(--spark-text-secondary)]">
+              <span>Manage workspace access</span>
+              <Link
+                href="/teams"
+                prefetch={true}
+                className="inline-flex items-center gap-1 font-medium text-[var(--spark-accent)] hover:text-[var(--spark-accent-hover)] transition-colors duration-150"
+              >
+                <UserPlus className="h-3.5 w-3.5" />
+                <span>Invite member</span>
+              </Link>
+            </div>
+          </Card>
+        </div>
+
+        {/* Bottom Bento Row 2: Tasks & Projects (Symmetrically Aligned Grid Row) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+          {/* Left 7 Cols: Assigned Tasks */}
+          <Card className="lg:col-span-7 flex flex-col justify-between">
+            <CardHeader className="p-4 flex flex-row items-center justify-between space-y-0">
+              <div>
+                <CardTitle className="text-sm">Assigned Tasks</CardTitle>
+                <CardDescription>Your upcoming work items</CardDescription>
+              </div>
+              <Link
+                href="/tasks"
+                prefetch={true}
+                className="text-xs font-medium text-[var(--spark-accent)] hover:text-[var(--spark-accent-hover)] inline-flex items-center gap-1 transition-colors duration-150"
+              >
+                <span>Task board</span>
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
+            </CardHeader>
+            <CardContent className="p-5 flex-1 flex flex-col justify-center">
+              <EmptyState
+                icon={<CheckSquare className="h-5 w-5" />}
+                title="No assigned tasks"
+                description="Tasks assigned to you in this workspace will appear here."
+                className="min-h-[170px]"
+              />
+            </CardContent>
+          </Card>
+
+          {/* Right 5 Cols: Active Projects */}
+          <Card className="lg:col-span-5 flex flex-col justify-between">
+            <CardHeader className="p-4 flex flex-row items-center justify-between space-y-0">
+              <div>
+                <CardTitle className="text-sm">Projects</CardTitle>
+                <CardDescription>Active initiatives &amp; milestones</CardDescription>
+              </div>
+              <Link
+                href="/projects"
+                prefetch={true}
+                className="text-xs font-medium text-[var(--spark-accent)] hover:text-[var(--spark-accent-hover)] inline-flex items-center gap-1 transition-colors duration-150"
+              >
+                <span>View all</span>
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
+            </CardHeader>
+            <CardContent className="p-5 flex-1 flex flex-col justify-center">
+              <EmptyState
+                icon={<FolderKanban className="h-5 w-5" />}
+                title="No active projects"
+                description="Projects and milestones created in this workspace will appear here."
+                className="min-h-[170px]"
+              />
+            </CardContent>
+          </Card>
         </div>
       </div>
     </ShellLayout>
