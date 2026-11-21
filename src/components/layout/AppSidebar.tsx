@@ -141,12 +141,12 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ className, isMobile }) =
   }, [router, isPersonal, navItems]);
 
   const renderSidebarContent = (isCompact: boolean, mobileMode: boolean) => (
-    <div className="flex h-full w-full flex-col justify-between bg-[var(--spark-surface-subtle)] text-[var(--spark-text-primary)] transition-colors duration-150">
+    <div className="flex h-full w-full flex-col justify-between bg-transparent text-[var(--spark-text-primary)]">
       <div className="flex flex-col flex-1 overflow-y-auto overflow-x-hidden">
         {/* Top Header: Brand + Collapse / Mobile Close */}
         <div
           className={cn(
-            "flex h-[58px] items-center border-b border-[var(--spark-border)] shrink-0",
+            "flex h-[58px] items-center border-b border-[var(--spark-border)]/60 shrink-0",
             isCompact ? "justify-center px-2" : "justify-between px-4"
           )}
         >
@@ -156,7 +156,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ className, isMobile }) =
             <button
               type="button"
               onClick={() => setSidebarOpen(false)}
-              className="rounded-[6px] p-1.5 text-[var(--spark-text-muted)] hover:text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface-subtle)] lg:hidden transition-colors duration-150"
+              className="rounded-[8px] p-1.5 text-[var(--spark-text-muted)] hover:text-[var(--spark-text-primary)] hover:bg-white/50 dark:hover:bg-white/10 lg:hidden transition-colors duration-150"
               aria-label="Close sidebar"
             >
               <X className="h-4 w-4" />
@@ -166,7 +166,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ className, isMobile }) =
               <button
                 type="button"
                 onClick={toggleCollapsed}
-                className="hidden lg:inline-flex rounded-[6px] p-1.5 text-[var(--spark-text-muted)] hover:text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface-subtle)] transition-colors duration-150"
+                className="hidden lg:inline-flex rounded-[8px] p-1.5 text-[var(--spark-text-muted)] hover:text-[var(--spark-text-primary)] hover:bg-white/50 dark:hover:bg-white/10 transition-colors duration-150"
                 title="Collapse navigation rail"
                 aria-label="Collapse navigation rail"
               >
@@ -182,7 +182,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ className, isMobile }) =
             <button
               type="button"
               onClick={toggleCollapsed}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-[6px] text-[var(--spark-text-muted)] hover:text-[var(--spark-accent)] hover:bg-[var(--spark-highlight)] transition-colors duration-150"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-[8px] text-[var(--spark-text-muted)] hover:text-[var(--spark-accent)] hover:bg-white/50 dark:hover:bg-white/10 transition-colors duration-150"
               title="Expand navigation rail"
               aria-label="Expand navigation rail"
             >
@@ -195,9 +195,9 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ className, isMobile }) =
         <WorkspaceSwitcher compact={isCompact} />
 
         {/* Navigation Items List */}
-        <nav className={cn("flex-1 py-2 space-y-0.5", isCompact ? "px-2" : "px-3")}>
+        <nav className={cn("flex-1 py-2 space-y-1", isCompact ? "px-2" : "px-3")}>
           {!isCompact && (
-            <div className="px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--spark-text-muted)] select-none">
+            <div className="px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--spark-text-muted)] select-none">
               {isPersonal ? "Personal Workspace" : "Organization Workspace"}
             </div>
           )}
@@ -214,8 +214,8 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ className, isMobile }) =
             const dynamicBadge =
               item.href === "/chat" && totalChatUnread > 0
                 ? totalChatUnread > 99
-                  ? "99+"
-                  : String(totalChatUnread)
+                ? "99+"
+                : String(totalChatUnread)
                 : item.badge;
 
             return (
@@ -237,13 +237,13 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ className, isMobile }) =
                   if (mobileMode) setSidebarOpen(false);
                 }}
                 className={cn(
-                  "group relative flex items-center rounded-[8px] text-xs font-medium transition-colors duration-150 select-none",
+                  "group relative flex items-center rounded-[12px] text-xs font-medium transition-all duration-150 select-none",
                   isCompact
-                    ? "justify-center h-9 w-full px-0"
-                    : "justify-between px-2.5 py-2",
+                    ? "justify-center h-10 w-full px-0"
+                    : "justify-between px-3 py-2",
                   isActive
-                    ? "bg-[var(--spark-highlight)] text-[var(--spark-highlight-text)] font-semibold"
-                    : "text-[var(--spark-text-secondary)] hover:bg-[var(--spark-surface-subtle)] hover:text-[var(--spark-text-primary)]"
+                    ? "spark-nav-active-pill font-semibold"
+                    : "text-[var(--spark-text-secondary)] hover:text-[var(--spark-text-primary)] hover:bg-white/45 dark:hover:bg-white/5 border border-transparent hover:border-[var(--spark-border)]/50"
                 )}
               >
                 <div className={cn("flex items-center truncate", !isCompact && "gap-2.5")}>
@@ -270,8 +270,8 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ className, isMobile }) =
                       item.href === "/chat" && totalChatUnread > 0
                         ? "bg-[var(--spark-accent)] text-white shadow-2xs"
                         : isActive
-                        ? "bg-[var(--spark-accent)]/20 text-[var(--spark-highlight-text)]"
-                        : "bg-[var(--spark-surface-subtle)] text-[var(--spark-text-secondary)]"
+                        ? "bg-[var(--spark-accent)]/20 text-[var(--spark-accent)]"
+                        : "bg-[var(--spark-surface-subtle)]/80 text-[var(--spark-text-secondary)]"
                     )}
                   >
                     {dynamicBadge}
@@ -296,25 +296,31 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ className, isMobile }) =
 
   return (
     <>
-      {/* Desktop Persistent Collapsible Navigation Rail */}
-      <aside
+      {/* Desktop Persistent Floating Navigation Rail (Glossy Glass with Rounded Corners) */}
+      <div
         className={cn(
-          "hidden lg:flex shrink-0 border-r border-[var(--spark-border)] bg-[var(--spark-surface-subtle)] min-h-screen sticky top-0 h-screen z-30 transition-[width] duration-150 ease-out",
-          collapsed ? "w-[68px]" : "w-[244px]",
+          "hidden lg:flex shrink-0 p-3 pr-0 sticky top-0 h-screen z-30 transition-[width] duration-200 ease-out select-none",
+          collapsed ? "w-[76px]" : "w-[256px]",
           className
         )}
       >
-        {renderSidebarContent(collapsed, false)}
-      </aside>
+        <aside
+          className={cn(
+            "flex h-full w-full flex-col justify-between overflow-hidden rounded-[22px] spark-glossy-sidebar transition-all duration-200"
+          )}
+        >
+          {renderSidebarContent(collapsed, false)}
+        </aside>
+      </div>
 
-      {/* Mobile Drawer */}
+      {/* Mobile Drawer (Glossy Glass Floating Panel) */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div
             className="fixed inset-0 bg-[#110F13]/60 backdrop-blur-xs transition-opacity"
             onClick={() => setSidebarOpen(false)}
           />
-          <div className="fixed inset-y-0 left-0 w-[268px] max-w-[85vw] bg-[var(--spark-surface-subtle)] border-r border-[var(--spark-border)] shadow-modal animate-in slide-in-from-left duration-200">
+          <div className="fixed inset-y-3 left-3 w-[268px] max-w-[85vw] spark-glossy-sidebar rounded-[22px] shadow-2xl overflow-hidden animate-in slide-in-from-left duration-200">
             {renderSidebarContent(false, true)}
           </div>
         </div>

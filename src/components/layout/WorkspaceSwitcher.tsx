@@ -58,12 +58,12 @@ export const WorkspaceSwitcher: React.FC<WorkspaceSwitcherProps> = ({ compact = 
         onClick={() => setOpen(!open)}
         title={compact ? `${activeWorkspace.name} (${activeWorkspace.role})` : undefined}
         className={cn(
-          "flex w-full items-center rounded-[8px] border border-[var(--spark-border)] bg-[var(--spark-surface)] text-left transition-colors duration-150 hover:bg-[var(--spark-surface-elevated)] hover:border-[var(--spark-border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spark-accent)]",
+          "flex w-full items-center rounded-[12px] border border-[var(--spark-border)]/70 bg-white/50 dark:bg-white/5 backdrop-blur-md text-left transition-all duration-150 hover:bg-white/70 dark:hover:bg-white/10 hover:border-[var(--spark-border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spark-accent)] shadow-2xs",
           compact ? "justify-center p-1.5" : "justify-between gap-2 p-2"
         )}
       >
         <div className="flex min-w-0 items-center gap-2.5">
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] bg-[var(--spark-highlight)] border border-[var(--spark-accent)]/20 text-[var(--spark-accent)] font-semibold text-xs">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] bg-[var(--spark-highlight)] border border-[var(--spark-accent)]/20 text-[var(--spark-accent)] font-semibold text-xs">
             {isPersonal ? (
               <User className="h-3.5 w-3.5" />
             ) : (

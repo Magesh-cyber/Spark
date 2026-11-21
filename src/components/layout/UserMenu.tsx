@@ -40,7 +40,7 @@ export const UserMenu: React.FC<UserMenuProps> = ({ compact = false }) => {
   return (
     <div
       className={cn(
-        "relative w-full border-t border-[var(--spark-border)]",
+        "relative w-full border-t border-[var(--spark-border)]/60 bg-transparent",
         compact ? "p-2" : "p-3"
       )}
       ref={containerRef}
@@ -50,7 +50,7 @@ export const UserMenu: React.FC<UserMenuProps> = ({ compact = false }) => {
         onClick={() => setOpen(!open)}
         title={compact ? currentUser.name : undefined}
         className={cn(
-          "flex w-full items-center rounded-[8px] p-1.5 transition-colors duration-150 hover:bg-[var(--spark-surface-subtle)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spark-accent)]",
+          "flex w-full items-center rounded-[12px] p-1.5 transition-colors duration-150 hover:bg-white/45 dark:hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spark-accent)]",
           compact ? "justify-center" : "justify-between"
         )}
       >
