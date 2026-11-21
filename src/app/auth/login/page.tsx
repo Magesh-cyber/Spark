@@ -98,7 +98,7 @@ function LoginForm() {
             localStorage.removeItem("spark_active_workspace_id");
             localStorage.removeItem("spark_cached_workspaces");
             localStorage.removeItem("spark_cached_user");
-          } catch {}
+          } catch { }
         }
 
         router.prefetch(returnTo);
@@ -202,7 +202,7 @@ function LoginForm() {
             href="/auth/signup"
             className="font-semibold text-[var(--spark-accent)] hover:text-[var(--spark-accent-hover)] hover:underline"
           >
-            Contact us.
+            Create an account
           </Link>
         </p>
 
