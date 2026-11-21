@@ -81,8 +81,8 @@ const ISSUE_TYPE_CONFIG: Record<
   EPIC: {
     label: "Epic",
     icon: Zap,
-    color: "text-purple-500",
-    badge: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30",
+    color: "text-[var(--spark-accent)]",
+    badge: "bg-[var(--spark-highlight)] text-[var(--spark-highlight-text)] border border-[var(--spark-accent)]/20",
   },
   SUBTASK: {
     label: "Subtask",

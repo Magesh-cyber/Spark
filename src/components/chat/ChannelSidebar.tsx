@@ -48,7 +48,7 @@ export function ChannelSidebar({
   return (
     <div
       className={cn(
-        "w-full md:w-[272px] lg:w-[288px] shrink-0 border-r border-[var(--spark-border)] bg-[var(--spark-canvas)]/70 dark:bg-[var(--spark-surface)] flex flex-col justify-between select-none transition-colors duration-150",
+        "w-full md:w-[272px] lg:w-[288px] shrink-0 border-r border-[var(--spark-border)] bg-[var(--spark-surface-subtle)] flex flex-col justify-between select-none transition-colors duration-150",
         className
       )}
     >

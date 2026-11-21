@@ -141,7 +141,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ className, isMobile }) =
   }, [router, isPersonal, navItems]);
 
   const renderSidebarContent = (isCompact: boolean, mobileMode: boolean) => (
-    <div className="flex h-full w-full flex-col justify-between bg-[var(--spark-surface)] text-[var(--spark-text-primary)] transition-colors duration-150">
+    <div className="flex h-full w-full flex-col justify-between bg-[var(--spark-surface-subtle)] text-[var(--spark-text-primary)] transition-colors duration-150">
       <div className="flex flex-col flex-1 overflow-y-auto overflow-x-hidden">
         {/* Top Header: Brand + Collapse / Mobile Close */}
         <div
@@ -299,7 +299,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ className, isMobile }) =
       {/* Desktop Persistent Collapsible Navigation Rail */}
       <aside
         className={cn(
-          "hidden lg:flex shrink-0 border-r border-[var(--spark-border)] bg-[var(--spark-surface)] min-h-screen sticky top-0 h-screen z-30 transition-[width] duration-150 ease-out",
+          "hidden lg:flex shrink-0 border-r border-[var(--spark-border)] bg-[var(--spark-surface-subtle)] min-h-screen sticky top-0 h-screen z-30 transition-[width] duration-150 ease-out",
           collapsed ? "w-[68px]" : "w-[244px]",
           className
         )}
@@ -311,10 +311,10 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ className, isMobile }) =
       {sidebarOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div
-            className="fixed inset-0 bg-[#0D0B14]/60 backdrop-blur-xs transition-opacity"
+            className="fixed inset-0 bg-[#110F13]/60 backdrop-blur-xs transition-opacity"
             onClick={() => setSidebarOpen(false)}
           />
-          <div className="fixed inset-y-0 left-0 w-[268px] max-w-[85vw] bg-[var(--spark-surface)] border-r border-[var(--spark-border)] shadow-modal animate-in slide-in-from-left duration-200">
+          <div className="fixed inset-y-0 left-0 w-[268px] max-w-[85vw] bg-[var(--spark-surface-subtle)] border-r border-[var(--spark-border)] shadow-modal animate-in slide-in-from-left duration-200">
             {renderSidebarContent(false, true)}
           </div>
         </div>

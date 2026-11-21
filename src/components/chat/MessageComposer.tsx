@@ -512,8 +512,8 @@ export function MessageComposer() {
       {/* Contextual Smart Reply Chips */}
       {smartReplies.length > 0 && !stagedFile && !isRecording && (
         <div className="flex items-center gap-1.5 overflow-x-auto py-1 px-0.5 no-scrollbar animate-in fade-in slide-in-from-bottom-1">
-          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-violet-600 dark:text-violet-400 shrink-0 select-none">
-            <Sparkles className="h-3 w-3" />
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[var(--spark-text-secondary)] shrink-0 select-none">
+            <Sparkles className="h-3 w-3 text-[var(--spark-accent)]" />
             Quick Reply:
           </span>
           {smartReplies.map((reply, idx) => (
@@ -524,7 +524,7 @@ export function MessageComposer() {
                 setText(reply);
                 inputRef.current?.focus();
               }}
-              className="px-2.5 py-1 text-[11px] font-medium rounded-full border border-violet-500/25 bg-violet-500/5 hover:bg-violet-500/15 text-[var(--spark-text-primary)] hover:text-violet-700 dark:hover:text-violet-300 hover:border-violet-500/40 transition-all shrink-0 whitespace-nowrap shadow-2xs active:scale-95"
+              className="px-2.5 py-1 text-[11px] font-medium rounded-full border border-[var(--spark-border)] bg-[var(--spark-surface-subtle)] hover:bg-[var(--spark-highlight)] text-[var(--spark-text-primary)] hover:text-[var(--spark-accent)] hover:border-[var(--spark-border-strong)] transition-all shrink-0 whitespace-nowrap shadow-2xs active:scale-95"
             >
               {reply}
             </button>

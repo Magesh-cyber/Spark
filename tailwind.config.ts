@@ -67,15 +67,15 @@ const config: Config = {
         ],
       },
       boxShadow: {
-        "2xs": "0 1px 1px 0 rgba(20, 17, 31, 0.04)",
-        xs: "0 1px 2px 0 rgba(20, 17, 31, 0.06)",
-        subtle: "0 1px 2px 0 rgba(20, 17, 31, 0.05)",
-        card: "0 2px 8px -2px rgba(109, 40, 217, 0.08), 0 1px 2px 0 rgba(20, 17, 31, 0.04)",
+        "2xs": "0 1px 1.5px 0 rgba(36, 30, 38, 0.04)",
+        xs: "0 1px 2px 0 rgba(36, 30, 38, 0.06)",
+        subtle: "0 1px 3px 0 rgba(36, 30, 38, 0.06), 0 1px 2px -1px rgba(36, 30, 38, 0.04)",
+        card: "0 2px 6px -1px rgba(74, 53, 79, 0.06), 0 1px 3px 0 rgba(36, 30, 38, 0.04)",
         elevated:
-          "0 8px 20px -4px rgba(20, 17, 31, 0.12), 0 2px 6px -2px rgba(20, 17, 31, 0.06)",
+          "0 10px 24px -4px rgba(36, 30, 38, 0.1), 0 3px 8px -2px rgba(36, 30, 38, 0.05)",
         modal:
-          "0 20px 35px -8px rgba(13, 11, 20, 0.25), 0 8px 14px -6px rgba(13, 11, 20, 0.14)",
-        "violet-glow": "0 0 0 2px rgba(139, 92, 246, 0.55), 0 0 24px rgba(139, 92, 246, 0.28)",
+          "0 24px 48px -12px rgba(36, 30, 38, 0.22), 0 8px 16px -4px rgba(36, 30, 38, 0.08)",
+        "plum-focus": "0 0 0 2px rgba(107, 78, 113, 0.35)",
       },
     },
   },

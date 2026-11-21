@@ -3,65 +3,77 @@
 @tailwind utilities;
 
 @layer base {
-  /* Light Mode — Cool Violet-Tint White & Royal Violet */
+  /* =========================================================================
+     LIGHT THEME — Human-Grade Editorial Palette (60-30-10 Balance)
+     - 60% Canvas & Cards: Warm Cream (#FCF9F5) & Pure White (#FFFFFF)
+     - 30% Structure: Warm Sand (#F4EFE8) & Warm Charcoal (#241E26)
+     - 10% Accents & CTAs: Deep Muted Plum (#4A354F) & Dusty Amethyst (#6B4E71)
+     - No Pure Black: Warm Charcoal (#241E26) throughout
+     ========================================================================= */
   :root,
   [data-theme="light"] {
-    --spark-canvas: #F9F8FC;
-    --spark-surface: #FFFFFF;
-    --spark-surface-subtle: #F3F0FA;
+    --spark-canvas: #FCF9F5;              /* Primary Background: Warm Cream (Workspace canvas) */
+    --spark-surface: #FFFFFF;             /* Elevated Surfaces: Pure White (Cards, modals, dropdowns, active tabs) */
     --spark-surface-elevated: #FFFFFF;
-    --spark-border: #E6E2F0;
-    --spark-border-strong: #D3CCE6;
-    --spark-text-primary: #14111F;
-    --spark-text-secondary: #5E5873;
-    --spark-text-muted: #766F8E;
-    --spark-accent: #6D28D9;
-    --spark-accent-hover: #5B21B6;
+    --spark-surface-subtle: #F4EFE8;      /* Secondary Surface: Warm Sand (Sidebars, navigation rails, table headers) */
+    --spark-border: #E6DFD5;              /* Borders & Dividers: Soft Stone (Input outlines, hairlines, card borders) */
+    --spark-border-strong: #D8CEBF;
+    --spark-text-primary: #241E26;        /* Primary Text: Warm Charcoal (Body copy, titles, primary data - No Pure Black) */
+    --spark-text-secondary: #635B66;      /* Muted Text: Warm Slate (Captions, placeholders, timestamps) */
+    --spark-text-muted: #887E8C;
+    --spark-accent: #4A354F;              /* Primary Brand / CTA: Deep Muted Plum (Primary buttons, active icons, headings) */
+    --spark-accent-hover: #6B4E71;        /* Interactive / Hover: Dusty Amethyst (Button hover, text links, focus rings) */
     --spark-accent-fg: #FFFFFF;
+    --spark-interactive: #6B4E71;
     --spark-primary: var(--spark-accent);
     --spark-primary-hover: var(--spark-accent-hover);
-    --spark-highlight: #EDE9FE;
-    --spark-highlight-text: #5B21B6;
+    --spark-highlight: #F1ECF4;           /* Subtle Tint / Badge: Lavender Mist (Selected rows, notification pills, hover fills) */
+    --spark-highlight-text: #4A354F;      /* Deep Muted Plum on Lavender Mist */
     --spark-emerald: #10B981;
-    --spark-amber: #F59E0B;
-    --spark-scrollbar-thumb: #D4CEE6;
-    --spark-scrollbar-hover: #B6ABD4;
-    --spark-glass-bg: rgba(255, 255, 255, 0.84);
-    --spark-glass-border: rgba(230, 226, 240, 0.9);
-    --spark-clay-bg: linear-gradient(145deg, #F5F2FF 0%, #E5DCFF 100%);
-    --spark-clay-shadow: 0 10px 22px -6px rgba(109, 40, 217, 0.22), inset 0 2px 4px rgba(255, 255, 255, 0.92), inset 0 -3px 6px rgba(109, 40, 217, 0.14);
-    --spark-brutal-shadow: 2px 2px 0px #14111F;
+    --spark-amber: #D97706;
+    --spark-scrollbar-thumb: #D8CEBF;
+    --spark-scrollbar-hover: #BFB2A0;
+    --spark-glass-bg: rgba(252, 249, 245, 0.90);
+    --spark-glass-border: rgba(230, 223, 213, 0.92);
+    --spark-clay-bg: linear-gradient(145deg, #FFFFFF 0%, #F4EFE8 100%);
+    --spark-clay-shadow: 0 4px 12px -2px rgba(74, 53, 79, 0.08), inset 0 1px 2px rgba(255, 255, 255, 0.9);
+    --spark-brutal-shadow: 2px 2px 0px #4A354F;
     color-scheme: light;
   }
 
-  /* Dark Mode — Deep Obsidian-Plum & Luminous Violet */
+  /* =========================================================================
+     DARK THEME — Cohesive Obsidian Plum (Creative, Ergonomic, No AI Slop)
+     - Restrained velvety darks without jarring neon gradients or harsh #000
+     - Velvet Obsidian Canvas with Slate Plum cards and Luminous Amethyst CTAs
+     ========================================================================= */
   .dark,
   [data-theme="dark"] {
-    --spark-canvas: #0D0B14;
-    --spark-surface: #161321;
-    --spark-surface-subtle: #1F1A2E;
-    --spark-surface-elevated: #201B2E;
-    --spark-border: #282338;
-    --spark-border-strong: #3B3454;
-    --spark-text-primary: #F4F2FA;
-    --spark-text-secondary: #A69EC0;
-    --spark-text-muted: #847B9F;
-    --spark-accent: #8B5CF6;
-    --spark-accent-hover: #7C3AED;
+    --spark-canvas: #121015;              /* Deep Obsidian Velvet (Canvas) */
+    --spark-surface: #1B1720;             /* Elevated Surfaces: Dark Slate Plum (Cards, modals, dropdowns) */
+    --spark-surface-elevated: #231E2A;
+    --spark-surface-subtle: #16131A;      /* Secondary Surface: Obsidian Rail (Sidebars, navigation rails, headers) */
+    --spark-border: #2B2533;              /* Borders & Dividers: Soft Obsidian Stone (Crisp 1px hairlines) */
+    --spark-border-strong: #3D3547;
+    --spark-text-primary: #F5F2F7;        /* Primary Text: Warm Ivory Frost */
+    --spark-text-secondary: #A39AA8;      /* Muted Text: Slate Lavender */
+    --spark-text-muted: #786F7D;
+    --spark-accent: #8C6894;              /* Primary Brand / CTA: Luminous Amethyst Plum (High-contrast, accessible) */
+    --spark-accent-hover: #A27DAA;        /* Interactive / Hover: Dusty Amethyst Light */
     --spark-accent-fg: #FFFFFF;
+    --spark-interactive: #B494BD;
     --spark-primary: var(--spark-accent);
     --spark-primary-hover: var(--spark-accent-hover);
-    --spark-highlight: #2E1F47;
-    --spark-highlight-text: #E9D5FF;
+    --spark-highlight: #282030;           /* Subtle Tint / Badge: Midnight Lavender Mist */
+    --spark-highlight-text: #E8DCED;
     --spark-emerald: #10B981;
     --spark-amber: #F59E0B;
-    --spark-scrollbar-thumb: #332C4A;
-    --spark-scrollbar-hover: #4C426E;
-    --spark-glass-bg: rgba(22, 19, 33, 0.82);
-    --spark-glass-border: rgba(139, 92, 246, 0.22);
-    --spark-clay-bg: linear-gradient(145deg, #2D2246 0%, #1C1530 100%);
-    --spark-clay-shadow: 0 12px 26px -6px rgba(0, 0, 0, 0.65), inset 0 2px 4px rgba(196, 181, 253, 0.18), inset 0 -3px 8px rgba(7, 5, 14, 0.65);
-    --spark-brutal-shadow: 2px 2px 0px #8B5CF6;
+    --spark-scrollbar-thumb: #342D3D;
+    --spark-scrollbar-hover: #4C4258;
+    --spark-glass-bg: rgba(27, 23, 32, 0.88);
+    --spark-glass-border: rgba(61, 53, 71, 0.65);
+    --spark-clay-bg: linear-gradient(145deg, #231E2A 0%, #17141C 100%);
+    --spark-clay-shadow: 0 4px 14px -2px rgba(0, 0, 0, 0.45), inset 0 1px 2px rgba(255, 255, 255, 0.05);
+    --spark-brutal-shadow: 2px 2px 0px #8C6894;
     color-scheme: dark;
   }
 
@@ -79,7 +91,7 @@
     transition: background-color 150ms ease, color 150ms ease;
   }
 
-  /* Accessible focus indicators */
+  /* Accessible focus indicators with brand interactive accent */
   :focus-visible {
     outline: 2px solid var(--spark-accent);
     outline-offset: 2px;
@@ -87,28 +99,28 @@
 }
 
 @layer utilities {
-  /* Glassmorphism — strictly for floating bars, dropdowns, popovers, and modals */
+  /* Restrained Glassmorphism — floating headers, dropdowns, modals */
   .spark-glass {
     background-color: var(--spark-glass-bg);
-    backdrop-filter: blur(14px) saturate(160%);
-    -webkit-backdrop-filter: blur(14px) saturate(160%);
+    backdrop-filter: blur(12px) saturate(140%);
+    -webkit-backdrop-filter: blur(12px) saturate(140%);
     border-color: var(--spark-glass-border);
   }
 
-  /* Claymorphism — selective tactile 3D medallions for empty states & hero badges */
+  /* Tactile Icon Containers */
   .spark-clay-icon {
     background: var(--spark-clay-bg);
     box-shadow: var(--spark-clay-shadow);
   }
 
-  /* Restrained Neubrutalist micro-callout — strictly for high-impact badges/CTAs */
+  /* Restrained Micro-Callout */
   .spark-brutal-badge {
     border: 1.5px solid var(--spark-text-primary);
     box-shadow: var(--spark-brutal-shadow);
   }
 }
 
-/* Restrained, themed scrollbars */
+/* Polished, restrained custom scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;

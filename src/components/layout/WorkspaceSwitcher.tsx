@@ -58,7 +58,7 @@ export const WorkspaceSwitcher: React.FC<WorkspaceSwitcherProps> = ({ compact = 
         onClick={() => setOpen(!open)}
         title={compact ? `${activeWorkspace.name} (${activeWorkspace.role})` : undefined}
         className={cn(
-          "flex w-full items-center rounded-[8px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] text-left transition-colors duration-150 hover:bg-[var(--spark-surface-subtle)] hover:border-[var(--spark-border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spark-accent)]",
+          "flex w-full items-center rounded-[8px] border border-[var(--spark-border)] bg-[var(--spark-surface)] text-left transition-colors duration-150 hover:bg-[var(--spark-surface-elevated)] hover:border-[var(--spark-border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spark-accent)]",
           compact ? "justify-center p-1.5" : "justify-between gap-2 p-2"
         )}
       >

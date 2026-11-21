@@ -37,10 +37,10 @@ export const SparkLogo: React.FC<SparkLogoProps> = ({
 
   const content = (
     <div className={cn("inline-flex items-center gap-2.5 select-none", className)}>
-      {/* Geometric Spark Emblem — Royal Violet (Light) / Luminous Violet (Dark) */}
+      {/* Spark Emblem — Deep Muted Plum (Light) / Luminous Amethyst (Dark) */}
       <div
         className={cn(
-          "flex items-center justify-center rounded-[8px] bg-gradient-to-br from-[#6D28D9] to-[#8B5CF6] text-white shadow-xs ring-1 ring-inset ring-white/15 transition-all duration-150 group-hover:brightness-110",
+          "flex items-center justify-center rounded-[8px] bg-[var(--spark-accent)] text-white shadow-2xs transition-all duration-150 group-hover:bg-[var(--spark-accent-hover)]",
           currentSize.icon
         )}
       >
@@ -52,7 +52,7 @@ export const SparkLogo: React.FC<SparkLogoProps> = ({
         >
           <path
             d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z"
-            fill="white"
+            fill="currentColor"
           />
         </svg>
       </div>

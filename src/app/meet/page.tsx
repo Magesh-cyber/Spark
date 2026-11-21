@@ -532,7 +532,7 @@ function MeetPageContent() {
                         >
                           <div className="flex items-center gap-3">
                             <div className="relative">
-                              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-600/20 text-purple-600 font-semibold text-sm">
+                              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--spark-highlight)] text-[var(--spark-highlight-text)] font-semibold text-sm">
                                 {m.user.fullName.charAt(0)}
                               </div>
                               <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-black" />
@@ -613,7 +613,7 @@ function MeetPageContent() {
                               <div
                                 className={`flex h-8 w-8 items-center justify-center rounded-full ${
                                   log.type === "VIDEO"
-                                    ? "bg-purple-500/10 text-purple-600"
+                                    ? "bg-[var(--spark-highlight)] text-[var(--spark-highlight-text)]"
                                     : "bg-blue-500/10 text-blue-600"
                                 }`}
                               >

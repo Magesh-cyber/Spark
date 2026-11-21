@@ -225,7 +225,7 @@ export default function SettingsPage() {
                     : "border-[var(--spark-border)] bg-[var(--spark-canvas)] hover:bg-[var(--spark-surface-subtle)]"
                 }`}
               >
-                <div className="flex h-9 w-9 items-center justify-center rounded-[8px] bg-[#FFFFFF] border border-[#E6E2F0] text-[#6D28D9]">
+                <div className="flex h-9 w-9 items-center justify-center rounded-[8px] bg-[#FCF9F5] border border-[#E6DFD5] text-[#4A354F]">
                   <Sun className="h-4 w-4" />
                 </div>
                 <div>
@@ -233,7 +233,7 @@ export default function SettingsPage() {
                     Light Mode
                   </p>
                   <p className="text-[11px] text-[var(--spark-text-secondary)]">
-                    Cool Violet-Tint White &amp; Royal Violet
+                    Warm Cream &amp; Deep Muted Plum
                   </p>
                 </div>
               </button>
@@ -247,7 +247,7 @@ export default function SettingsPage() {
                     : "border-[var(--spark-border)] bg-[var(--spark-canvas)] hover:bg-[var(--spark-surface-subtle)]"
                 }`}
               >
-                <div className="flex h-9 w-9 items-center justify-center rounded-[8px] bg-[#161321] border border-[#282338] text-[#8B5CF6]">
+                <div className="flex h-9 w-9 items-center justify-center rounded-[8px] bg-[#121015] border border-[#2B2533] text-[#8C6894]">
                   <Moon className="h-4 w-4" />
                 </div>
                 <div>
@@ -255,7 +255,7 @@ export default function SettingsPage() {
                     Dark Mode
                   </p>
                   <p className="text-[11px] text-[var(--spark-text-secondary)]">
-                    Deep Obsidian-Plum &amp; Luminous Violet
+                    Velvety Obsidian &amp; Luminous Amethyst
                   </p>
                 </div>
               </button>

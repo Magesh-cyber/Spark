@@ -768,7 +768,7 @@ export default function ProjectsPage() {
                                 ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20"
                                 : p.status === "ARCHIVED"
                                 ? "bg-zinc-500/10 text-zinc-500 border border-zinc-500/20"
-                                : "bg-purple-500/10 text-purple-600 border border-purple-500/20"
+                                : "bg-[var(--spark-highlight)] text-[var(--spark-highlight-text)] border border-[var(--spark-accent)]/20"
                             }`}
                           >
                             <span
@@ -781,7 +781,7 @@ export default function ProjectsPage() {
                                   ? "bg-blue-500"
                                   : p.status === "ARCHIVED"
                                   ? "bg-zinc-500"
-                                  : "bg-purple-500"
+                                  : "bg-[var(--spark-accent)]"
                               }`}
                             />
                             {p.status}
@@ -802,7 +802,7 @@ export default function ProjectsPage() {
                           </button>
 
                           {activeMenuId === p.id && (
-                            <div className="absolute right-0 top-full mt-1.5 w-48 rounded-[10px] border border-[var(--spark-border)] bg-white dark:bg-[#1D182E] shadow-2xl py-1.5 z-50 animate-in fade-in zoom-in-95 text-xs ring-1 ring-black/5 dark:ring-white/10">
+                            <div className="absolute right-0 top-full mt-1.5 w-48 rounded-[10px] border border-[var(--spark-border)] bg-[var(--spark-surface)] shadow-modal py-1.5 z-50 animate-in fade-in zoom-in-95 text-xs">
                               <div className="px-3 py-1 text-[10px] font-bold text-[var(--spark-text-muted)] uppercase tracking-wider">
                                 Lifecycle Status
                               </div>
@@ -819,7 +819,7 @@ export default function ProjectsPage() {
                                 onClick={() => handleStatusChange(p.id, "PLANNING")}
                                 className="w-full text-left px-3 py-2 text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface-subtle)] flex items-center gap-2 transition-colors cursor-pointer"
                               >
-                                <Clock className="h-3.5 w-3.5 text-purple-500" />
+                                <Clock className="h-3.5 w-3.5 text-[var(--spark-accent)]" />
                                 <span>Planning</span>
                               </button>
                               <button

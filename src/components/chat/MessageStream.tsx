@@ -237,18 +237,18 @@ export function MessageStream() {
         </div>
       </div>
 
-      {/* Catch Up with AI Banner (Instagram style) */}
+      {/* Catch Up with AI Banner */}
       {messages.length >= 2 && (
         <div className="flex justify-center animate-in fade-in slide-in-from-top-1">
           <button
             type="button"
             onClick={handleOpenAISummary}
-            className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-r from-violet-600/10 via-purple-600/10 to-indigo-600/10 hover:from-violet-600/20 hover:to-indigo-600/20 border border-violet-500/25 text-[11px] font-semibold text-violet-700 dark:text-violet-300 transition-all shadow-2xs group active:scale-95"
+            className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--spark-highlight)] hover:bg-[var(--spark-border)] border border-[var(--spark-border-strong)] text-[11px] font-semibold text-[var(--spark-highlight-text)] transition-all shadow-2xs group active:scale-95"
             title="Catch up on recent conversation updates using AI"
           >
-            <Sparkles className="h-3.5 w-3.5 text-amber-500 group-hover:rotate-12 transition-transform" />
+            <Sparkles className="h-3.5 w-3.5 text-[var(--spark-accent)] group-hover:rotate-12 transition-transform" />
             <span>Catch up on recent updates with AI</span>
-            <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-violet-600 text-white font-mono font-bold">
+            <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-[var(--spark-accent)] text-white font-mono font-bold">
               {messages.length} msgs
             </span>
           </button>
