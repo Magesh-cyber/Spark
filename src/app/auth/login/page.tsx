@@ -296,53 +296,63 @@ export default function LoginPage() {
               className="opacity-95 dark:opacity-85"
             />
 
-            {/* THE ROAD: Sweeping Highway Perspective from Right Horizon into Foreground */}
+            {/* SERPENTINE S-HIGHWAY: Gentle undulating curves (S-structure) */}
             {/* Road Bed / Shadow Base */}
             <path
-              d="M 940 360 C 780 430, 520 540, 40 900 L 460 900 C 740 650, 910 500, 1010 360 Z"
+              d="M 890 260 
+                 C 740 360, 560 480, 600 580 
+                 C 640 680, 360 780, 160 900 
+                 L 580 900 
+                 C 740 800, 780 700, 740 600 
+                 C 700 500, 840 370, 950 260 Z"
               fill="var(--spark-border)"
               filter="url(#roadShadow)"
-              className="opacity-80 dark:opacity-50"
+              className="opacity-75 dark:opacity-40"
             />
 
             {/* Road Surface */}
             <path
-              d="M 950 360 C 790 432, 538 544, 70 900 L 430 900 C 715 652, 895 502, 1000 360 Z"
+              d="M 895 260 
+                 C 745 362, 568 482, 608 580 
+                 C 648 678, 370 782, 180 900 
+                 L 560 900 
+                 C 725 798, 768 698, 730 600 
+                 C 692 502, 835 372, 945 260 Z"
               fill="var(--spark-surface-selected)"
-              className="opacity-90 dark:opacity-80"
+              className="opacity-95 dark:opacity-85"
             />
 
             {/* Solid Road Curbs (Inner & Outer) */}
             <path
-              d="M 950 360 C 790 432, 538 544, 70 900"
+              d="M 895 260 C 745 362, 568 482, 608 580 C 648 678, 370 782, 180 900"
               stroke="var(--spark-border)"
               strokeWidth="2.5"
-              className="opacity-80 dark:opacity-40"
+              className="opacity-80 dark:opacity-50"
             />
             <path
-              d="M 1000 360 C 895 502, 715 652, 430 900"
+              d="M 945 260 C 835 372, 692 502, 730 600 C 768 698, 725 798, 560 900"
               stroke="var(--spark-border)"
               strokeWidth="2.5"
-              className="opacity-80 dark:opacity-40"
+              className="opacity-80 dark:opacity-50"
             />
 
-            {/* Dashed Center Dividing Lane Markings */}
+            {/* Dashed Center Dividing Lane Markings along S-Curve */}
             <path
-              d="M 975 360 C 842 467, 626 598, 250 900"
+              d="M 920 260 C 790 367, 630 492, 669 590 C 708 688, 548 790, 370 900"
               stroke="var(--spark-canvas)"
               strokeWidth="4"
               strokeDasharray="24 16"
               strokeLinecap="round"
-              className="opacity-90 dark:stroke-[#E6DFD5]/50"
+              className="opacity-90 dark:stroke-[#E6DFD5]/40"
             />
           </svg>
         </div>
 
         {/* Tire Contact Shadow for physical grounding */}
-        <div className="absolute bottom-[10px] right-[40px] xl:right-[80px] 2xl:right-[120px] w-[580px] xl:w-[680px] 2xl:w-[760px] h-[55px] bg-[radial-gradient(ellipse_at_50%_50%,rgba(74,53,79,0.35)_0%,rgba(74,53,79,0)_72%)] dark:bg-[radial-gradient(ellipse_at_50%_50%,rgba(0,0,0,0.6)_0%,rgba(0,0,0,0)_72%)] z-10 pointer-events-none" />
+        <div className="absolute bottom-[24px] right-[40px] xl:right-[70px] 2xl:right-[100px] w-[580px] xl:w-[680px] 2xl:w-[760px] h-[55px] bg-[radial-gradient(ellipse_at_50%_50%,rgba(74,53,79,0.35)_0%,rgba(74,53,79,0)_72%)] dark:bg-[radial-gradient(ellipse_at_50%_50%,rgba(0,0,0,0.6)_0%,rgba(0,0,0,0)_72%)] z-10 pointer-events-none" />
 
-        {/* Mascot Illustration: Transparent retro car driving along highway */}
-        <div className="relative z-10 w-full max-w-[620px] lg:max-w-[680px] xl:max-w-[760px] 2xl:max-w-[840px] mr-[-10px] xl:mr-[20px] 2xl:mr-[60px] mb-[-12px] pointer-events-none">
+        {/* Mascot Illustration: Transparent retro car riding above highway */}
+        <div className="relative z-10 w-full max-w-[620px] lg:max-w-[680px] xl:max-w-[760px] 2xl:max-w-[840px] mr-[10px] xl:mr-[40px] 2xl:mr-[80px] mb-[15px] pointer-events-none">
           <img
             src="/images/welcome_car_transparent.png"
             alt="SPARK Welcome Mascot — Driving vintage car along highway"
