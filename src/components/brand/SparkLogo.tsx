@@ -59,9 +59,9 @@ export const SparkWordmark: React.FC<{
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      {/* a - Classic day-to-day lowercase 'a' with top hood and lower bowl (clean geometric aesthetic) */}
+      {/* a - Architectural Geometric Single-Story (Vertical stem with top spur and chamfered bowl matching 'p') */}
       <path
-        d="M44.5 12C45 9 48.5 8.2 52.5 8.5H55V24M55 15.5H44V24H55"
+        d="M55 12V24M55 14.5H47.5L44 18V20.5L47.5 24H55"
         stroke="currentColor"
         strokeWidth={strokeWidth}
         strokeLinecap="round"
