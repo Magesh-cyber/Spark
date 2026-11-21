@@ -11,7 +11,9 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { createClient } from "@/lib/supabase/client";
 import { signupSchema } from "@/lib/validations/auth";
-import { requestSignupOtp } from "@/lib/actions/auth-verify";
+import { registerUserSimple } from "@/lib/actions/auth-verify";
+import { clearBootstrapMemory } from "@/lib/bootstrap-client";
+import { clearAllClientCaches } from "@/lib/client-caches";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -52,15 +54,15 @@ export default function SignupPage() {
     setIsLoading(true);
 
     try {
-      // Server-side legitimacy check, MX verification, 4-digit OTP generation & dispatch
-      const otpRes = await requestSignupOtp({
+      // 1. Direct registration: verifies email legitimacy & uniqueness, creates account
+      const res = await registerUserSimple({
         fullName: fullName.trim(),
         email: email.trim(),
         password,
       });
 
-      if (!otpRes.success) {
-        const errorMsg = otpRes.error || "Please enter a valid email address.";
+      if (!res.success) {
+        const errorMsg = res.error || "Please enter a valid email address.";
         if (
           errorMsg.toLowerCase().includes("valid email") ||
           errorMsg.toLowerCase().includes("domain") ||
@@ -71,20 +73,30 @@ export default function SignupPage() {
           setErrors({ email: errorMsg });
         }
         setGeneralError(errorMsg);
+        setIsLoading(false);
         return;
       }
 
-      // Store devOtp in sessionStorage if present (for seamless local development/testing)
-      if (otpRes.devOtp && typeof window !== "undefined") {
-        try {
-          sessionStorage.setItem(`spark_dev_otp_${email.trim().toLowerCase()}`, otpRes.devOtp);
-        } catch {}
+      // 2. Automatically log the newly registered user in
+      const supabase = createClient();
+      const { data: signInData, error: signInError } =
+        await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
+
+      if (signInError) {
+        console.warn("Auto sign-in fallback:", signInError);
+        router.push("/auth/login?message=Account created successfully. Please sign in.");
+        return;
       }
 
-      router.push(`/auth/verify?email=${encodeURIComponent(email.trim().toLowerCase())}`);
+      clearAllClientCaches();
+      clearBootstrapMemory();
+      router.push("/");
+      router.refresh();
     } catch {
       setGeneralError("An unexpected error occurred during signup. Please try again.");
-    } finally {
       setIsLoading(false);
     }
   };

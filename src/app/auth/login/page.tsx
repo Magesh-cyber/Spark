@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { createClient } from "@/lib/supabase/client";
 import { loginSchema } from "@/lib/validations/auth";
+import { autoConfirmUserEmail } from "@/lib/actions/auth-verify";
 import { getSafeRedirectUrl } from "@/lib/utils";
 import {
   prefetchWorkspaceBootstrap,
@@ -62,18 +63,24 @@ function LoginForm() {
 
     try {
       const supabase = createClient();
-      const { data, error } = await supabase.auth.signInWithPassword({
+      let { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
       });
 
+      if (error && error.message.toLowerCase().includes("email not confirmed")) {
+        // Auto-confirm the email and retry sign-in immediately
+        await autoConfirmUserEmail(email.trim());
+        const retry = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
+        data = retry.data;
+        error = retry.error;
+      }
+
       if (error) {
-        if (error.message.toLowerCase().includes("email not confirmed")) {
-          setUnconfirmedEmail(email.trim());
-          setGeneralError(
-            "Your email has not been verified yet. Please enter the 4-digit one-time code sent to your email during registration."
-          );
-        } else if (error.message.toLowerCase().includes("invalid login credentials")) {
+        if (error.message.toLowerCase().includes("invalid login credentials")) {
           setGeneralError(
             "Invalid email or password. Please verify your credentials and try again."
           );
