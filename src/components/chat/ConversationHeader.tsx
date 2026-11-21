@@ -143,12 +143,12 @@ export function ConversationHeader({
               className={cn(
                 "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[7px] text-xs font-semibold transition-all shadow-2xs active:scale-[0.98]",
                 unreadCount > 0
-                  ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-sm ring-1 ring-white/20 animate-pulse hover:opacity-95"
+                  ? "bg-[var(--spark-accent)] text-white shadow-sm hover:bg-[var(--spark-accent-hover)]"
                   : "bg-[var(--spark-highlight)] text-[var(--spark-accent)] border border-[var(--spark-border)] hover:bg-[var(--spark-surface-elevated)]"
               )}
               title="Catch up on recent unread messages with SPARK AI"
             >
-              <Sparkles className="h-3.5 w-3.5 text-amber-300" />
+              <Sparkles className={cn("h-3.5 w-3.5", unreadCount > 0 ? "text-white" : "text-[var(--spark-accent)]")} />
               <span>Catch Up</span>
               {unreadCount > 0 && (
                 <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-white/25 text-white font-mono font-bold">

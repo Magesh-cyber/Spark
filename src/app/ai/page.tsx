@@ -2,11 +2,9 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import {
-  Bot,
   Send,
   Sparkles,
   Key,
-  RefreshCw,
   Copy,
   Check,
   ExternalLink,
@@ -15,13 +13,11 @@ import {
   ListTodo,
   FileText,
   X,
-  User,
   Loader2,
   Trash2,
   CheckCircle2,
 } from "lucide-react";
 import { ShellLayout } from "@/components/layout/ShellLayout";
-import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
@@ -62,6 +58,104 @@ const QUICK_STARTERS = [
   },
 ];
 
+/**
+ * Parses and renders message tokens cleanly without exposing raw markdown asterisks or symbols.
+ */
+function FormattedMessage({ content }: { content: string }) {
+  const lines = content.split("\n");
+
+  return (
+    <div className="space-y-1.5 text-xs sm:text-[13px] leading-relaxed">
+      {lines.map((line, idx) => {
+        const trimmed = line.trim();
+        if (!trimmed) {
+          return <div key={idx} className="h-1.5" />;
+        }
+
+        // Clean headers: ###, ##, #
+        if (trimmed.startsWith("### ") || trimmed.startsWith("## ") || trimmed.startsWith("# ")) {
+          const headerText = trimmed.replace(/^#+\s*/, "").replace(/\*\*/g, "");
+          return (
+            <h4
+              key={idx}
+              className="font-semibold text-xs sm:text-[13px] text-[var(--spark-text-primary)] pt-1.5 pb-0.5"
+            >
+              {headerText}
+            </h4>
+          );
+        }
+
+        // Quotes or callouts: >
+        if (trimmed.startsWith("> ")) {
+          const quoteText = trimmed.replace(/^>\s*/, "").replace(/\*\*/g, "");
+          return (
+            <div
+              key={idx}
+              className="border-l-2 border-[var(--spark-accent)] pl-2.5 my-1 text-[var(--spark-text-secondary)] italic"
+            >
+              {quoteText}
+            </div>
+          );
+        }
+
+        // Bullet points: -, *, •
+        const isBullet =
+          trimmed.startsWith("- ") ||
+          trimmed.startsWith("• ") ||
+          (trimmed.startsWith("* ") && !trimmed.startsWith("**"));
+
+        if (isBullet) {
+          const bulletText = trimmed.replace(/^[-•*]\s*/, "");
+          return (
+            <div key={idx} className="flex items-start gap-2 pl-0.5">
+              <span className="text-[var(--spark-accent)] select-none font-bold text-xs mt-0.5 leading-none">
+                •
+              </span>
+              <div className="flex-1 min-w-0">{renderInlineTokens(bulletText)}</div>
+            </div>
+          );
+        }
+
+        return (
+          <p key={idx} className="leading-relaxed">
+            {renderInlineTokens(line)}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
+function renderInlineTokens(text: string) {
+  // Matches **bold** or `code`
+  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
+
+  return parts.map((part, i) => {
+    if (part.startsWith("**") && part.endsWith("**") && part.length >= 4) {
+      const boldText = part.slice(2, -2);
+      return (
+        <strong key={i} className="font-semibold text-[var(--spark-text-primary)]">
+          {boldText}
+        </strong>
+      );
+    }
+    if (part.startsWith("`") && part.endsWith("`") && part.length >= 2) {
+      const codeText = part.slice(1, -1);
+      return (
+        <code
+          key={i}
+          className="px-1.5 py-0.5 mx-0.5 rounded-[4px] bg-[var(--spark-surface-subtle)] border border-[var(--spark-border)] font-mono text-[11px] text-[var(--spark-accent)]"
+        >
+          {codeText}
+        </code>
+      );
+    }
+    // Clean up any remaining stray double asterisks
+    const cleanText = part.replace(/\*\*/g, "");
+    return <span key={i}>{cleanText}</span>;
+  });
+}
+
 export default function AIAssistantPage() {
   const { activeWorkspace, currentUser } = useWorkspace();
 
@@ -94,7 +188,6 @@ export default function AIAssistantPage() {
     getAIStatus().then(setAiStatus).catch(() => {});
 
     if (activeWorkspace?.id) {
-      // Gather active projects
       getWorkspaceProjects(activeWorkspace.id)
         .then((res) => {
           if (res?.projects && res.projects.length > 0) {
@@ -109,7 +202,6 @@ export default function AIAssistantPage() {
         })
         .catch(() => {});
 
-      // Gather active tasks
       getWorkspaceTasks(activeWorkspace.id)
         .then((res) => {
           if (res?.tasks && res.tasks.length > 0) {
@@ -127,17 +219,18 @@ export default function AIAssistantPage() {
     }
   }, [activeWorkspace?.id]);
 
-  // Initial welcome greeting
+  // Initial welcome greeting - clean, direct, without raw markdown symbols or fluff
   useEffect(() => {
     if (messages.length === 0) {
       const now = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      const firstName = currentUser.name.split(" ")[0] || currentUser.name || "there";
+      const workspaceName = activeWorkspace?.name || "your workspace";
+
       setMessages([
         {
           id: "welcome-1",
           role: "assistant",
-          content: `Hello **${currentUser.name}**! 👋 I am **SPARK AI**, your workplace copilot for **${
-            activeWorkspace?.name || "your organization"
-          }**.\n\nI have real-time visibility into your active projects, work item boards, deliverables, and team communications. How can I assist you today?`,
+          content: `Hello ${firstName}. I am SPARK AI for ${workspaceName}.\n\nI have access to your active projects, task boards, and team updates. How can I help you today?`,
           timestamp: now,
           providerUsed: aiStatus.provider,
         },
@@ -198,7 +291,7 @@ export default function AIAssistantPage() {
           id: `err-${Date.now()}`,
           role: "assistant",
           content:
-            "I encountered a temporary issue generating a response. Please verify your workspace connection or check the API key settings.",
+            "I encountered a temporary issue generating a response. Please check your workspace connection or API settings.",
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
           providerUsed: "heuristic",
         },
@@ -209,20 +302,24 @@ export default function AIAssistantPage() {
   };
 
   const handleCopy = (id: string, text: string) => {
-    navigator.clipboard?.writeText(text).then(() => {
-      setCopiedId(id);
-      setTimeout(() => setCopiedId((prev) => (prev === id ? null : prev)), 2000);
-    }).catch(() => {});
+    navigator.clipboard
+      ?.writeText(text)
+      .then(() => {
+        setCopiedId(id);
+        setTimeout(() => setCopiedId((prev) => (prev === id ? null : prev)), 2000);
+      })
+      .catch(() => {});
   };
 
   const handleClearHistory = () => {
-    if (confirm("Clear conversation history with SPARK AI?")) {
+    if (confirm("Reset conversation with SPARK AI?")) {
       const now = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      const workspaceName = activeWorkspace?.name || "this workspace";
       setMessages([
         {
           id: `welcome-${Date.now()}`,
           role: "assistant",
-          content: `Conversation reset. How can I assist you with **${activeWorkspace?.name}**?`,
+          content: `Conversation reset. What would you like to focus on in ${workspaceName}?`,
           timestamp: now,
           providerUsed: aiStatus.provider,
         },
@@ -246,7 +343,10 @@ export default function AIAssistantPage() {
             </div>
             <p className="text-xs text-[var(--spark-text-secondary)] mt-0.5">
               Workspace intelligence, project coordination, and automated workplace summaries for{" "}
-              <strong className="text-[var(--spark-text-primary)]">{activeWorkspace?.name || "your team"}</strong>.
+              <span className="font-semibold text-[var(--spark-text-primary)]">
+                {activeWorkspace?.name || "your team"}
+              </span>
+              .
             </p>
           </div>
 
@@ -255,23 +355,18 @@ export default function AIAssistantPage() {
             <button
               type="button"
               onClick={() => setIsConfigModalOpen(true)}
-              className={cn(
-                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] text-xs font-semibold border transition-all shadow-2xs",
-                aiStatus.isConfigured
-                  ? "bg-violet-500/10 text-violet-700 dark:text-violet-300 border-violet-500/30 hover:bg-violet-500/20"
-                  : "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30 hover:bg-amber-500/20"
-              )}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] text-xs font-medium border border-[var(--spark-border)] bg-[var(--spark-surface)] text-[var(--spark-text-primary)] hover:border-[var(--spark-border-strong)] hover:bg-[var(--spark-surface-subtle)] transition-colors duration-150 shadow-2xs"
               title="Click to view AI engine configuration and API keys"
             >
-              <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+              <Sparkles className="h-3.5 w-3.5 text-[var(--spark-accent)]" />
               <span>{aiStatus.modelName}</span>
-              <Key className="h-3 w-3 opacity-60 ml-0.5" />
+              <Key className="h-3 w-3 text-[var(--spark-text-muted)] ml-0.5" />
             </button>
 
             <button
               type="button"
               onClick={handleClearHistory}
-              className="p-1.5 rounded-[8px] border border-[var(--spark-border)] bg-[var(--spark-surface)] text-[var(--spark-text-secondary)] hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
+              className="p-1.5 rounded-[8px] border border-[var(--spark-border)] bg-[var(--spark-surface)] text-[var(--spark-text-secondary)] hover:text-rose-600 hover:border-rose-300 transition-colors"
               title="Reset conversation"
             >
               <Trash2 className="h-4 w-4" />
@@ -280,9 +375,9 @@ export default function AIAssistantPage() {
         </div>
 
         {/* Main Copilot Shell */}
-        <div className="flex flex-col h-[calc(100vh-230px)] rounded-[14px] border border-[var(--spark-border)] bg-[var(--spark-surface)] shadow-sm overflow-hidden">
+        <div className="flex flex-col h-[calc(100vh-230px)] rounded-[14px] border border-[var(--spark-border)] bg-[var(--spark-surface)] shadow-card overflow-hidden">
           {/* Top Context Subheader */}
-          <div className="flex items-center justify-between border-b border-[var(--spark-border)] bg-[var(--spark-surface-subtle)]/70 px-4 py-2 text-xs">
+          <div className="flex items-center justify-between border-b border-[var(--spark-border)] bg-[var(--spark-surface-subtle)] px-4 py-2 text-xs">
             <div className="flex items-center gap-2 text-[var(--spark-text-secondary)]">
               <span className="font-semibold text-[var(--spark-text-primary)]">Context:</span>
               <span className="px-2 py-0.5 rounded-[6px] bg-[var(--spark-surface)] border border-[var(--spark-border)] font-medium text-[var(--spark-text-primary)]">
@@ -296,12 +391,14 @@ export default function AIAssistantPage() {
             <div className="flex items-center gap-2 text-[var(--spark-text-secondary)] text-[11px]">
               <span className="h-2 w-2 rounded-full bg-emerald-500" />
               <span className="font-medium text-[var(--spark-text-primary)]">{currentUser.name}</span>
-              <span className="hidden sm:inline text-[var(--spark-text-muted)]">({currentUser.role})</span>
+              <span className="hidden sm:inline text-[var(--spark-text-muted)]">
+                ({currentUser.role})
+              </span>
             </div>
           </div>
 
           {/* Messages Stream */}
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-[var(--spark-canvas)]/40">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-[var(--spark-canvas)]">
             {messages.map((msg) => {
               const isUser = msg.role === "user";
               return (
@@ -315,10 +412,14 @@ export default function AIAssistantPage() {
                   {/* Avatar */}
                   <div className="shrink-0 mt-0.5">
                     {isUser ? (
-                      <Avatar name={currentUser.name} size="sm" src={currentUser.avatarUrl || undefined} />
+                      <Avatar
+                        name={currentUser.name}
+                        size="sm"
+                        src={currentUser.avatarUrl || undefined}
+                      />
                     ) : (
-                      <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-violet-600 to-indigo-600 text-white flex items-center justify-center shadow-md">
-                        <Bot className="h-4 w-4" />
+                      <div className="h-7 w-7 rounded-[8px] bg-[var(--spark-highlight)] text-[var(--spark-accent)] border border-[var(--spark-border)] flex items-center justify-center text-xs shadow-2xs">
+                        <Sparkles className="h-3.5 w-3.5" />
                       </div>
                     )}
                   </div>
@@ -326,42 +427,59 @@ export default function AIAssistantPage() {
                   {/* Message Bubble */}
                   <div
                     className={cn(
-                      "flex flex-col space-y-1.5 rounded-[12px] p-4 text-xs sm:text-[13px] leading-relaxed shadow-2xs",
+                      "flex flex-col space-y-1.5 rounded-[10px] p-4 text-xs sm:text-[13px] leading-relaxed shadow-card",
                       isUser
                         ? "bg-[var(--spark-accent)] text-white rounded-tr-none"
                         : "bg-[var(--spark-surface)] border border-[var(--spark-border)] text-[var(--spark-text-primary)] rounded-tl-none"
                     )}
                   >
-                    <div className="flex items-center justify-between gap-3 text-[10px] opacity-75 font-medium border-b border-white/10 dark:border-black/10 pb-1 mb-1">
-                      <span>{isUser ? "You" : "SPARK AI Copilot"}</span>
+                    <div
+                      className={cn(
+                        "flex items-center justify-between gap-3 text-[10px] pb-1 mb-1 border-b",
+                        isUser
+                          ? "border-white/15 text-white/80 font-medium"
+                          : "border-[var(--spark-border)] text-[var(--spark-text-secondary)] font-medium"
+                      )}
+                    >
+                      <span className="font-semibold">
+                        {isUser ? "You" : "SPARK Assistant"}
+                      </span>
                       <div className="flex items-center gap-2">
-                        {!isUser && msg.providerUsed && (
-                          <span className="px-1.5 py-0.2 rounded text-[9px] uppercase tracking-wider font-bold bg-violet-500/15 text-violet-700 dark:text-violet-300">
-                            {msg.providerUsed === "heuristic" ? "Semantic Fallback" : msg.providerUsed}
+                        {!isUser && (
+                          <span className="px-1.5 py-0.5 rounded-[4px] text-[9px] uppercase tracking-wider font-semibold bg-[var(--spark-surface-subtle)] border border-[var(--spark-border)] text-[var(--spark-text-secondary)]">
+                            {msg.providerUsed === "heuristic"
+                              ? "Workspace Engine"
+                              : msg.providerUsed === "gemini"
+                              ? "Gemini"
+                              : msg.providerUsed === "openai"
+                              ? "GPT-4o"
+                              : "Assistant"}
                           </span>
                         )}
-                        <span>{msg.timestamp}</span>
+                        <span className="tabular-nums text-[10px] opacity-75">{msg.timestamp}</span>
                         {!isUser && (
                           <button
                             type="button"
                             onClick={() => handleCopy(msg.id, msg.content)}
-                            className="hover:opacity-100 transition-opacity p-0.5"
+                            className="hover:text-[var(--spark-text-primary)] transition-colors p-0.5"
                             title="Copy response"
                           >
                             {copiedId === msg.id ? (
-                              <Check className="h-3 w-3 text-emerald-400" />
+                              <Check className="h-3 w-3 text-emerald-500" />
                             ) : (
-                              <Copy className="h-3 w-3" />
+                              <Copy className="h-3 w-3 opacity-60 hover:opacity-100" />
                             )}
                           </button>
                         )}
                       </div>
                     </div>
 
-                    {/* Content Body with Markdown Rendering */}
-                    <div className="prose prose-xs dark:prose-invert max-w-none whitespace-pre-wrap font-sans">
-                      {msg.content}
-                    </div>
+                    {/* Content Body with Clean Formatted Rendering */}
+                    {isUser ? (
+                      <p className="whitespace-pre-wrap">{msg.content}</p>
+                    ) : (
+                      <FormattedMessage content={msg.content} />
+                    )}
                   </div>
                 </div>
               );
@@ -369,11 +487,11 @@ export default function AIAssistantPage() {
 
             {isSubmitting && (
               <div className="flex gap-3 max-w-xl mr-auto animate-in fade-in">
-                <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-violet-600 to-indigo-600 text-white flex items-center justify-center shadow-md shrink-0">
-                  <Bot className="h-4 w-4" />
+                <div className="h-7 w-7 rounded-[8px] bg-[var(--spark-highlight)] text-[var(--spark-accent)] border border-[var(--spark-border)] flex items-center justify-center text-xs shadow-2xs shrink-0">
+                  <Sparkles className="h-3.5 w-3.5" />
                 </div>
-                <div className="bg-[var(--spark-surface)] border border-[var(--spark-border)] rounded-[12px] rounded-tl-none p-3.5 flex items-center gap-2 text-xs text-[var(--spark-text-secondary)] shadow-2xs">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-violet-600" />
+                <div className="bg-[var(--spark-surface)] border border-[var(--spark-border)] rounded-[10px] rounded-tl-none p-3.5 flex items-center gap-2 text-xs text-[var(--spark-text-secondary)] shadow-card">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--spark-accent)]" />
                   <span>Synthesizing workspace context...</span>
                 </div>
               </div>
@@ -384,7 +502,7 @@ export default function AIAssistantPage() {
 
           {/* Quick Starter Prompts Row */}
           {messages.length <= 2 && (
-            <div className="px-4 py-2 border-t border-[var(--spark-border)] bg-[var(--spark-surface-subtle)]/40 overflow-x-auto no-scrollbar">
+            <div className="px-4 py-2.5 border-t border-[var(--spark-border)] bg-[var(--spark-surface-subtle)] overflow-x-auto no-scrollbar">
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-semibold text-[var(--spark-text-muted)] uppercase tracking-wider shrink-0 select-none">
                   Quick Prompts:
@@ -397,9 +515,9 @@ export default function AIAssistantPage() {
                       type="button"
                       onClick={() => handleSendMessage(starter.prompt)}
                       disabled={isSubmitting}
-                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-[var(--spark-border)] bg-[var(--spark-surface)] text-[11px] font-medium text-[var(--spark-text-secondary)] hover:text-[var(--spark-accent)] hover:border-[var(--spark-accent)]/40 hover:bg-[var(--spark-highlight)] transition-all shrink-0 shadow-2xs active:scale-95 disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] border border-[var(--spark-border)] bg-[var(--spark-surface)] text-xs font-medium text-[var(--spark-text-secondary)] hover:text-[var(--spark-text-primary)] hover:border-[var(--spark-border-strong)] hover:bg-[var(--spark-surface-elevated)] transition-colors duration-150 shrink-0 shadow-2xs active:scale-95 disabled:opacity-50"
                     >
-                      <Icon className="h-3 w-3 text-[var(--spark-accent)]" />
+                      <Icon className="h-3.5 w-3.5 text-[var(--spark-accent)]" />
                       <span>{starter.label}</span>
                     </button>
                   );
@@ -422,7 +540,7 @@ export default function AIAssistantPage() {
               onChange={(e) => setInputPrompt(e.target.value)}
               placeholder={`Ask SPARK AI anything about ${activeWorkspace?.name || "your workspace"}, projects, or tasks...`}
               disabled={isSubmitting}
-              className="flex-1 rounded-[8px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] px-3.5 py-2 text-xs sm:text-[13px] text-[var(--spark-text-primary)] placeholder:text-[var(--spark-text-muted)] focus:bg-[var(--spark-surface)] focus:outline-none focus:ring-1 focus:ring-[var(--spark-accent)] transition-colors"
+              className="flex-1 rounded-[8px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] px-3.5 py-2 text-xs sm:text-[13px] text-[var(--spark-text-primary)] placeholder:text-[var(--spark-text-muted)] focus:bg-[var(--spark-surface)] focus:outline-none focus:ring-1 focus:ring-[var(--spark-accent)] focus:border-[var(--spark-accent)] transition-colors"
             />
             <Button
               type="submit"
@@ -451,14 +569,16 @@ export default function AIAssistantPage() {
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 px-5 py-4 text-white flex items-center justify-between">
+            <div className="border-b border-[var(--spark-border)] bg-[var(--spark-surface-subtle)] px-5 py-4 text-[var(--spark-text-primary)] flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="h-8 w-8 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center shadow-inner">
+                <div className="h-8 w-8 rounded-[8px] bg-[var(--spark-highlight)] text-[var(--spark-accent)] border border-[var(--spark-border)] flex items-center justify-center shadow-2xs">
                   <Key className="h-4 w-4" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold">SPARK AI Engine Configuration</h3>
-                  <p className="text-[11px] text-white/80">
+                  <h3 className="text-sm font-semibold text-[var(--spark-text-primary)]">
+                    SPARK AI Engine Configuration
+                  </h3>
+                  <p className="text-[11px] text-[var(--spark-text-secondary)]">
                     Connect Google Gemini, OpenAI, or Groq for live LLM intelligence
                   </p>
                 </div>
@@ -466,7 +586,7 @@ export default function AIAssistantPage() {
               <button
                 type="button"
                 onClick={() => setIsConfigModalOpen(false)}
-                className="p-1 rounded-full text-white/80 hover:text-white hover:bg-white/10 transition-colors"
+                className="p-1 rounded-[6px] text-[var(--spark-text-secondary)] hover:text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface)] transition-colors"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -482,14 +602,14 @@ export default function AIAssistantPage() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-[var(--spark-text-primary)]">Active Engine:</span>
-                    <span className="font-mono font-bold text-violet-600 dark:text-violet-400">
+                    <span className="font-mono font-bold text-[var(--spark-accent)]">
                       {aiStatus.modelName}
                     </span>
                   </div>
                   <p className="text-[11px] text-[var(--spark-text-secondary)] mt-0.5">
                     {aiStatus.isConfigured
                       ? "Direct API connection verified and active."
-                      : "Semantic Fallback Engine is active. All AI summaries, smart replies, checklists, and chat copilot work deterministically without external API costs."}
+                      : "Workspace Semantic Engine is active. Summaries, checklists, and workplace responses run locally without external API costs."}
                   </p>
                 </div>
               </div>
@@ -504,13 +624,13 @@ export default function AIAssistantPage() {
                   <div className="p-3 rounded-[8px] border border-[var(--spark-border)] bg-[var(--spark-canvas)] space-y-1.5">
                     <div className="flex items-center justify-between">
                       <span className="font-semibold text-[var(--spark-text-primary)]">
-                        Option 1: Google Gemini (100% Free Tier, No Card Required)
+                        Option 1: Google Gemini (Free Tier, No Card Required)
                       </span>
                       <a
                         href="https://aistudio.google.com/app/apikey"
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-[11px] text-violet-600 hover:underline font-medium"
+                        className="inline-flex items-center gap-1 text-[11px] text-[var(--spark-accent)] hover:underline font-medium"
                       >
                         Get Key <ExternalLink className="h-3 w-3" />
                       </a>
@@ -518,7 +638,7 @@ export default function AIAssistantPage() {
                     <p className="text-[11px] text-[var(--spark-text-secondary)]">
                       Visit Google AI Studio, sign in with your Google account, and click <strong>Create API Key</strong>.
                     </p>
-                    <div className="p-2 rounded-[6px] bg-zinc-900 text-zinc-100 font-mono text-[11px] select-all">
+                    <div className="p-2 rounded-[6px] bg-[var(--spark-surface-subtle)] border border-[var(--spark-border)] font-mono text-[11px] text-[var(--spark-text-primary)] select-all">
                       GEMINI_API_KEY=&quot;AIzaSy...&quot;
                     </div>
                   </div>
@@ -532,7 +652,7 @@ export default function AIAssistantPage() {
                         href="https://platform.openai.com/api-keys"
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-[11px] text-violet-600 hover:underline font-medium"
+                        className="inline-flex items-center gap-1 text-[11px] text-[var(--spark-accent)] hover:underline font-medium"
                       >
                         Get Key <ExternalLink className="h-3 w-3" />
                       </a>
@@ -540,19 +660,19 @@ export default function AIAssistantPage() {
                     <p className="text-[11px] text-[var(--spark-text-secondary)]">
                       Create a standard OpenAI project secret key.
                     </p>
-                    <div className="p-2 rounded-[6px] bg-zinc-900 text-zinc-100 font-mono text-[11px] select-all">
+                    <div className="p-2 rounded-[6px] bg-[var(--spark-surface-subtle)] border border-[var(--spark-border)] font-mono text-[11px] text-[var(--spark-text-primary)] select-all">
                       OPENAI_API_KEY=&quot;sk-proj-...&quot;
                     </div>
                   </div>
                 </div>
 
-                <div className="p-3 rounded-[8px] bg-violet-500/10 border border-violet-500/25 text-[11px] text-[var(--spark-text-secondary)] space-y-1">
+                <div className="p-3 rounded-[8px] bg-[var(--spark-highlight)] border border-[var(--spark-border)] text-[11px] text-[var(--spark-text-secondary)] space-y-1">
                   <div className="font-semibold text-[var(--spark-text-primary)] flex items-center gap-1.5">
-                    <CheckCircle2 className="h-3.5 w-3.5 text-violet-600" />
-                    Where to paste it:
+                    <CheckCircle2 className="h-3.5 w-3.5 text-[var(--spark-accent)]" />
+                    Where to add it:
                   </div>
                   <p>
-                    Open the file <code className="px-1.5 py-0.5 rounded bg-[var(--spark-surface)] border font-mono">.env.local</code> in the root of the project and paste the line above. Next.js will automatically detect it.
+                    Add the key to <code className="px-1.5 py-0.5 rounded bg-[var(--spark-surface)] border border-[var(--spark-border)] font-mono text-[var(--spark-text-primary)]">.env.local</code> in the root directory of the project.
                   </p>
                 </div>
               </div>

@@ -337,8 +337,8 @@ export async function askWorkspaceAssistant(params: {
 }): Promise<{ response: string; providerUsed: "gemini" | "openai" | "groq" | "heuristic" }> {
   const { prompt, history, workspaceContext } = params;
 
-  const systemPrompt = `You are SPARK AI, the intelligent workplace copilot for ${workspaceContext.workspaceName}.
-You assist ${workspaceContext.currentUser.name} (${workspaceContext.currentUser.role}) with project management, team collaboration, task tracking, communications, and meeting summaries.
+  const systemPrompt = `You are SPARK AI, the workplace assistant for ${workspaceContext.workspaceName}.
+You assist ${workspaceContext.currentUser.name} (${workspaceContext.currentUser.role}) with project coordination, task tracking, communications, and summaries.
 
 WORKSPACE CONTEXT:
 - Organization: ${workspaceContext.workspaceName}
@@ -347,10 +347,10 @@ WORKSPACE CONTEXT:
 - Tasks & Deliverables: ${workspaceContext.tasksSummary || "Task boards active"}
 
 GUIDELINES:
-- Be concise, direct, and actionable.
-- Format responses cleanly with GitHub Flavored Markdown (bullet points, bold highlights, code blocks when relevant).
-- Offer practical next steps.
-- If the user asks about their tasks or projects, reference the workspace context.`;
+- Be concise, direct, professional, and actionable.
+- Avoid unnecessary markdown symbols, asterisks, or emoji clutter.
+- Format cleanly with structured lists when appropriate.
+- Reference workspace projects and tasks directly when relevant.`;
 
   const formattedHistory = history
     .slice(-4)
@@ -373,35 +373,33 @@ GUIDELINES:
 
   // Intelligent Fallback Assistant response
   const lower = prompt.toLowerCase();
-  let fallbackReply = `Here is what I found for **${workspaceContext.workspaceName}**:\n\n`;
+  let fallbackReply = `Here is the current status for ${workspaceContext.workspaceName}:\n\n`;
 
   if (lower.includes("task") || lower.includes("todo") || lower.includes("priority")) {
-    fallbackReply += `### 📋 Task Deliverables\n`;
-    fallbackReply += `- All active tasks and deliverables are synced on your [Work Items Board](/tasks).\n`;
-    fallbackReply += `- You can filter specifically by **⚡ My Tasks** to view items assigned directly to you.\n`;
-    fallbackReply += `- Priority issues flagged as **High** or **Urgent** should be tackled first.\n`;
+    fallbackReply += `Task Deliverables\n`;
+    fallbackReply += `• All active tasks and deliverables are synced on your Tasks board.\n`;
+    fallbackReply += `• Filter by My Tasks to review items assigned directly to you.\n`;
+    fallbackReply += `• High and Urgent priority issues should be addressed first.\n`;
   } else if (lower.includes("project") || lower.includes("initiative")) {
-    fallbackReply += `### 🚀 Workspace Initiatives\n`;
-    fallbackReply += `- Manage public and private projects under the [Projects Directory](/projects).\n`;
-    fallbackReply += `- Track delivery percentages, lead owners, and target completion dates.\n`;
-    fallbackReply += `- Click **Open Board** on any project to drill down into its dedicated Kanban view.\n`;
+    fallbackReply += `Workspace Initiatives\n`;
+    fallbackReply += `• Projects are tracked in the Projects directory.\n`;
+    fallbackReply += `• View completion progress, lead owners, and target milestones.\n`;
+    fallbackReply += `• Select any project board to view its Kanban cards.\n`;
   } else if (lower.includes("handover") || lower.includes("shift")) {
-    fallbackReply += `### 🤝 Shift Handover Protocol\n`;
-    fallbackReply += `- Standard shift reports can be posted directly inside your shift channel.\n`;
-    fallbackReply += `- Include **Completed Work**, **Pending Items**, and **Safety / Blockers**.\n`;
-    fallbackReply += `- Incoming shift members can sign off with one-click acknowledgments.\n`;
+    fallbackReply += `Shift Handover Protocol\n`;
+    fallbackReply += `• Post handover summaries directly in your shift channel.\n`;
+    fallbackReply += `• Summarize completed tasks, pending work items, and blockers.\n`;
+    fallbackReply += `• Team members can acknowledge receipt directly in the channel.\n`;
   } else if (lower.includes("announce") || lower.includes("draft") || lower.includes("message")) {
-    fallbackReply += `### 📝 Draft Announcement\n\n`;
-    fallbackReply += `> **Team Update — ${workspaceContext.workspaceName}**\n>\n`;
-    fallbackReply += `> Hello Team,\n>\n`;
-    fallbackReply += `> We have made great progress on our active milestones. Please ensure all in-progress tasks are updated on the board before our next sync.\n>\n`;
-    fallbackReply += `> Best regards,\n> ${workspaceContext.currentUser.name}\n`;
+    fallbackReply += `Draft Team Update — ${workspaceContext.workspaceName}\n\n`;
+    fallbackReply += `Hello Team,\n\n`;
+    fallbackReply += `Here is our progress update for the current sprint. Please ensure open work items are updated on the board before our next sync.\n\n`;
+    fallbackReply += `Best regards,\n${workspaceContext.currentUser.name}\n`;
   } else {
-    fallbackReply += `I've analyzed your workspace query. You can:\n\n`;
-    fallbackReply += `- **Review Deliverables**: Check the [Task Board](/tasks) for open issues.\n`;
-    fallbackReply += `- **Coordinate with Team**: Jump into [Workspace Chat](/chat) for direct messages and channels.\n`;
-    fallbackReply += `- **Manage Projects**: Track milestones in [Projects](/projects).\n\n`;
-    fallbackReply += `*Tip: To connect live Gemini or OpenAI models, configure \`GEMINI_API_KEY\` or \`OPENAI_API_KEY\` in your \`.env.local\` file.*`;
+    fallbackReply += `Here are quick actions you can take in this workspace:\n\n`;
+    fallbackReply += `• Review Deliverables: Open the Tasks board to view open work items.\n`;
+    fallbackReply += `• Team Communication: Use Workspace Chat for channels and direct messages.\n`;
+    fallbackReply += `• Track Initiatives: Monitor project milestones in the Projects section.\n`;
   }
 
   return {

@@ -69,20 +69,20 @@ export function AIChatSummaryModal({
         className="relative w-full max-w-lg rounded-[14px] border border-[var(--spark-border)] bg-[var(--spark-surface)] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Top Gradient Banner matching Instagram / SPARK Violet */}
-        <div className="bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 px-5 py-4 text-white flex items-center justify-between">
+        {/* Modal Header */}
+        <div className="border-b border-[var(--spark-border)] bg-[var(--spark-surface-subtle)] px-5 py-4 text-[var(--spark-text-primary)] flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="h-8 w-8 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white shadow-inner">
-              <Sparkles className="h-4 w-4 animate-pulse" />
+            <div className="h-8 w-8 rounded-[8px] bg-[var(--spark-highlight)] text-[var(--spark-accent)] border border-[var(--spark-border)] flex items-center justify-center shadow-2xs">
+              <Sparkles className="h-4 w-4" />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <h3 className="text-sm font-bold tracking-tight">Catch Up with AI</h3>
-                <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold uppercase tracking-wider bg-white/20 text-white">
+                <h3 className="text-sm font-semibold tracking-tight text-[var(--spark-text-primary)]">Catch Up with AI</h3>
+                <span className="px-1.5 py-0.5 rounded-[5px] text-[10px] font-semibold uppercase tracking-wider bg-[var(--spark-highlight)] text-[var(--spark-highlight-text)] border border-[var(--spark-border)]">
                   Smart Digest
                 </span>
               </div>
-              <p className="text-[11px] text-white/80">
+              <p className="text-[11px] text-[var(--spark-text-secondary)]">
                 {conversationType === "channel" ? `#${conversationName}` : conversationName} • {messageCount} recent messages
               </p>
             </div>
@@ -90,7 +90,7 @@ export function AIChatSummaryModal({
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-full text-white/80 hover:text-white hover:bg-white/10 transition-colors"
+            className="p-1.5 rounded-[6px] text-[var(--spark-text-secondary)] hover:text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface)] transition-colors"
           >
             <X className="h-4 w-4" />
           </button>
