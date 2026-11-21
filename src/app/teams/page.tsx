@@ -14,7 +14,12 @@ import { EmptyState } from "@/components/feedback/EmptyState";
 import { LoadingState } from "@/components/feedback/LoadingState";
 import { useWorkspace } from "@/lib/workspace-context";
 import { useNexconnChatOptional } from "@/components/chat/NexconnChatProvider";
-import { getWorkspaceMembers } from "@/lib/actions/workspace-members";
+import {
+  getWorkspaceMembers,
+  searchApplicationUsers,
+  addExistingUserToWorkspace,
+  type ApplicationUserSearchResult,
+} from "@/lib/actions/workspace-members";
 import { inviteWorkspaceMember } from "@/lib/actions/workspace-invitations";
 import { getOrCreateDirectConversation } from "@/lib/actions/chat-direct";
 import { getWorkspaceJoinRequests, reviewWorkspaceJoinRequest } from "@/lib/actions/workspaces";
@@ -36,6 +41,10 @@ import {
   Check,
   Clock,
   ShieldCheck,
+  Globe,
+  UserCheck,
+  Search,
+  Sparkles,
 } from "lucide-react";
 
 export default function TeamsPage() {
@@ -53,6 +62,18 @@ export default function TeamsPage() {
   });
   const [error, setError] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Tab: "workspace" (workspace members) vs "directory" (find all users across SPARK)
+  const [activeTab, setActiveTab] = useState<"workspace" | "directory">("workspace");
+  const [directoryUsers, setDirectoryUsers] = useState<ApplicationUserSearchResult[]>([]);
+  const [isLoadingDirectory, setIsLoadingDirectory] = useState(false);
+  const [directorySearch, setDirectorySearch] = useState("");
+  const [addingUserId, setAddingUserId] = useState<string | null>(null);
+  const [directoryFeedback, setDirectoryFeedback] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
+  const [copiedEmailId, setCopiedEmailId] = useState<string | null>(null);
 
   // Invite modal state
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
@@ -152,6 +173,92 @@ export default function TeamsPage() {
     fetchMembers(false);
     fetchJoinRequests();
   }, [fetchMembers, fetchJoinRequests]);
+
+  const fetchDirectoryUsers = useCallback(async (query: string) => {
+    setIsLoadingDirectory(true);
+    setDirectoryFeedback(null);
+    try {
+      const res = await searchApplicationUsers(query, activeWorkspace?.id);
+      if (res.error) {
+        setDirectoryFeedback({ type: "error", text: res.error });
+      } else {
+        setDirectoryUsers(res.users);
+      }
+    } catch {
+      setDirectoryFeedback({ type: "error", text: "Failed to search application user directory." });
+    } finally {
+      setIsLoadingDirectory(false);
+    }
+  }, [activeWorkspace?.id]);
+
+  useEffect(() => {
+    if (activeTab === "directory") {
+      fetchDirectoryUsers(directorySearch);
+    }
+  }, [activeTab, directorySearch, fetchDirectoryUsers]);
+
+  const handleAddToWorkspace = async (targetUserId: string) => {
+    if (!activeWorkspace?.id || activeWorkspace.id === "personal-fallback") return;
+    setAddingUserId(targetUserId);
+    setDirectoryFeedback(null);
+    try {
+      const res = await addExistingUserToWorkspace(activeWorkspace.id, targetUserId, "MEMBER");
+      if (res.success) {
+        setDirectoryFeedback({
+          type: "success",
+          text: "User added to this workspace successfully!",
+        });
+        await fetchMembers(true);
+        await fetchDirectoryUsers(directorySearch);
+      } else {
+        setDirectoryFeedback({ type: "error", text: res.error || "Failed to add user." });
+      }
+    } catch {
+      setDirectoryFeedback({ type: "error", text: "An unexpected error occurred." });
+    } finally {
+      setAddingUserId(null);
+    }
+  };
+
+  const handleCopyEmail = (userId: string, emailStr: string) => {
+    navigator.clipboard
+      ?.writeText(emailStr)
+      .then(() => {
+        setCopiedEmailId(userId);
+        setTimeout(() => setCopiedEmailId((prev) => (prev === userId ? null : prev)), 2000);
+      })
+      .catch(() => {});
+  };
+
+  const handleStartChatWithUser = (peer: {
+    id: string;
+    fullName: string;
+    email: string;
+    avatarUrl: string | null;
+    role?: string | null;
+  }) => {
+    if (!activeWorkspace?.id || peer.id === currentUser.id) {
+      router.push("/chat");
+      return;
+    }
+    if (chat) {
+      chat.setActiveConversation({
+        type: "direct",
+        id: peer.id,
+        name: peer.fullName,
+        nexconnTargetId: peer.id,
+        peer: {
+          id: peer.id,
+          fullName: peer.fullName,
+          avatarUrl: peer.avatarUrl,
+          email: peer.email,
+          role: peer.role || "MEMBER",
+        },
+      });
+    }
+    getOrCreateDirectConversation(activeWorkspace.id, peer.id).catch(() => {});
+    router.push("/chat");
+  };
 
   useEffect(() => {
     return subscribeBootstrap((payload) => {
@@ -337,103 +444,347 @@ export default function TeamsPage() {
           </div>
         )}
 
-        <FilterBar
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          searchPlaceholder="Search active members by name, email or role..."
-        />
-
-        {isLoading ? (
-          <div className="py-6">
-            <LoadingState type="cards" count={4} />
-          </div>
-        ) : error ? (
-          <div className="rounded-[10px] border border-rose-500/30 bg-rose-500/8 p-6 text-center">
-            <AlertCircle className="mx-auto h-8 w-8 text-rose-500 mb-2" />
-            <p className="text-xs font-semibold text-rose-700 dark:text-rose-300">{error}</p>
-            <Button
-              size="sm"
-              variant="outline"
-              className="mt-4"
-              onClick={() => fetchMembers(true)}
+        {/* Navigation Tabs: Workspace Members vs Find All Users */}
+        <div className="flex items-center gap-2 border-b border-[var(--spark-border)] pb-2">
+          <button
+            type="button"
+            onClick={() => setActiveTab("workspace")}
+            className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-[8px] text-xs font-semibold transition-all ${
+              activeTab === "workspace"
+                ? "bg-[var(--spark-accent)] text-white shadow-2xs"
+                : "text-[var(--spark-text-secondary)] hover:text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface-subtle)]"
+            }`}
+          >
+            <Users className="h-3.5 w-3.5" />
+            <span>Workspace Members</span>
+            <span
+              className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                activeTab === "workspace"
+                  ? "bg-white/20 text-white"
+                  : "bg-[var(--spark-surface)] text-[var(--spark-text-muted)] border border-[var(--spark-border)]"
+              }`}
             >
-              Try Again
-            </Button>
-          </div>
-        ) : members.length === 0 ? (
-          <EmptyState
-            icon={<Users className="h-5 w-5" />}
-            title="No team members yet"
-            description="Invite your colleagues to start collaborating in this workspace."
-            actionLabel="Invite Member"
-            onAction={() => {
-              setInviteFeedback(null);
-              setInviteModalOpen(true);
-            }}
-          />
-        ) : filteredMembers.length === 0 ? (
-          <div className="py-12 text-center text-xs text-[var(--spark-text-secondary)]">
-            No team members matched your search query &ldquo;{searchQuery}&rdquo;.
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredMembers.map((member) => (
-              <Card
-                key={member.id}
-                className="hover:border-[var(--spark-border-strong)] transition-colors duration-150"
-              >
-                <CardContent className="p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <Avatar
-                      name={member.user.fullName}
-                      src={member.user.avatarUrl || undefined}
-                      size="lg"
-                    />
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <h4 className="text-xs font-semibold text-[var(--spark-text-primary)] leading-tight truncate">
-                          {member.user.fullName}
-                        </h4>
-                        {member.userId === currentUser.id && (
-                          <span className="text-[10px] text-[var(--spark-highlight-text)] font-semibold bg-[var(--spark-highlight)] px-1.5 py-0.5 rounded-[4px]">
-                            You
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[11px] text-[var(--spark-text-secondary)] truncate mt-0.5">
-                        {member.user.email}
-                      </p>
-                      <div className="mt-1.5 flex items-center gap-2">
-                        <Badge variant={roleBadgeVariant[member.role] || "default"} size="sm">
-                          {member.role}
-                        </Badge>
-                        <span className="text-[10px] text-[var(--spark-text-muted)]">
-                          Joined {new Date(member.joinedAt).toLocaleDateString()}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
+              {members.length}
+            </span>
+          </button>
 
-                  <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                    <a
-                      href={`mailto:${member.user.email}`}
-                      className="p-1.5 rounded-[6px] border border-[var(--spark-border)] text-[var(--spark-text-secondary)] hover:text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface-subtle)] transition-colors duration-150"
-                      aria-label="Send email"
-                    >
-                      <Mail className="h-3.5 w-3.5" />
-                    </a>
-                    <button
-                      type="button"
-                      onClick={() => handleStartChat(member.userId)}
-                      className="p-1.5 rounded-[6px] border border-[var(--spark-border)] text-[var(--spark-text-secondary)] hover:text-[var(--spark-accent)] hover:bg-[var(--spark-highlight)] hover:border-[var(--spark-accent)]/30 transition-colors duration-150"
-                      aria-label="Open chat"
-                    >
-                      <MessageSquare className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+          <button
+            type="button"
+            onClick={() => setActiveTab("directory")}
+            className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-[8px] text-xs font-semibold transition-all ${
+              activeTab === "directory"
+                ? "bg-[var(--spark-accent)] text-white shadow-2xs"
+                : "text-[var(--spark-text-secondary)] hover:text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface-subtle)]"
+            }`}
+          >
+            <Globe className="h-3.5 w-3.5" />
+            <span>Find All SPARK Users</span>
+            <span
+              className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                activeTab === "directory"
+                  ? "bg-white/20 text-white"
+                  : "bg-[var(--spark-surface)] text-[var(--spark-text-muted)] border border-[var(--spark-border)]"
+              }`}
+            >
+              Directory
+            </span>
+          </button>
+        </div>
+
+        {activeTab === "workspace" ? (
+          <>
+            <FilterBar
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              searchPlaceholder="Search active members by name, email or role..."
+            />
+
+            {isLoading ? (
+              <div className="py-6">
+                <LoadingState type="cards" count={4} />
+              </div>
+            ) : error ? (
+              <div className="rounded-[10px] border border-rose-500/30 bg-rose-500/8 p-6 text-center">
+                <AlertCircle className="mx-auto h-8 w-8 text-rose-500 mb-2" />
+                <p className="text-xs font-semibold text-rose-700 dark:text-rose-300">{error}</p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="mt-4"
+                  onClick={() => fetchMembers(true)}
+                >
+                  Try Again
+                </Button>
+              </div>
+            ) : members.length === 0 ? (
+              <EmptyState
+                icon={<Users className="h-5 w-5" />}
+                title="No team members yet"
+                description="Invite your colleagues to start collaborating in this workspace."
+                actionLabel="Invite Member"
+                onAction={() => {
+                  setInviteFeedback(null);
+                  setInviteModalOpen(true);
+                }}
+              />
+            ) : filteredMembers.length === 0 ? (
+              <div className="py-12 text-center space-y-3">
+                <p className="text-xs text-[var(--spark-text-secondary)]">
+                  No workspace members matched your query &ldquo;{searchQuery}&rdquo;.
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  leftIcon={<Globe className="h-3.5 w-3.5 text-[var(--spark-accent)]" />}
+                  onClick={() => {
+                    setDirectorySearch(searchQuery);
+                    setActiveTab("directory");
+                  }}
+                >
+                  Search all registered SPARK users for &ldquo;{searchQuery}&rdquo; &rarr;
+                </Button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {filteredMembers.map((member) => (
+                  <Card
+                    key={member.id}
+                    className="hover:border-[var(--spark-border-strong)] transition-colors duration-150"
+                  >
+                    <CardContent className="p-4 flex items-center justify-between">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Avatar
+                          name={member.user.fullName}
+                          src={member.user.avatarUrl || undefined}
+                          size="lg"
+                        />
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-xs font-semibold text-[var(--spark-text-primary)] leading-tight truncate">
+                              {member.user.fullName}
+                            </h4>
+                            {member.userId === currentUser.id && (
+                              <span className="text-[10px] text-[var(--spark-highlight-text)] font-semibold bg-[var(--spark-highlight)] px-1.5 py-0.5 rounded-[4px]">
+                                You
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-[var(--spark-text-secondary)] truncate mt-0.5">
+                            {member.user.email}
+                          </p>
+                          <div className="mt-1.5 flex items-center gap-2">
+                            <Badge variant={roleBadgeVariant[member.role] || "default"} size="sm">
+                              {member.role}
+                            </Badge>
+                            <span className="text-[10px] text-[var(--spark-text-muted)]">
+                              Joined {new Date(member.joinedAt).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                        <a
+                          href={`mailto:${member.user.email}`}
+                          className="p-1.5 rounded-[6px] border border-[var(--spark-border)] text-[var(--spark-text-secondary)] hover:text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface-subtle)] transition-colors duration-150"
+                          aria-label="Send email"
+                        >
+                          <Mail className="h-3.5 w-3.5" />
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => handleStartChat(member.userId)}
+                          className="p-1.5 rounded-[6px] border border-[var(--spark-border)] text-[var(--spark-text-secondary)] hover:text-[var(--spark-accent)] hover:bg-[var(--spark-highlight)] hover:border-[var(--spark-accent)]/30 transition-colors duration-150"
+                          aria-label="Open chat"
+                        >
+                          <MessageSquare className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          /* Global Application User Directory Tab */
+          <div className="space-y-4">
+            <div className="relative">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--spark-text-muted)]" />
+              <input
+                type="text"
+                value={directorySearch}
+                onChange={(e) => setDirectorySearch(e.target.value)}
+                placeholder="Find users across SPARK by username (full name) or email ID..."
+                className="w-full h-10 pl-10 pr-9 rounded-[10px] border border-[var(--spark-border)] bg-[var(--spark-surface)] text-xs text-[var(--spark-text-primary)] placeholder:text-[var(--spark-text-muted)] focus:outline-none focus:border-[var(--spark-accent)] focus:ring-2 focus:ring-[var(--spark-accent)]/20 transition-all shadow-2xs"
+              />
+              {directorySearch && (
+                <button
+                  type="button"
+                  onClick={() => setDirectorySearch("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--spark-text-muted)] hover:text-[var(--spark-text-primary)] p-0.5"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+
+            {directoryFeedback && (
+              <div
+                className={`rounded-[8px] border p-3 text-xs flex items-center justify-between gap-2 ${
+                  directoryFeedback.type === "success"
+                    ? "border-[#10B981]/30 bg-[#10B981]/10 text-emerald-700 dark:text-emerald-300"
+                    : "border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  {directoryFeedback.type === "success" ? (
+                    <CheckCircle2 className="h-4 w-4 text-[#10B981] shrink-0" />
+                  ) : (
+                    <AlertCircle className="h-4 w-4 text-rose-500 shrink-0" />
+                  )}
+                  <span>{directoryFeedback.text}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDirectoryFeedback(null)}
+                  className="opacity-70 hover:opacity-100"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
+
+            {isLoadingDirectory ? (
+              <div className="py-6">
+                <LoadingState type="cards" count={4} />
+              </div>
+            ) : directoryUsers.length === 0 ? (
+              <div className="rounded-[10px] border border-[var(--spark-border)] bg-[var(--spark-surface)] p-8 text-center space-y-2">
+                <div className="mx-auto h-10 w-10 rounded-full bg-[var(--spark-highlight)] text-[var(--spark-accent)] flex items-center justify-center mb-2">
+                  <Globe className="h-5 w-5" />
+                </div>
+                <h4 className="text-xs font-semibold text-[var(--spark-text-primary)]">
+                  {directorySearch ? "No users matched your search" : "No users in directory"}
+                </h4>
+                <p className="text-[11px] text-[var(--spark-text-secondary)] max-w-sm mx-auto">
+                  {directorySearch
+                    ? `No registered SPARK users found matching "${directorySearch}". Check spelling or try searching by email address.`
+                    : "All users registered on the SPARK platform will appear here."}
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {directoryUsers.map((user) => (
+                  <Card
+                    key={user.id}
+                    className="hover:border-[var(--spark-border-strong)] transition-colors duration-150"
+                  >
+                    <CardContent className="p-4 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Avatar
+                          name={user.fullName}
+                          src={user.avatarUrl || undefined}
+                          size="lg"
+                        />
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-xs font-semibold text-[var(--spark-text-primary)] leading-tight truncate">
+                              {user.fullName}
+                            </h4>
+                            {user.isSelf && (
+                              <span className="text-[10px] text-[var(--spark-highlight-text)] font-semibold bg-[var(--spark-highlight)] px-1.5 py-0.5 rounded-[4px]">
+                                You
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <p className="text-[11px] text-[var(--spark-text-secondary)] truncate">
+                              {user.email}
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => handleCopyEmail(user.id, user.email)}
+                              className="text-[var(--spark-text-muted)] hover:text-[var(--spark-text-primary)]"
+                              title="Copy email ID"
+                            >
+                              {copiedEmailId === user.id ? (
+                                <Check className="h-3 w-3 text-emerald-500" />
+                              ) : (
+                                <Copy className="h-3 w-3" />
+                              )}
+                            </button>
+                          </div>
+                          <div className="mt-1.5 flex items-center gap-2">
+                            {user.isCurrentWorkspaceMember ? (
+                              <Badge
+                                variant={
+                                  roleBadgeVariant[user.roleInCurrentWorkspace || "MEMBER"] ||
+                                  "default"
+                                }
+                                size="sm"
+                              >
+                                Member · {user.roleInCurrentWorkspace}
+                              </Badge>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-[var(--spark-surface-subtle)] text-[var(--spark-text-muted)] border border-[var(--spark-border)]">
+                                <UserCheck className="h-2.5 w-2.5" />
+                                SPARK User
+                              </span>
+                            )}
+                            <span className="text-[10px] text-[var(--spark-text-muted)]">
+                              Joined {new Date(user.createdAt).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                        {!user.isCurrentWorkspaceMember && !user.isSelf && isPrivileged && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 text-xs font-semibold text-[var(--spark-accent)] border-[var(--spark-accent)]/30 hover:bg-[var(--spark-highlight)]"
+                            isLoading={addingUserId === user.id}
+                            onClick={() => handleAddToWorkspace(user.id)}
+                          >
+                            <UserPlus className="h-3.5 w-3.5 mr-1" />
+                            Add
+                          </Button>
+                        )}
+
+                        {!user.isSelf && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleStartChatWithUser({
+                                id: user.id,
+                                fullName: user.fullName,
+                                email: user.email,
+                                avatarUrl: user.avatarUrl,
+                                role: user.roleInCurrentWorkspace || "MEMBER",
+                              })
+                            }
+                            className="p-1.5 rounded-[6px] border border-[var(--spark-border)] text-[var(--spark-text-secondary)] hover:text-[var(--spark-accent)] hover:bg-[var(--spark-highlight)] hover:border-[var(--spark-accent)]/30 transition-colors duration-150"
+                            title="Start direct conversation"
+                          >
+                            <MessageSquare className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+
+                        <a
+                          href={`mailto:${user.email}`}
+                          className="p-1.5 rounded-[6px] border border-[var(--spark-border)] text-[var(--spark-text-secondary)] hover:text-[var(--spark-text-primary)] hover:bg-[var(--spark-surface-subtle)] transition-colors duration-150"
+                          title="Send email"
+                        >
+                          <Mail className="h-3.5 w-3.5" />
+                        </a>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

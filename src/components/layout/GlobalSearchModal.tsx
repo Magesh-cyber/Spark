@@ -31,7 +31,6 @@ export const GlobalSearchModal: React.FC = () => {
   const quickLinks = [
     { title: "Task Board & Items", category: "Tasks", href: "/tasks", icon: CheckSquare },
     { title: "Projects & Milestones", category: "Projects", href: "/projects", icon: FolderKanban },
-    { title: "Docs & Knowledge Base", category: "Docs", href: "/docs", icon: FileText },
     { title: "Video Meeting Rooms", category: "Meetings", href: "/meet", icon: Video },
     { title: "Team Channels & Chat", category: "Chat", href: "/chat", icon: MessageSquare },
     { title: "People & Teams Directory", category: "People", href: "/teams", icon: Users },

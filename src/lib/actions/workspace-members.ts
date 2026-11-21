@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { createClient } from "@/lib/supabase/server";
 import { verifyWorkspaceAccess } from "@/lib/workspace-guard";
 import { canManageMembers, canChangeMemberRoles } from "@/lib/permissions";
 import { WorkspaceRole, MembershipStatus, WorkspaceMemberItem } from "@/lib/types";
@@ -243,6 +244,133 @@ export async function removeMember(
     return { success: true, error: null };
   } catch (err: any) {
     return { success: false, error: err.message || "Failed to remove member." };
+  }
+}
+
+export interface ApplicationUserSearchResult {
+  id: string;
+  fullName: string;
+  email: string;
+  avatarUrl: string | null;
+  createdAt: string;
+  isCurrentWorkspaceMember: boolean;
+  roleInCurrentWorkspace: WorkspaceRole | null;
+  isSelf: boolean;
+}
+
+/**
+ * Searches all users registered in the SPARK application by username (fullName) or email ID.
+ */
+export async function searchApplicationUsers(
+  query: string,
+  workspaceId?: string
+): Promise<{ users: ApplicationUserSearchResult[]; error: string | null }> {
+  try {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { users: [], error: "Authentication required to search directory." };
+    }
+
+    const trimmed = query.trim();
+
+    const users = await prisma.user.findMany({
+      where: trimmed
+        ? {
+            OR: [
+              { fullName: { contains: trimmed, mode: "insensitive" } },
+              { email: { contains: trimmed, mode: "insensitive" } },
+            ],
+          }
+        : undefined,
+      take: 60,
+      orderBy: { fullName: "asc" },
+      include: {
+        memberships:
+          workspaceId && workspaceId !== "personal-fallback"
+            ? {
+                where: { workspaceId },
+                select: { role: true, status: true },
+              }
+            : false,
+      },
+    });
+
+    const formatted: ApplicationUserSearchResult[] = users.map((u) => {
+      const membership =
+        Array.isArray((u as any).memberships) && (u as any).memberships.length > 0
+          ? (u as any).memberships[0]
+          : null;
+
+      return {
+        id: u.id,
+        fullName: u.fullName || u.email.split("@")[0],
+        email: u.email,
+        avatarUrl: u.avatarUrl,
+        createdAt: u.createdAt.toISOString(),
+        isCurrentWorkspaceMember: Boolean(membership),
+        roleInCurrentWorkspace: (membership?.role as WorkspaceRole) || null,
+        isSelf: u.id === user.id,
+      };
+    });
+
+    return { users: formatted, error: null };
+  } catch (err: any) {
+    console.error("searchApplicationUsers error:", err);
+    return { users: [], error: err.message || "Failed to search application users." };
+  }
+}
+
+/**
+ * Directly adds an existing registered application user into the workspace.
+ */
+export async function addExistingUserToWorkspace(
+  workspaceId: string,
+  targetUserId: string,
+  role: WorkspaceRole = "MEMBER"
+) {
+  try {
+    const access = await verifyWorkspaceAccess(workspaceId, "ADMIN");
+    const targetUser = await prisma.user.findUnique({
+      where: { id: targetUserId },
+    });
+
+    if (!targetUser) {
+      return { success: false, error: "User not found in application directory." };
+    }
+
+    // Check if already a member
+    const existing = await prisma.workspaceMember.findUnique({
+      where: {
+        workspaceId_userId: {
+          workspaceId: access.workspace.id,
+          userId: targetUserId,
+        },
+      },
+    });
+
+    if (existing) {
+      return { success: false, error: "User is already a member of this workspace." };
+    }
+
+    await prisma.workspaceMember.create({
+      data: {
+        workspaceId: access.workspace.id,
+        userId: targetUserId,
+        role,
+        status: "ACTIVE",
+      },
+    });
+
+    revalidatePath("/teams");
+    revalidatePath(`/workspaces/${access.workspace.slug}/members`);
+
+    return { success: true, error: null };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Failed to add member to workspace." };
   }
 }
 

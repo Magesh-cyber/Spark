@@ -32,11 +32,13 @@ function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [generalError, setGeneralError] = useState("");
+  const [unconfirmedEmail, setUnconfirmedEmail] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
     setGeneralError("");
+    setUnconfirmedEmail(null);
 
     const validationResult = loginSchema.safeParse({
       email,
@@ -67,8 +69,9 @@ function LoginForm() {
 
       if (error) {
         if (error.message.toLowerCase().includes("email not confirmed")) {
+          setUnconfirmedEmail(email.trim());
           setGeneralError(
-            "Your email has not been verified yet. Please check your inbox or request a new verification link."
+            "Your email has not been verified yet. Please enter the 6-digit one-time code sent to your email during registration."
           );
         } else if (error.message.toLowerCase().includes("invalid login credentials")) {
           setGeneralError(
@@ -118,9 +121,21 @@ function LoginForm() {
       )}
 
       {generalError && (
-        <div className="mb-4 rounded-[8px] border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-700 dark:text-rose-300 flex items-start gap-2">
-          <AlertCircle className="h-4 w-4 text-rose-500 shrink-0 mt-0.5" />
-          <span>{generalError}</span>
+        <div className="mb-4 rounded-[8px] border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-700 dark:text-rose-300 space-y-2">
+          <div className="flex items-start gap-2">
+            <AlertCircle className="h-4 w-4 text-rose-500 shrink-0 mt-0.5" />
+            <span>{generalError}</span>
+          </div>
+          {unconfirmedEmail && (
+            <div className="pt-1">
+              <Link
+                href={`/auth/verify?email=${encodeURIComponent(unconfirmedEmail)}`}
+                className="inline-flex items-center gap-1 font-semibold text-violet-600 dark:text-violet-400 hover:underline"
+              >
+                Enter 6-digit verification code &rarr;
+              </Link>
+            </div>
+          )}
         </div>
       )}
 

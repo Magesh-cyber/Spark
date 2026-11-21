@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { ShellLayout } from "@/components/layout/ShellLayout";
 import { PageHeader } from "@/components/layout/PageHeader";
 import {
@@ -17,7 +17,17 @@ import { Switch } from "@/components/ui/switch";
 import { useWorkspace } from "@/lib/workspace-context";
 import { useTheme } from "@/lib/theme-context";
 import { updateUserProfile, changeUserPassword } from "@/lib/actions/profile";
-import { AlertCircle, CheckCircle2, Lock, Save, Moon, Sun } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  Lock,
+  Save,
+  Moon,
+  Sun,
+  Camera,
+  Upload,
+  Loader2,
+} from "lucide-react";
 
 export default function SettingsPage() {
   const { currentUser, setCurrentUser, activeWorkspace } = useWorkspace();
@@ -31,6 +41,8 @@ export default function SettingsPage() {
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [profileSuccess, setProfileSuccess] = useState(false);
   const [profileError, setProfileError] = useState("");
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Password state
   const [newPassword, setNewPassword] = useState("");
@@ -43,6 +55,84 @@ export default function SettingsPage() {
     setName(currentUser.name);
     setAvatarUrl(currentUser.avatarUrl || "");
   }, [currentUser]);
+
+  const handleAvatarFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setProfileError("Please select a valid image file (PNG, JPG, WebP, GIF).");
+      return;
+    }
+
+    if (file.size > 12 * 1024 * 1024) {
+      setProfileError("Image size must be less than 12 MB.");
+      return;
+    }
+
+    setIsUploadingAvatar(true);
+    setProfileError("");
+
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const img = new window.Image();
+        img.onload = async () => {
+          const canvas = document.createElement("canvas");
+          const size = 256;
+          canvas.width = size;
+          canvas.height = size;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            setIsUploadingAvatar(false);
+            return;
+          }
+
+          // Center-crop to perfect circle/square
+          const minDim = Math.min(img.width, img.height);
+          const startX = (img.width - minDim) / 2;
+          const startY = (img.height - minDim) / 2;
+
+          ctx.drawImage(img, startX, startY, minDim, minDim, 0, 0, size, size);
+          const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.88);
+
+          setAvatarUrl(compressedDataUrl);
+
+          // Save immediately
+          const res = await updateUserProfile({
+            fullName: name.trim() || currentUser.name,
+            avatarUrl: compressedDataUrl,
+          });
+
+          if (res.success) {
+            setCurrentUser({
+              ...currentUser,
+              name: name.trim() || currentUser.name,
+              avatarUrl: compressedDataUrl,
+            });
+            setProfileSuccess(true);
+            setTimeout(() => setProfileSuccess(false), 3000);
+          } else {
+            setProfileError(res.error || "Failed to update profile photo.");
+          }
+          setIsUploadingAvatar(false);
+        };
+        img.onerror = () => {
+          setProfileError("Failed to process selected image.");
+          setIsUploadingAvatar(false);
+        };
+        img.src = reader.result as string;
+      };
+      reader.onerror = () => {
+        setProfileError("Failed to read file from storage.");
+        setIsUploadingAvatar(false);
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      setProfileError("Unexpected error loading image.");
+      setIsUploadingAvatar(false);
+    }
+  };
 
   const handleProfileSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -198,13 +288,55 @@ export default function SettingsPage() {
               )}
 
               <div className="flex items-center gap-4">
-                <Avatar name={name} src={avatarUrl} size="xl" />
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  className="hidden"
+                  onChange={handleAvatarFileSelect}
+                />
+
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="group relative cursor-pointer select-none rounded-full h-16 w-16"
+                  title="Hover and click to upload photo from your computer"
+                >
+                  <Avatar
+                    name={name}
+                    src={avatarUrl}
+                    size="xl"
+                    className="ring-2 ring-[var(--spark-border)] group-hover:ring-[var(--spark-accent)] transition-all duration-150"
+                  />
+                  
+                  {/* Hover Overlay with Camera Icon */}
+                  <div className="absolute inset-0 rounded-full bg-black/60 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity duration-200">
+                    <Camera className="h-4 w-4 mb-0.5 text-white" />
+                    <span className="text-[9px] font-bold tracking-wider uppercase">Photo</span>
+                  </div>
+
+                  {isUploadingAvatar && (
+                    <div className="absolute inset-0 rounded-full bg-black/70 flex items-center justify-center text-white">
+                      <Loader2 className="h-5 w-5 animate-spin text-white" />
+                    </div>
+                  )}
+                </div>
+
                 <div className="space-y-1">
-                  <p className="text-xs font-semibold text-[var(--spark-text-primary)]">
-                    Profile Avatar
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs font-semibold text-[var(--spark-text-primary)]">
+                      Profile Avatar
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="text-[11px] font-medium text-[var(--spark-accent)] hover:underline inline-flex items-center gap-1"
+                    >
+                      <Upload className="h-3 w-3" />
+                      <span>Choose local image</span>
+                    </button>
+                  </div>
                   <p className="text-[11px] text-[var(--spark-text-secondary)]">
-                    Generated from your initials or custom image URL.
+                    Hover and click the avatar to select any image from your computer (PNG, JPG, WebP).
                   </p>
                 </div>
               </div>

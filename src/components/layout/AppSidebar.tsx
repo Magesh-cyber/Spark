@@ -46,7 +46,6 @@ const PERSONAL_NAV_ITEMS: NavItem[] = [
   { title: "Chat", href: "/chat", icon: MessageSquare },
   { title: "Meet", href: "/meet", icon: Video },
   { title: "AI Assistant", href: "/ai", icon: Bot },
-  { title: "Docs", href: "/docs", icon: FileText },
   { title: "Settings", href: "/settings", icon: Settings },
 ];
 
@@ -58,7 +57,6 @@ const ORG_NAV_ITEMS: NavItem[] = [
   { title: "My Tasks", href: "/tasks", icon: CheckSquare },
   { title: "Calendar", href: "/calendar", icon: Calendar },
   { title: "AI Assistant", href: "/ai", icon: Bot },
-  { title: "Docs & Knowledge", href: "/docs", icon: FileText },
   { title: "People & Teams", href: "/teams", icon: Users },
   { title: "Insights", href: "/insights", icon: LineChart },
   { title: "Settings", href: "/settings", icon: Settings },
