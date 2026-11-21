@@ -54,21 +54,6 @@ export async function requestSignupOtp(
     const otp = Math.floor(1000 + Math.random() * 9000).toString();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-    // 4. Ensure table exists & store pending signup record in Postgres
-    await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS public.email_verification_otps (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        email TEXT NOT NULL,
-        full_name TEXT NOT NULL,
-        password_hash TEXT NOT NULL,
-        otp VARCHAR(10) NOT NULL,
-        attempts INTEGER DEFAULT 0,
-        expires_at TIMESTAMPTZ NOT NULL,
-        created_at TIMESTAMPTZ DEFAULT now()
-      );
-      CREATE INDEX IF NOT EXISTS idx_email_verification_otps_email ON public.email_verification_otps(email);
-    `);
-
     // Delete existing pending OTPs for this email to avoid duplicates
     await prisma.$executeRawUnsafe(
       `DELETE FROM public.email_verification_otps WHERE email = $1`,
