@@ -315,7 +315,7 @@ export function ChannelSidebar({
           className="flex items-center gap-2"
           title={connectionError || undefined}
         >
-          {connectionStatus === "CONNECTED" ? (
+          {connectionStatus === "CONNECTED" || isRealtimeConnected || isReady ? (
             <>
               <span className="h-2 w-2 rounded-full bg-[#10B981] shadow-[0_0_6px_rgba(16,185,129,0.65)]" />
               <span className="font-medium text-[var(--spark-text-secondary)]">
@@ -327,13 +327,6 @@ export function ChannelSidebar({
               <span className="h-2 w-2 rounded-full bg-[#F59E0B] animate-ping" />
               <span className="font-medium text-amber-600 dark:text-amber-400">
                 Connecting...
-              </span>
-            </>
-          ) : isRealtimeConnected || isReady ? (
-            <>
-              <span className="h-2 w-2 rounded-full bg-[#10B981] shadow-[0_0_6px_rgba(16,185,129,0.65)]" />
-              <span className="font-medium text-[var(--spark-text-secondary)]">
-                Connected
               </span>
             </>
           ) : (

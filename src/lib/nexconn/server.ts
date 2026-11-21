@@ -249,11 +249,49 @@ export async function issueNexconnChatToken(
     };
   }
 
-  const data = await callNexconnApi("/user/getToken.json", {
-    userId: params.userId,
-    name: params.name,
-    portraitUri: params.avatarUrl || "https://spark.workplace/default-avatar.png",
-  });
+  // Nexconn Server API requires portraitUri <= 1024 characters and rejects data: URIs or malformed URLs
+  let safePortraitUri = "https://spark.workplace/default-avatar.png";
+  if (
+    params.avatarUrl &&
+    typeof params.avatarUrl === "string" &&
+    !params.avatarUrl.startsWith("data:") &&
+    (params.avatarUrl.startsWith("http://") || params.avatarUrl.startsWith("https://")) &&
+    params.avatarUrl.length <= 1000
+  ) {
+    safePortraitUri = params.avatarUrl;
+  }
+
+  const safeName = (params.name || "SPARK User").trim().slice(0, 128) || "SPARK User";
+
+  let data;
+  try {
+    data = await callNexconnApi("/user/getToken.json", {
+      userId: params.userId,
+      name: safeName,
+      portraitUri: safePortraitUri,
+    });
+  } catch (err) {
+    if (safePortraitUri !== "https://spark.workplace/default-avatar.png") {
+      data = await callNexconnApi("/user/getToken.json", {
+        userId: params.userId,
+        name: safeName,
+        portraitUri: "https://spark.workplace/default-avatar.png",
+      });
+    } else {
+      throw err;
+    }
+  }
+
+  // If Nexconn returned a non-200 response with custom portrait, retry once with default avatar
+  if ((!data || data.code !== 200 || !data.token) && safePortraitUri !== "https://spark.workplace/default-avatar.png") {
+    try {
+      data = await callNexconnApi("/user/getToken.json", {
+        userId: params.userId,
+        name: safeName,
+        portraitUri: "https://spark.workplace/default-avatar.png",
+      });
+    } catch {}
+  }
 
   if (data.code === 200 && data.token) {
     const result = {
