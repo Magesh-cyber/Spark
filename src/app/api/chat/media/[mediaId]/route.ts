@@ -47,7 +47,9 @@ export async function GET(
     // 4. Strict Conversation-Level Access Control (Direct Message participants & Private Channel members)
     if (meta.conversationType === "direct" && meta.conversationTargetId) {
       const isParticipant =
-        user.id === meta.uploaderId || user.id === meta.conversationTargetId;
+        user.id === meta.uploaderId ||
+        user.id === meta.conversationTargetId ||
+        meta.conversationTargetId.includes(user.id);
       if (!isParticipant) {
         return NextResponse.json(
           { error: "Access denied. Only participants of this direct conversation can view this media." },

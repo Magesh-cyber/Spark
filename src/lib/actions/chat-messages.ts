@@ -28,6 +28,7 @@ export async function getCanonicalConversationTarget(
   userId: string
 ): Promise<string> {
   if (type === "channel") return targetId;
+  if (targetId.includes(":")) return targetId;
   const [a, b] = [userId, targetId].sort();
   return `${a}:${b}`;
 }
@@ -70,7 +71,7 @@ export async function persistChatMessage(
       access.workspace.id,
       payload.conversationType,
       canonicalTarget,
-      access.user.id,
+      payload.senderId || access.user.id,
       payload.senderName || access.user.email?.split("@")[0] || "User",
       payload.senderAvatar || null,
       payload.text || "",
@@ -153,6 +154,19 @@ export async function getPersistedMessages(
     const messages: ChatMessageItem[] = (rows || []).map((r) => {
       const isMe = r.sender_id === currentUserId;
       const ts = Number(r.timestamp);
+      const fileInfo =
+        typeof r.file_info === "string"
+          ? JSON.parse(r.file_info)
+          : r.file_info || undefined;
+      const replyTo =
+        typeof r.reply_to === "string"
+          ? JSON.parse(r.reply_to)
+          : r.reply_to || undefined;
+      const handoverData =
+        typeof r.handover_data === "string"
+          ? JSON.parse(r.handover_data)
+          : r.handover_data || undefined;
+
       return {
         id: r.id,
         senderId: r.sender_id,
@@ -168,10 +182,10 @@ export async function getPersistedMessages(
         messageType: r.message_type,
         channelType: r.channel_type,
         status: "sent",
-        fileInfo: r.file_info || undefined,
-        replyTo: r.reply_to || undefined,
+        fileInfo,
+        replyTo,
         isHandover: Boolean(r.is_handover),
-        handoverData: r.handover_data || undefined,
+        handoverData,
       };
     });
 

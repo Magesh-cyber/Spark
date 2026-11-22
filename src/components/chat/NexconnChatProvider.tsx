@@ -1733,6 +1733,7 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
         );
         if (!isCancelled && dbRes.success && dbRes.messages.length > 0) {
           loadedHistoryKeysRef.current.add(storeKey);
+          setIsLoadingMessages(false);
           setConversationsStore((prev) => {
             const existing = prev[storeKey] || clientChatCache.getMessages(wsId, convKey) || [];
             const merged = mergeMessages(dbRes.messages, existing);
@@ -1740,8 +1741,8 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
             return { ...prev, [storeKey]: merged };
           });
 
-          setRawMessages((prev) => {
-            const existing = prev.length > 0 ? prev : (clientChatCache.getMessages(wsId, convKey) || []);
+          setRawMessages(() => {
+            const existing = conversationsStoreRef.current[storeKey] || clientChatCache.getMessages(wsId, convKey) || [];
             const merged = mergeMessages(dbRes.messages, existing);
             clientChatCache.setMessages(wsId, convKey, merged);
             return merged;
