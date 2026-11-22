@@ -21,6 +21,10 @@ import {
   getWorkspaceDirectMessagePeers,
   getOrCreateDirectConversation,
 } from "@/lib/actions/chat-direct";
+import {
+  persistChatMessage,
+  getPersistedMessages,
+} from "@/lib/actions/chat-messages";
 import { recordChatNotification } from "@/lib/actions/notifications";
 import { clientChatCache, clientMembersCache } from "@/lib/client-caches";
 import { subscribeBootstrap } from "@/lib/bootstrap-client";
@@ -1096,6 +1100,26 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
                   return { ...prev, [storeKey]: merged };
                 });
 
+                if (!isMe && belongsToActiveWorkspace) {
+                  persistChatMessage({
+                    id: formattedMsg.id,
+                    workspaceId: msgWsId,
+                    conversationType: convType,
+                    conversationTargetId: targetId,
+                    senderId: senderUserId,
+                    senderName: resolveSenderName(senderUserId),
+                    senderAvatar: resolveSenderAvatar(senderUserId),
+                    text: parsed.text,
+                    messageType: msg.messageType || "RC:TxtMsg",
+                    channelType: channelType || (convType === "channel" ? 3 : 1),
+                    fileInfo: parsed.fileInfo,
+                    replyTo: parsed.replyTo,
+                    isHandover: parsed.isHandover,
+                    handoverData: parsed.handoverData,
+                    timestamp,
+                  }).catch(() => {});
+                }
+
                 const isCurrentlyViewing =
                   belongsToActiveWorkspace &&
                   currentActiveKey === convKey &&
@@ -1693,11 +1717,68 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
     let isCancelled = false;
 
     async function loadHistory() {
-      if (!isReady || !wsId) return;
+      if (!wsId || !activeConversation) return;
 
       const alreadyLoaded = loadedHistoryKeysRef.current.has(storeKey);
       if (!alreadyLoaded && (!cached || cached.length === 0)) {
         setIsLoadingMessages(true);
+      }
+
+      // 1. Instantly load persistent message history from PostgreSQL database
+      try {
+        const dbRes = await getPersistedMessages(
+          wsId,
+          activeConversation.type,
+          activeConversation.nexconnTargetId
+        );
+        if (!isCancelled && dbRes.success && dbRes.messages.length > 0) {
+          loadedHistoryKeysRef.current.add(storeKey);
+          setConversationsStore((prev) => {
+            const existing = prev[storeKey] || clientChatCache.getMessages(wsId, convKey) || [];
+            const merged = mergeMessages(dbRes.messages, existing);
+            clientChatCache.setMessages(wsId, convKey, merged);
+            return { ...prev, [storeKey]: merged };
+          });
+
+          setRawMessages((prev) => {
+            const existing = prev.length > 0 ? prev : (clientChatCache.getMessages(wsId, convKey) || []);
+            const merged = mergeMessages(dbRes.messages, existing);
+            clientChatCache.setMessages(wsId, convKey, merged);
+            return merged;
+          });
+
+          const sorted = [...dbRes.messages].sort((a, b) => a.timestamp - b.timestamp);
+          const latest = sorted[sorted.length - 1];
+          updateWorkspaceSummary(wsId, convKey, (existingSummary) => {
+            if (
+              existingSummary?.lastMessageTimestamp &&
+              existingSummary.lastMessageTimestamp > latest.timestamp
+            ) {
+              return existingSummary;
+            }
+            return {
+              ...(existingSummary || { unreadCount: 0 }),
+              lastMessageText: latest.fileInfo
+                ? getMediaSummaryLabel(latest.fileInfo.type, latest.text)
+                : latest.text,
+              lastMessageTime: latest.time,
+              lastMessageTimestamp: latest.timestamp,
+              lastSenderId: latest.senderId,
+              lastSenderName: latest.senderName,
+              unreadCount:
+                pathnameRef.current?.startsWith("/chat") && isConversationVisibleRef.current
+                  ? 0
+                  : existingSummary?.unreadCount || 0,
+            };
+          });
+        }
+      } catch (dbErr) {
+        console.warn("[NexconnChatProvider] DB history load:", dbErr);
+      }
+
+      if (!isReady) {
+        if (!isCancelled) setIsLoadingMessages(false);
+        return;
       }
 
       try {
@@ -2035,6 +2116,24 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
         const realId = sentResult?.data?.messageId || optimisticId;
         const realTime = sentResult?.data?.sentTime || now;
 
+        // Persist message permanently in PostgreSQL database
+        persistChatMessage({
+          id: realId,
+          workspaceId: wsId,
+          conversationType: active.type,
+          conversationTargetId: active.nexconnTargetId,
+          senderId: myId || currentUser.id,
+          senderName: currentUser.name || "You",
+          senderAvatar: currentUser.avatarUrl || null,
+          text: trimmedText,
+          messageType: "RC:TxtMsg",
+          channelType: active.type === "channel" ? 3 : 1,
+          replyTo: effectiveReplyTo || undefined,
+          isHandover: Boolean(effectiveHandover),
+          handoverData: effectiveHandover || undefined,
+          timestamp: realTime,
+        }).catch(() => {});
+
         const updateMsg = (m: ChatMessageItem): ChatMessageItem =>
           m.id === optimisticId
             ? { ...m, id: realId, timestamp: realTime, status: "sent" }
@@ -2238,6 +2337,29 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
 
         const realId = sentResult?.data?.messageId || optimisticId;
         const realTime = sentResult?.data?.sentTime || now;
+
+        // Persist media message permanently in PostgreSQL database
+        persistChatMessage({
+          id: realId,
+          workspaceId: wsId,
+          conversationType: active.type,
+          conversationTargetId: active.nexconnTargetId,
+          senderId: myId || currentUser.id,
+          senderName: currentUser.name || "You",
+          senderAvatar: currentUser.avatarUrl || null,
+          text: trimmedCaption,
+          messageType: "SPARK:SecureMedia",
+          channelType: active.type === "channel" ? 3 : 1,
+          fileInfo: {
+            name: envelope.name,
+            url: envelope.url,
+            size: envelope.size,
+            mimeType: envelope.mimeType,
+            type: envelope.kind,
+            encrypted: true,
+          },
+          timestamp: realTime,
+        }).catch(() => {});
 
         const updateMsg = (m: ChatMessageItem): ChatMessageItem =>
           m.id === optimisticId

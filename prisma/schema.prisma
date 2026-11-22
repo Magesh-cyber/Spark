@@ -57,6 +57,7 @@ model User {
   createdMeetingLinks WorkspaceMeetingLink[] @relation("MeetingLinkCreator")
   outgoingCalls   WorkspaceCallLog[]    @relation("CallCaller")
   incomingCalls   WorkspaceCallLog[]    @relation("CallReceiver")
+  chatMessages    ChatMessage[]
 
   @@map("users")
 }
@@ -94,6 +95,7 @@ model Workspace {
   notifications Notification[]
   joinRequests WorkspaceJoinRequest[]
   handoverAcknowledgments ChatHandoverAcknowledgment[]
+  chatMessages ChatMessage[]
 
   @@index([ownerId])
   @@index([type])
@@ -643,4 +645,30 @@ model ChatEncryptedMedia {
   @@index([workspaceId])
   @@map("chat_encrypted_media")
 }
+
+model ChatMessage {
+  id                    String   @id
+  workspaceId           String   @map("workspace_id") @db.Uuid
+  conversationType      String   @map("conversation_type")
+  conversationTargetId  String   @map("conversation_target_id")
+  senderId              String   @map("sender_id") @db.Uuid
+  senderName            String   @map("sender_name")
+  senderAvatar          String?  @map("sender_avatar")
+  text                  String   @db.Text
+  messageType           String   @default("RC:TxtMsg") @map("message_type")
+  channelType           Int      @default(1) @map("channel_type")
+  fileInfo              Json?    @map("file_info")
+  replyTo               Json?    @map("reply_to")
+  isHandover            Boolean  @default(false) @map("is_handover")
+  handoverData          Json?    @map("handover_data")
+  timestamp             BigInt   @map("timestamp")
+  createdAt             DateTime @default(now()) @map("created_at")
+
+  workspace             Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  sender                User      @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, conversationType, conversationTargetId, timestamp])
+  @@map("chat_messages")
+}
+
 
