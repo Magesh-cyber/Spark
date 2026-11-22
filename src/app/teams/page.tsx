@@ -557,6 +557,14 @@ export default function TeamsPage() {
                           name={member.user.fullName}
                           src={member.user.avatarUrl || undefined}
                           size="lg"
+                          status={
+                            (chat?.onlineUserIds &&
+                              (chat.onlineUserIds[member.userId] ||
+                                chat.onlineUserIds[member.userId.toLowerCase()])) ||
+                            member.userId === currentUser.id
+                              ? "online"
+                              : "offline"
+                          }
                         />
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">

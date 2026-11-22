@@ -1,25 +1,52 @@
 const fs = require('fs');
-for (const l of fs.readFileSync('.env.local', 'utf8').split('\n')) {
-  const m = l.trim().match(/^([A-Za-z0-9_]+)\s*=\s*(.*)$/);
-  if (m) process.env[m[1]] = m[2].trim().replace(/^["']|["']$/g, '');
-}
 const { createClient } = require('@supabase/supabase-js');
-const sb = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
-const ch = sb.channel('spark_presence_test', { config: { presence: { key: 'probe-1' } } });
-ch.on('presence', { event: 'sync' }, () => {
-  const keys = Object.keys(ch.presenceState());
-  if (keys.length > 0) {
-    console.log('PRESENCE SYNC OK! Online keys:', keys);
-    ch.unsubscribe().then(() => process.exit(0));
+
+const envFile = fs.readFileSync('.env.local', 'utf8');
+const env = {};
+for (const line of envFile.split('\n')) {
+  const trimmed = line.trim();
+  if (!trimmed || trimmed.startsWith('#')) continue;
+  const idx = trimmed.indexOf('=');
+  if (idx > 0) {
+    const k = trimmed.slice(0, idx).trim();
+    let v = trimmed.slice(idx + 1).trim();
+    if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
+      v = v.slice(1, -1);
+    }
+    env[k] = v;
   }
+}
+
+const url = env.NEXT_PUBLIC_SUPABASE_URL;
+const key = env.NEXT_PUBLIC_SUPABASE_ANON_KEY || env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+console.log('Connecting to Supabase at:', url);
+const client = createClient(url, key);
+
+const channel = client.channel('spark_presence_test_ws', {
+  config: {
+    presence: { key: 'user_123' },
+  },
 });
-ch.subscribe(async (status) => {
-  console.log('Channel status:', status);
-  if (status === 'SUBSCRIBED') {
-    await ch.track({ userId: 'probe-1', onlineAt: Date.now() });
-  }
-});
-setTimeout(() => { console.log('Timeout'); process.exit(1); }, 8000);
+
+channel
+  .on('presence', { event: 'sync' }, () => {
+    console.log('PRESENCE SYNC EVENT! State:', JSON.stringify(channel.presenceState()));
+  })
+  .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+    console.log('PRESENCE JOIN:', key, newPresences);
+  })
+  .subscribe(async (status) => {
+    console.log('Subscription status:', status);
+    if (status === 'SUBSCRIBED') {
+      console.log('Tracking user_123...');
+      const res = await channel.track({ userId: 'user_123', onlineAt: Date.now() });
+      console.log('Track result:', res);
+    }
+  });
+
+setTimeout(() => {
+  console.log('Final presenceState:', JSON.stringify(channel.presenceState()));
+  client.removeChannel(channel);
+  process.exit(0);
+}, 4000);

@@ -40,7 +40,10 @@ export function ConversationHeader({
   }
 
   const isChannel = activeConversation.type === "channel";
-  const isPeerOnline = !isChannel && Boolean(onlineUserIds[activeConversation.nexconnTargetId]);
+  const targetId = activeConversation.nexconnTargetId;
+  const isPeerOnline =
+    !isChannel &&
+    Boolean(onlineUserIds[targetId] || (targetId && onlineUserIds[targetId.toLowerCase()]));
 
   const convKey = `${activeConversation.type}:${activeConversation.nexconnTargetId}`;
   const unreadCount = summaries[convKey]?.unreadCount || 0;
@@ -98,13 +101,8 @@ export function ConversationHeader({
                 name={activeConversation.name}
                 size="sm"
                 src={activeConversation.peer?.avatarUrl || undefined}
+                status={isPeerOnline ? "online" : "offline"}
               />
-              {isPeerOnline && (
-                <span
-                  className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-[#10B981] ring-2 ring-[var(--spark-surface)]"
-                  title="Online"
-                />
-              )}
             </div>
           )}
 
@@ -125,10 +123,22 @@ export function ConversationHeader({
               </span>
             )}
 
-            {isPeerOnline && (
-              <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-[#10B981]/12 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-300">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#10B981]" />
-                Active
+            {!isChannel && (
+              <span
+                className={cn(
+                  "hidden sm:inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-medium border transition-colors",
+                  isPeerOnline
+                    ? "bg-emerald-500/10 border-emerald-500/25 text-emerald-700 dark:text-emerald-300"
+                    : "bg-zinc-500/10 border-zinc-500/15 text-[var(--spark-text-muted)]"
+                )}
+              >
+                <span
+                  className={cn(
+                    "h-1.5 w-1.5 rounded-full shrink-0",
+                    isPeerOnline ? "bg-[#10B981] animate-pulse" : "bg-zinc-400 dark:bg-zinc-500"
+                  )}
+                />
+                {isPeerOnline ? "Active" : "Offline"}
               </span>
             )}
           </div>

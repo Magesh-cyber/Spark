@@ -13,8 +13,13 @@ import {
 
 export function ChannelDetailsDrawer() {
   const { activeWorkspace } = useWorkspace();
-  const { activeConversation, channelDetails, refreshChannels, setActiveConversation } =
-    useNexconnChat();
+  const {
+    activeConversation,
+    channelDetails,
+    refreshChannels,
+    setActiveConversation,
+    onlineUserIds,
+  } = useNexconnChat();
 
   const [isAddingPin, setIsAddingPin] = useState(false);
   const [pinTitle, setPinTitle] = useState("");
@@ -155,6 +160,12 @@ export function ChannelDetailsDrawer() {
                 name={channelDetails.creator.fullName}
                 size="sm"
                 src={channelDetails.creator.avatarUrl || undefined}
+                status={
+                  onlineUserIds[channelDetails.creator.id] ||
+                  onlineUserIds[channelDetails.creator.id.toLowerCase()]
+                    ? "online"
+                    : "offline"
+                }
               />
               <div className="truncate">
                 <div className="text-xs font-medium text-[var(--spark-text-primary)] truncate">
@@ -172,6 +183,11 @@ export function ChannelDetailsDrawer() {
                     name={member.fullName}
                     size="sm"
                     src={member.avatarUrl || undefined}
+                    status={
+                      onlineUserIds[member.id] || onlineUserIds[member.id.toLowerCase()]
+                        ? "online"
+                        : "offline"
+                    }
                   />
                   <div className="truncate">
                     <div className="text-xs font-medium text-[var(--spark-text-primary)] truncate">

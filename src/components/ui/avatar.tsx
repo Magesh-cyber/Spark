@@ -28,17 +28,17 @@ export const Avatar: React.FC<AvatarProps> = ({
   };
 
   const statusSize = {
-    sm: "h-2 w-2 ring-1",
-    md: "h-2.5 w-2.5 ring-2",
-    lg: "h-3 w-3 ring-2",
-    xl: "h-3.5 w-3.5 ring-2",
+    sm: "h-2.5 w-2.5",
+    md: "h-3 w-3",
+    lg: "h-3.5 w-3.5",
+    xl: "h-4 w-4",
   };
 
   const statusColor = {
     online: "bg-[#10B981]",
     busy: "bg-rose-500",
     away: "bg-[#F59E0B]",
-    offline: "bg-[var(--spark-text-muted)]",
+    offline: "bg-zinc-300 dark:bg-zinc-600",
   };
 
   // Generate initials
@@ -69,29 +69,35 @@ export const Avatar: React.FC<AvatarProps> = ({
   return (
     <div
       className={cn(
-        "relative inline-flex shrink-0 items-center justify-center rounded-full font-semibold select-none border border-[var(--spark-border)] overflow-hidden transition-colors duration-150",
+        "relative inline-flex shrink-0 items-center justify-center rounded-full font-semibold select-none transition-colors duration-150",
         sizeClasses[size],
-        bgHue,
         className
       )}
       {...props}
     >
-      {src && !imageError ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={src}
-          alt={alt || name || "Avatar"}
-          onError={() => setImageError(true)}
-          className="h-full w-full object-cover"
-        />
-      ) : (
-        <span>{initials}</span>
-      )}
+      <div
+        className={cn(
+          "h-full w-full rounded-full border border-[var(--spark-border)] overflow-hidden flex items-center justify-center",
+          bgHue
+        )}
+      >
+        {src && !imageError ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={src}
+            alt={alt || name || "Avatar"}
+            onError={() => setImageError(true)}
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <span>{initials}</span>
+        )}
+      </div>
 
       {status && (
         <span
           className={cn(
-            "absolute bottom-0 right-0 rounded-full ring-[var(--spark-surface)]",
+            "absolute -bottom-0.5 -right-0.5 rounded-full ring-2 ring-[var(--spark-surface)] shadow-xs transition-colors duration-150",
             statusSize[size],
             statusColor[status]
           )}

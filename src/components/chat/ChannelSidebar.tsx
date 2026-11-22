@@ -220,6 +220,10 @@ export function ChannelSidebar({
                 const unread = summary?.unreadCount || 0;
                 const isTyping = Boolean(summary?.isTyping || (peer.id && typingStatus[`direct:${peer.id}`]));
 
+                const isOnline = Boolean(
+                  onlineUserIds[peer.id] || onlineUserIds[peer.id.toLowerCase()]
+                );
+
                 return (
                   <button
                     key={peer.id}
@@ -246,13 +250,8 @@ export function ChannelSidebar({
                           name={peer.fullName}
                           size="sm"
                           src={peer.avatarUrl || undefined}
+                          status={isOnline ? "online" : "offline"}
                         />
-                        {onlineUserIds[peer.id] && (
-                          <span
-                            className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-[#10B981] ring-2 ring-[var(--spark-surface)]"
-                            title="Online"
-                          />
-                        )}
                       </div>
 
                       <div className="truncate min-w-0 flex-1">
@@ -288,9 +287,15 @@ export function ChannelSidebar({
                             {summary.lastSenderName === "You" ? "You: " : ""}
                             {summary.lastMessageText}
                           </p>
+                        ) : isOnline ? (
+                          <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium truncate mt-0.5 flex items-center gap-1">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                            <span>Active now</span>
+                          </p>
                         ) : (
-                          <p className="text-[11px] text-[var(--spark-text-muted)] font-normal truncate mt-0.5">
-                            {peer.email}
+                          <p className="text-[11px] text-[var(--spark-text-muted)] font-normal truncate mt-0.5 flex items-center gap-1">
+                            <span className="h-1.5 w-1.5 rounded-full bg-zinc-300 dark:bg-zinc-600 shrink-0" />
+                            <span className="truncate">{peer.email}</span>
                           </p>
                         )}
                       </div>

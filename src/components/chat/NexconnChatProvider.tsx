@@ -1338,9 +1338,21 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
     const syncOnlineMap = () => {
       const state = channel.presenceState();
       const nextMap: Record<string, boolean> = {};
+      const myId = currentUserIdRef.current || currentUser?.id || userId;
+      if (myId) {
+        nextMap[myId] = true;
+        nextMap[myId.toLowerCase()] = true;
+      }
       for (const [key, presences] of Object.entries(state)) {
         if (Array.isArray(presences) && presences.length > 0) {
           nextMap[key] = true;
+          nextMap[key.toLowerCase()] = true;
+          for (const p of presences as any[]) {
+            if (p?.userId) {
+              nextMap[p.userId] = true;
+              nextMap[String(p.userId).toLowerCase()] = true;
+            }
+          }
         }
       }
       setOnlineUserIds(nextMap);
@@ -1480,6 +1492,7 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
           setIsRealtimeConnected(true);
           try {
             await channel.track({ userId, onlineAt: Date.now() });
+            syncOnlineMap();
           } catch {}
         } else if (status === "CLOSED" || status === "CHANNEL_ERROR") {
           setIsRealtimeConnected(false);
@@ -1561,17 +1574,50 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
       })
       .subscribe();
 
+    const handleReTrack = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        try {
+          channel.track({ userId, onlineAt: Date.now() }).catch(() => {});
+          syncOnlineMap();
+        } catch {}
+      }
+    };
+
     const handlePageHide = () => {
       try {
         channel.untrack();
       } catch {}
     };
-    window.addEventListener("pagehide", handlePageHide);
-    window.addEventListener("beforeunload", handlePageHide);
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("focus", handleReTrack);
+      window.addEventListener("pageshow", handleReTrack);
+      window.addEventListener("pagehide", handlePageHide);
+      window.addEventListener("beforeunload", handlePageHide);
+    }
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", handleReTrack);
+    }
+
+    const presenceHeartbeat = setInterval(() => {
+      try {
+        if (channel && channel.state === "joined") {
+          channel.track({ userId, onlineAt: Date.now() }).catch(() => {});
+        }
+      } catch {}
+    }, 20_000);
 
     return () => {
-      window.removeEventListener("pagehide", handlePageHide);
-      window.removeEventListener("beforeunload", handlePageHide);
+      clearInterval(presenceHeartbeat);
+      if (typeof window !== "undefined") {
+        window.removeEventListener("focus", handleReTrack);
+        window.removeEventListener("pageshow", handleReTrack);
+        window.removeEventListener("pagehide", handlePageHide);
+        window.removeEventListener("beforeunload", handlePageHide);
+      }
+      if (typeof document !== "undefined") {
+        document.removeEventListener("visibilitychange", handleReTrack);
+      }
       if (realtimeChannelRef.current === channel) {
         realtimeChannelRef.current = null;
       }
