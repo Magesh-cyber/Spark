@@ -141,12 +141,13 @@ export async function getPersistedMessages(
        FROM "chat_messages"
        WHERE "workspace_id" = $1::uuid
          AND "conversation_type" = $2
-         AND "conversation_target_id" = $3
+         AND ("conversation_target_id" = $3 OR "conversation_target_id" = $4)
        ORDER BY "timestamp" ASC
-       LIMIT $4`,
+       LIMIT $5`,
       access.workspace.id,
       conversationType,
       canonicalTarget,
+      conversationTargetId,
       limit
     );
 

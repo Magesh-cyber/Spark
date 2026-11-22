@@ -204,7 +204,7 @@ export function MessageStream() {
     );
   }
 
-  if (isLoadingMessages) {
+  if (isLoadingMessages && messages.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center p-6 text-center bg-[var(--spark-canvas)]/55">
         <div className="flex flex-col items-center gap-2.5">

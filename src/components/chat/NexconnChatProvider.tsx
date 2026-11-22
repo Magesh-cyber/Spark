@@ -1770,150 +1770,41 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
         setIsLoadingMessages(true);
       }
 
-      // 1. Instantly load persistent message history from PostgreSQL database
+      // Hard safety timer: Under no circumstances allow the UI to stay blocked for > 1000ms
+      const safetyTimeout = setTimeout(() => {
+        if (!isCancelled) {
+          setIsLoadingMessages(false);
+        }
+      }, 1000);
+
+      // 1. Instantly load persistent message history from PostgreSQL database (takes ~150ms)
       try {
         const dbRes = await getPersistedMessages(
           wsId,
           activeConversation.type,
           activeConversation.nexconnTargetId
         );
-        if (!isCancelled && dbRes.success && dbRes.messages.length > 0) {
+        clearTimeout(safetyTimeout);
+        if (!isCancelled) {
           loadedHistoryKeysRef.current.add(storeKey);
           setIsLoadingMessages(false);
-          setConversationsStore((prev) => {
-            const existing = prev[storeKey] || clientChatCache.getMessages(wsId, convKey) || [];
-            const merged = mergeMessages(dbRes.messages, existing);
-            clientChatCache.setMessages(wsId, convKey, merged);
-            return { ...prev, [storeKey]: merged };
-          });
 
-          setRawMessages(() => {
-            const existing = conversationsStoreRef.current[storeKey] || clientChatCache.getMessages(wsId, convKey) || [];
-            const merged = mergeMessages(dbRes.messages, existing);
-            clientChatCache.setMessages(wsId, convKey, merged);
-            return merged;
-          });
-
-          const sorted = [...dbRes.messages].sort((a, b) => a.timestamp - b.timestamp);
-          const latest = sorted[sorted.length - 1];
-          updateWorkspaceSummary(wsId, convKey, (existingSummary) => {
-            if (
-              existingSummary?.lastMessageTimestamp &&
-              existingSummary.lastMessageTimestamp > latest.timestamp
-            ) {
-              return existingSummary;
-            }
-            return {
-              ...(existingSummary || { unreadCount: 0 }),
-              lastMessageText: latest.fileInfo
-                ? getMediaSummaryLabel(latest.fileInfo.type, latest.text)
-                : latest.text,
-              lastMessageTime: latest.time,
-              lastMessageTimestamp: latest.timestamp,
-              lastSenderId: latest.senderId,
-              lastSenderName: latest.senderName,
-              unreadCount:
-                pathnameRef.current?.startsWith("/chat") && isConversationVisibleRef.current
-                  ? 0
-                  : existingSummary?.unreadCount || 0,
-            };
-          });
-        }
-      } catch (dbErr) {
-        console.warn("[NexconnChatProvider] DB history load:", dbErr);
-      }
-
-      if (!isReady) {
-        if (!isCancelled) setIsLoadingMessages(false);
-        return;
-      }
-
-      try {
-        const {
-          BaseChannel,
-          GroupChannel,
-          DirectChannel,
-          GroupChannelIdentifier,
-          DirectChannelIdentifier,
-        } = await import("@nexconn/chat");
-
-        if (pathnameRef.current?.startsWith("/chat") && isConversationVisibleRef.current) {
-          try {
-            const chInstance =
-              activeConversation?.type === "channel"
-                ? new GroupChannel(activeConversation.nexconnTargetId)
-                : new DirectChannel(activeConversation!.nexconnTargetId);
-            chInstance.clearUnreadCount().catch(() => {});
-          } catch {}
-        }
-
-        const identifier =
-          activeConversation?.type === "channel"
-            ? new GroupChannelIdentifier(activeConversation.nexconnTargetId)
-            : new DirectChannelIdentifier(activeConversation!.nexconnTargetId);
-
-        const query = BaseChannel.createMessagesQuery({
-          channelIdentifier: identifier,
-          pageSize: 40,
-        });
-
-        const result = await query.loadNextPage();
-
-        if (!isCancelled && result && result.isOk && result.data) {
-          loadedHistoryKeysRef.current.add(storeKey);
-
-          const rawList = extractPageItems(result.data);
-          const myId = currentUserIdRef.current || currentUser?.id;
-
-          const formatted: ChatMessageItem[] = [];
-          for (const msg of rawList) {
-            const parsed = parseIncomingContent(msg);
-
-            // Direct messages are preserved between colleagues
-            const isMe = Boolean(myId && (msg.senderUserId === myId || msg.senderUserId === "me"));
-            const timestamp = msg.sentTime || Date.now();
-            formatted.push({
-              id: msg.messageId || `msg_${timestamp}_${Math.random()}`,
-              senderId: msg.senderUserId,
-              senderName: isMe
-                ? "You"
-                : activeConversation?.type === "direct"
-                ? activeConversation.name
-                : resolveSenderName(msg.senderUserId),
-              senderAvatar: isMe ? undefined : resolveSenderAvatar(msg.senderUserId),
-              text: parsed.text,
-              time: new Date(timestamp).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              }),
-              timestamp,
-              isMe,
-              messageType: msg.messageType || "RC:TxtMsg",
-              channelType: activeConversation?.type === "channel" ? 3 : 1,
-              status: "sent",
-              fileInfo: parsed.fileInfo,
-              replyTo: parsed.replyTo,
-              isHandover: parsed.isHandover,
-              handoverData: parsed.handoverData,
+          if (dbRes.success && dbRes.messages.length > 0) {
+            setConversationsStore((prev) => {
+              const existing = prev[storeKey] || clientChatCache.getMessages(wsId, convKey) || [];
+              const merged = mergeMessages(dbRes.messages, existing);
+              clientChatCache.setMessages(wsId, convKey, merged);
+              return { ...prev, [storeKey]: merged };
             });
-          }
 
-          setConversationsStore((prev) => {
-            const existing = prev[storeKey] || clientChatCache.getMessages(wsId, convKey) || [];
-            const merged = mergeMessages(formatted, existing);
-            clientChatCache.setMessages(wsId, convKey, merged);
-            return { ...prev, [storeKey]: merged };
-          });
+            setRawMessages(() => {
+              const existing = conversationsStoreRef.current[storeKey] || clientChatCache.getMessages(wsId, convKey) || [];
+              const merged = mergeMessages(dbRes.messages, existing);
+              clientChatCache.setMessages(wsId, convKey, merged);
+              return merged;
+            });
 
-          setRawMessages((prev) => {
-            const existing = prev.length > 0 ? prev : (clientChatCache.getMessages(wsId, convKey) || []);
-            const merged = mergeMessages(formatted, existing);
-            clientChatCache.setMessages(wsId, convKey, merged);
-            return merged;
-          });
-
-          if (formatted.length > 0) {
-            const sorted = [...formatted].sort((a, b) => a.timestamp - b.timestamp);
+            const sorted = [...dbRes.messages].sort((a, b) => a.timestamp - b.timestamp);
             const latest = sorted[sorted.length - 1];
             updateWorkspaceSummary(wsId, convKey, (existingSummary) => {
               if (
@@ -1932,19 +1823,136 @@ export function NexconnChatProvider({ children }: { children: React.ReactNode })
                 lastSenderId: latest.senderId,
                 lastSenderName: latest.senderName,
                 unreadCount:
-                  pathnameRef.current?.startsWith("/chat") &&
-                  isConversationVisibleRef.current
+                  pathnameRef.current?.startsWith("/chat") && isConversationVisibleRef.current
                     ? 0
                     : existingSummary?.unreadCount || 0,
               };
             });
           }
         }
-      } catch (err) {
-        console.error("Failed to load message history:", err);
-      } finally {
+      } catch (dbErr) {
+        clearTimeout(safetyTimeout);
         if (!isCancelled) setIsLoadingMessages(false);
+        console.warn("[NexconnChatProvider] DB history load:", dbErr);
       }
+
+      if (!isReady) return;
+
+      // 2. Background roaming check (completely non-blocking, never keeps UI on loading)
+      (async () => {
+        try {
+          const {
+            BaseChannel,
+            GroupChannel,
+            DirectChannel,
+            GroupChannelIdentifier,
+            DirectChannelIdentifier,
+          } = await import("@nexconn/chat");
+
+          if (pathnameRef.current?.startsWith("/chat") && isConversationVisibleRef.current) {
+            try {
+              const chInstance =
+                activeConversation?.type === "channel"
+                  ? new GroupChannel(activeConversation.nexconnTargetId)
+                  : new DirectChannel(activeConversation!.nexconnTargetId);
+              chInstance.clearUnreadCount().catch(() => {});
+            } catch {}
+          }
+
+          const identifier =
+            activeConversation?.type === "channel"
+              ? new GroupChannelIdentifier(activeConversation.nexconnTargetId)
+              : new DirectChannelIdentifier(activeConversation!.nexconnTargetId);
+
+          const query = BaseChannel.createMessagesQuery({
+            channelIdentifier: identifier,
+            pageSize: 40,
+          });
+
+          const result = await query.loadNextPage();
+
+          if (!isCancelled && result && result.isOk && result.data) {
+            const rawList = extractPageItems(result.data);
+            const myId = currentUserIdRef.current || currentUser?.id;
+
+            const formatted: ChatMessageItem[] = [];
+            for (const msg of rawList) {
+              const parsed = parseIncomingContent(msg);
+
+              const isMe = Boolean(myId && (msg.senderUserId === myId || msg.senderUserId === "me"));
+              const timestamp = msg.sentTime || Date.now();
+              formatted.push({
+                id: msg.messageId || `msg_${timestamp}_${Math.random()}`,
+                senderId: msg.senderUserId,
+                senderName: isMe
+                  ? "You"
+                  : activeConversation?.type === "direct"
+                  ? activeConversation.name
+                  : resolveSenderName(msg.senderUserId),
+                senderAvatar: isMe ? undefined : resolveSenderAvatar(msg.senderUserId),
+                text: parsed.text,
+                time: new Date(timestamp).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }),
+                timestamp,
+                isMe,
+                messageType: msg.messageType || "RC:TxtMsg",
+                channelType: activeConversation?.type === "channel" ? 3 : 1,
+                status: "sent",
+                fileInfo: parsed.fileInfo,
+                replyTo: parsed.replyTo,
+                isHandover: parsed.isHandover,
+                handoverData: parsed.handoverData,
+              });
+            }
+
+            if (formatted.length > 0) {
+              setConversationsStore((prev) => {
+                const existing = prev[storeKey] || clientChatCache.getMessages(wsId, convKey) || [];
+                const merged = mergeMessages(formatted, existing);
+                clientChatCache.setMessages(wsId, convKey, merged);
+                return { ...prev, [storeKey]: merged };
+              });
+
+              setRawMessages((prev) => {
+                const existing = prev.length > 0 ? prev : (clientChatCache.getMessages(wsId, convKey) || []);
+                const merged = mergeMessages(formatted, existing);
+                clientChatCache.setMessages(wsId, convKey, merged);
+                return merged;
+              });
+
+              const sorted = [...formatted].sort((a, b) => a.timestamp - b.timestamp);
+              const latest = sorted[sorted.length - 1];
+              updateWorkspaceSummary(wsId, convKey, (existingSummary) => {
+                if (
+                  existingSummary?.lastMessageTimestamp &&
+                  existingSummary.lastMessageTimestamp > latest.timestamp
+                ) {
+                  return existingSummary;
+                }
+                return {
+                  ...(existingSummary || { unreadCount: 0 }),
+                  lastMessageText: latest.fileInfo
+                    ? getMediaSummaryLabel(latest.fileInfo.type, latest.text)
+                    : latest.text,
+                  lastMessageTime: latest.time,
+                  lastMessageTimestamp: latest.timestamp,
+                  lastSenderId: latest.senderId,
+                  lastSenderName: latest.senderName,
+                  unreadCount:
+                    pathnameRef.current?.startsWith("/chat") &&
+                    isConversationVisibleRef.current
+                      ? 0
+                      : existingSummary?.unreadCount || 0,
+                };
+              });
+            }
+          }
+        } catch {
+          // Silent background sync
+        }
+      })();
     }
 
     loadHistory();
