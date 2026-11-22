@@ -92,36 +92,39 @@ function isSafeId(val: string): boolean {
   return /^[a-zA-Z0-9_-]{8,80}$/.test(val);
 }
 
-let tableInitPromise: Promise<void> | null = null;
+let tableCreated = false;
 async function ensureMediaTable(): Promise<void> {
-  if (!tableInitPromise) {
-    tableInitPromise = (async () => {
-      try {
-        await prisma.$executeRawUnsafe(`
-          CREATE TABLE IF NOT EXISTS "chat_encrypted_media" (
-            "id" TEXT PRIMARY KEY,
-            "workspace_id" UUID NOT NULL,
-            "uploader_id" UUID NOT NULL,
-            "conversation_type" TEXT,
-            "conversation_target_id" TEXT,
-            "original_name" TEXT NOT NULL,
-            "mime_type" TEXT NOT NULL,
-            "size" INTEGER NOT NULL,
-            "kind" TEXT NOT NULL,
-            "iv_hex" TEXT NOT NULL,
-            "auth_tag_hex" TEXT NOT NULL,
-            "sha256" TEXT NOT NULL,
-            "encrypted_data" TEXT NOT NULL,
-            "created_at" TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
-          );
-          CREATE INDEX IF NOT EXISTS "idx_chat_encrypted_media_ws" ON "chat_encrypted_media" ("workspace_id");
-        `);
-      } catch (err) {
-        console.warn("[Media DB init]:", err);
-      }
-    })();
+  if (tableCreated) return;
+  try {
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "chat_encrypted_media" (
+        "id" TEXT PRIMARY KEY,
+        "workspace_id" UUID NOT NULL,
+        "uploader_id" UUID NOT NULL,
+        "conversation_type" TEXT,
+        "conversation_target_id" TEXT,
+        "original_name" TEXT NOT NULL,
+        "mime_type" TEXT NOT NULL,
+        "size" INTEGER NOT NULL,
+        "kind" TEXT NOT NULL,
+        "iv_hex" TEXT NOT NULL,
+        "auth_tag_hex" TEXT NOT NULL,
+        "sha256" TEXT NOT NULL,
+        "encrypted_data" TEXT NOT NULL,
+        "created_at" TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+      )
+    `);
+    try {
+      await prisma.$executeRawUnsafe(`
+        CREATE INDEX IF NOT EXISTS "idx_chat_encrypted_media_ws" ON "chat_encrypted_media" ("workspace_id")
+      `);
+    } catch {
+      // Non-fatal if index already exists
+    }
+    tableCreated = true;
+  } catch (err) {
+    console.warn("[Media DB init]:", err);
   }
-  return tableInitPromise;
 }
 
 /**
